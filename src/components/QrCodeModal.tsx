@@ -30,9 +30,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
 
   if (!isOpen) return null;
 
+  const effectiveHostId = hostPeerId || peerSync.getHostId();
+
   // WebRTC QR URL with dynamic session key &k=
   const guestUrl = typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.host}?mode=guest${hostPeerId ? `&host=${hostPeerId}` : ''}&k=${qrKey}`
+    ? `${window.location.protocol}//${window.location.host}?mode=guest${effectiveHostId ? `&host=${effectiveHostId}` : ''}&k=${qrKey}`
     : 'http://localhost:3005/?mode=guest';
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(guestUrl)}&color=00f0ff&bgcolor=080811`;
@@ -141,13 +143,20 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
         {/* QR Code Container */}
         <div className="p-6 flex flex-col items-center gap-4">
           <div className="p-3 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.3)] min-h-[240px] min-w-[240px] flex items-center justify-center">
-            <img
-              key={qrImageUrl}
-              src={qrImageUrl}
-              alt="Código QR para pedir canción"
-              className="w-56 h-56 rounded-xl object-contain bg-slate-950"
-              loading="eager"
-            />
+            {!effectiveHostId ? (
+              <div className="flex flex-col items-center justify-center text-cyan-400">
+                <RefreshCw className="w-8 h-8 animate-spin mb-3" />
+                <span className="text-xs font-bold uppercase tracking-wider">Iniciando...</span>
+              </div>
+            ) : (
+              <img
+                key={qrImageUrl}
+                src={qrImageUrl}
+                alt="Código QR para pedir canción"
+                className="w-56 h-56 rounded-xl object-contain bg-slate-950"
+                loading="eager"
+              />
+            )}
           </div>
 
           <div>
