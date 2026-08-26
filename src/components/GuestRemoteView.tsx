@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SongItem, SingerProfile } from '../types';
-import { getSongsFromDB, getProfilesFromStorage, saveProfilesToStorage, getActiveProfileIdFromStorage, setActiveProfileIdToStorage } from '../services/db';
+import { getSongsFromDB } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
-import { Check, ListPlus, UserRound, ScanLine, ShieldX } from 'lucide-react';
+import { Check, ListPlus, UserRound, ScanLine, ShieldX, RefreshCw, QrCode } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
 const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
@@ -12,7 +12,21 @@ const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
 export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
-  const [kicked, setKicked] = useState(false);
+
+  // Synchronously compute kicked state on first render to prevent ANY flash of catalog on refresh
+  const [kicked, setKicked] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const hostParam = params.get('host') || '';
+      const kickedHost = localStorage.getItem('karaokelab_kicked_host') || localStorage.getItem('karaokelab_kicked_from');
+      if (kickedHost && (kickedHost === hostParam || !hostParam)) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  });
+
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [profiles, setProfiles] = useState<SingerProfile[]>([
     { id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 },
@@ -21,18 +35,22 @@ export const GuestRemoteView: React.FC = () => {
   const [queuedFeedback, setQueuedFeedback] = useState<string | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
-  // Check if guest was kicked from this host (block reconnection on refresh)
+  // Initial setup: check kicked status & load profiles
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hostParam = params.get('host') || '';
-    const kickedFrom = localStorage.getItem('karaokelab_kicked_from');
-    if (kickedFrom && kickedFrom === hostParam) {
+    const kickedHost = localStorage.getItem('karaokelab_kicked_host') || localStorage.getItem('karaokelab_kicked_from');
+
+    if (kickedHost && (kickedHost === hostParam || !hostParam)) {
       setKicked(true);
       return;
     }
-    // Clear any stale kicked flag if connecting to a different host (new QR scan)
-    if (kickedFrom && kickedFrom !== hostParam && hostParam) {
+
+    // If connecting with a different host ID (new QR session), reset kicked status
+    if (kickedHost && hostParam && kickedHost !== hostParam) {
+      localStorage.removeItem('karaokelab_kicked_host');
       localStorage.removeItem('karaokelab_kicked_from');
+      setKicked(false);
     }
 
     const saved = localStorage.getItem('karaokelab_guest_name');
@@ -40,6 +58,7 @@ export const GuestRemoteView: React.FC = () => {
       setGuestName(saved);
       setNameConfirmed(true);
     }
+
     // Load guest-local profiles
     try {
       const raw = localStorage.getItem(GUEST_PROFILE_KEY);
@@ -50,11 +69,11 @@ export const GuestRemoteView: React.FC = () => {
         }
       }
     } catch (_) {}
-    // Load active profile
+
     const activeId = localStorage.getItem(GUEST_ACTIVE_PROFILE_KEY) || 'profile_all';
     setActiveProfileId(activeId);
 
-    // Register kicked callback so host can kick us in real-time
+    // Real-time listener: host kicked this device
     const unsubKick = peerSync.onKicked(() => {
       setKicked(true);
     });
@@ -69,9 +88,9 @@ export const GuestRemoteView: React.FC = () => {
     } catch (_) {}
   }, []);
 
-  // Connect to host and load songs once name is confirmed
+  // Connect to host and load songs once name is confirmed (and ONLY if not kicked)
   useEffect(() => {
-    if (!nameConfirmed) return;
+    if (!nameConfirmed || kicked) return;
 
     const loadSongs = async () => {
       let songs = await getSongsFromDB();
@@ -125,7 +144,7 @@ export const GuestRemoteView: React.FC = () => {
       }
     });
     return () => unsub();
-  }, [nameConfirmed]);
+  }, [nameConfirmed, kicked]);
 
   const handleConfirmName = () => {
     const trimmed = guestName.trim() || 'Invitado';
@@ -136,6 +155,8 @@ export const GuestRemoteView: React.FC = () => {
   };
 
   const handleRequestSong = (song: SongItem) => {
+    if (kicked) return;
+
     peerSync.sendSongRequestFromGuest({
       id: song.id,
       title: song.title,
@@ -154,7 +175,7 @@ export const GuestRemoteView: React.FC = () => {
   };
 
   const handleRequestCustomSong = (title: string) => {
-    if (!title.trim()) return;
+    if (kicked || !title.trim()) return;
 
     peerSync.sendSongRequestFromGuest({ title: title.trim() });
     tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
@@ -167,7 +188,7 @@ export const GuestRemoteView: React.FC = () => {
     setTimeout(() => setQueuedFeedback(null), 4000);
   };
 
-  // ── Guest-side profile management (stored in guest's localStorage only) ──
+  // ── Guest-side profile management ──
   const handleCreateProfile = (name: string, avatar: string, color: string) => {
     const newProfile: SingerProfile = {
       id: `guest_profile_${Date.now()}`,
@@ -207,35 +228,66 @@ export const GuestRemoteView: React.FC = () => {
     saveGuestProfiles(updated);
   };
 
-  // ── KICKED / BLOCKED Screen ──
+  // ── KICKED / EXPELLED SCREEN (Zero access, Must scan QR again) ──
   if (kicked) {
     return (
-      <div className="min-h-screen bg-[#080811] text-white flex items-center justify-center p-4 font-sans">
-        <div className="w-full max-w-sm flex flex-col items-center gap-6">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-rose-600 to-rose-900 flex items-center justify-center shadow-[0_0_40px_rgba(255,0,80,0.4)]">
-              <ShieldX className="w-10 h-10 text-white" />
+      <div className="min-h-screen bg-[#06070d] text-white flex items-center justify-center p-4 font-sans select-none">
+        <div className="w-full max-w-sm flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-300">
+          
+          {/* Expelled Icon Header */}
+          <div className="relative flex items-center justify-center">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-900/40 border border-rose-500/50 flex items-center justify-center shadow-[0_0_50px_rgba(244,63,94,0.35)]">
+              <ShieldX className="w-12 h-12 text-rose-400" />
             </div>
-            <h1 className="text-xl font-black uppercase tracking-wider text-rose-400">
-              Sesión Terminada
-            </h1>
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xs">
+              🚫
+            </div>
           </div>
 
-          <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-rose-500/30 shadow-[0_0_30px_rgba(255,0,80,0.15)] flex flex-col items-center gap-4">
-            <p className="text-sm text-slate-300 text-center leading-relaxed">
-              Has sido <span className="text-rose-400 font-bold">expulsado</span> de la sesión por el anfitrión.
+          {/* Title & Description */}
+          <div className="text-center flex flex-col gap-1">
+            <h1 className="text-xl font-black uppercase tracking-wider text-rose-400">
+              Dispositivo Expulsado
+            </h1>
+            <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+              El anfitrión ha desconectado este dispositivo de la sala de Karaoke.
             </p>
-            <div className="w-full h-px bg-slate-700" />
-            <div className="flex flex-col items-center gap-2">
-              <ScanLine className="w-12 h-12 text-cyan-400 animate-pulse" />
-              <p className="text-xs text-cyan-300 font-bold text-center">
-                Escanea el código QR nuevamente para volver a conectarte
-              </p>
-              <p className="text-[10px] text-slate-500 text-center">
-                Pide al anfitrión que muestre un nuevo código QR desde su dispositivo
+          </div>
+
+          {/* Action Card: Must Scan QR */}
+          <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col items-center gap-4 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-cyan-950/60 border border-cyan-500/50 flex items-center justify-center text-[#00f0ff] shadow-[0_0_25px_rgba(0,240,255,0.25)] animate-pulse">
+              <ScanLine className="w-8 h-8" />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-black text-cyan-300 tracking-wide">
+                Escanea el Código QR
+              </span>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Para volver a tener acceso y pedir canciones, debes pedir al anfitrión que te permita escanear su pantalla nuevamente.
               </p>
             </div>
+
+            <div className="w-full pt-2 border-t border-slate-800 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.reload();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Comprobar Estado</span>
+              </button>
+            </div>
           </div>
+
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
+            <QrCode className="w-3 h-3 text-cyan-500" />
+            <span>KaraokeLab Studio Party Connect</span>
+          </div>
+
         </div>
       </div>
     );

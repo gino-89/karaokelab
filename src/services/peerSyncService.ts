@@ -8,6 +8,7 @@ export interface PeerMessage {
 
 export interface ConnectedGuest {
   peerId: string;
+  deviceId: string;
   name: string;
   connectedAt: number;
 }
@@ -25,6 +26,21 @@ const PEER_CONFIG = {
   },
 };
 
+export function getOrCreateGuestDeviceId(): string {
+  if (typeof window === 'undefined') return 'server';
+  let devId = '';
+  try {
+    devId = localStorage.getItem('karaokelab_device_id') || '';
+    if (!devId) {
+      devId = 'dev_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+      localStorage.setItem('karaokelab_device_id', devId);
+    }
+  } catch (_) {
+    devId = 'dev_temp_' + Math.random().toString(36).substring(2, 10);
+  }
+  return devId;
+}
+
 class PeerSyncService {
   private peer: Peer | null = null;
   private hostConnection: DataConnection | null = null;
@@ -38,6 +54,11 @@ class PeerSyncService {
   private onKickedCallback: (() => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
+
+  // HOST-SIDE BANLISTS: Tracks expelled devices, names, and peer IDs
+  private bannedDeviceIds: Set<string> = new Set();
+  private bannedGuestNames: Set<string> = new Set();
+  private bannedPeerIds: Set<string> = new Set();
 
   // Initialize Host session on Mac/PC player
   public initHost(
@@ -61,9 +82,27 @@ class PeerSyncService {
       });
 
       this.peer.on('connection', (conn) => {
+        // Immediate check if peerId is banned
+        if (this.bannedPeerIds.has(conn.peer)) {
+          try {
+            conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+          } catch (_) {}
+          setTimeout(() => { try { conn.close(); } catch (_) {} }, 200);
+          return;
+        }
+
         this.guestConnections.set(conn.peer, conn);
 
         conn.on('open', () => {
+          // If already banned, reject
+          if (this.bannedPeerIds.has(conn.peer)) {
+            try {
+              conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+            } catch (_) {}
+            setTimeout(() => { try { conn.close(); } catch (_) {} }, 200);
+            return;
+          }
+
           if (this.currentMiniCatalog.length > 0) {
             try {
               conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
@@ -74,19 +113,83 @@ class PeerSyncService {
         conn.on('data', (data: any) => {
           if (!data) return;
 
-          if (data.type === 'ADD_TO_QUEUE') {
-            if (this.onCommandCallback) {
-              this.onCommandCallback('ADD_TO_QUEUE', data.payload);
+          // GUARD: If this connection is banned, NEVER process and send KICK
+          if (this.bannedPeerIds.has(conn.peer)) {
+            try {
+              conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+            } catch (_) {}
+            return;
+          }
+
+          if (data.type === 'GUEST_INFO') {
+            const guestName = (data.payload?.name || 'Invitado').trim();
+            const deviceId = (data.payload?.deviceId || '').trim();
+
+            // CHECK BANLISTS: deviceId, name, or peerId
+            const isBanned = (deviceId && this.bannedDeviceIds.has(deviceId)) ||
+                             (guestName && this.bannedGuestNames.has(guestName.toLowerCase())) ||
+                             this.bannedPeerIds.has(conn.peer);
+
+            if (isBanned) {
+              this.bannedPeerIds.add(conn.peer);
+              if (deviceId) this.bannedDeviceIds.add(deviceId);
+              if (guestName) this.bannedGuestNames.add(guestName.toLowerCase());
+
+              // Send KICK message immediately to force the guest screen to block
+              try {
+                conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+              } catch (_) {}
+              setTimeout(() => {
+                try {
+                  conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+                } catch (_) {}
+              }, 200);
+
+              setTimeout(() => {
+                try { conn.close(); } catch (_) {}
+                this.guestConnections.delete(conn.peer);
+                this.connectedGuests.delete(conn.peer);
+                this._notifyGuestsChanged();
+              }, 500);
+              return;
             }
-          } else if (data.type === 'GUEST_INFO') {
-            // Guest is sending their name
+
+            // Valid Guest Registration
             const guest: ConnectedGuest = {
               peerId: conn.peer,
-              name: data.payload?.name || 'Invitado',
+              deviceId: deviceId || conn.peer,
+              name: guestName,
               connectedAt: Date.now(),
             };
             this.connectedGuests.set(conn.peer, guest);
             this._notifyGuestsChanged();
+
+            // Send fresh catalog
+            if (this.currentMiniCatalog.length > 0) {
+              try {
+                conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
+              } catch (_) {}
+            }
+          } else if (data.type === 'ADD_TO_QUEUE') {
+            const deviceId = (data.payload?.deviceId || '').trim();
+            const senderName = (data.payload?.guestName || '').trim();
+
+            // Strict check: if connection is banned or sender is banned, block command!
+            const isBanned = this.bannedPeerIds.has(conn.peer) ||
+                             (deviceId && this.bannedDeviceIds.has(deviceId)) ||
+                             (senderName && this.bannedGuestNames.has(senderName.toLowerCase()));
+
+            if (isBanned) {
+              try {
+                conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+              } catch (_) {}
+              return;
+            }
+
+            // Only allow if registered
+            if (this.onCommandCallback) {
+              this.onCommandCallback('ADD_TO_QUEUE', data.payload);
+            }
           }
         });
 
@@ -101,13 +204,6 @@ class PeerSyncService {
           this.connectedGuests.delete(conn.peer);
           this._notifyGuestsChanged();
         });
-
-        // Send immediately if channel open
-        if (this.currentMiniCatalog.length > 0) {
-          try {
-            conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
-          } catch (_) {}
-        }
       });
 
       this.peer.on('error', (err) => {
@@ -130,19 +226,45 @@ class PeerSyncService {
 
   // Kick/expel a guest by peerId
   public kickGuest(peerId: string) {
+    const guest = this.connectedGuests.get(peerId);
     const conn = this.guestConnections.get(peerId);
+
+    // 1. Add to Host banlists
+    this.bannedPeerIds.add(peerId);
+    if (guest?.deviceId) {
+      this.bannedDeviceIds.add(guest.deviceId);
+    }
+    if (guest?.name && guest.name.toLowerCase() !== 'invitado') {
+      this.bannedGuestNames.add(guest.name.toLowerCase());
+    }
+
+    // 2. Send KICK packet over WebRTC immediately
     if (conn) {
       try {
         conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
       } catch (_) {}
-      // Small delay so KICK message has time to arrive before we close
+      setTimeout(() => {
+        try {
+          conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+        } catch (_) {}
+      }, 150);
+
       setTimeout(() => {
         try { conn.close(); } catch (_) {}
-      }, 500);
+      }, 600);
     }
+
+    // 3. Remove from active lists
     this.guestConnections.delete(peerId);
     this.connectedGuests.delete(peerId);
     this._notifyGuestsChanged();
+  }
+
+  // Clear banlists (e.g. when host creates new session or unblocks all)
+  public clearBannedList() {
+    this.bannedDeviceIds.clear();
+    this.bannedGuestNames.clear();
+    this.bannedPeerIds.clear();
   }
 
   // Register callback for guest connection changes
@@ -182,9 +304,9 @@ class PeerSyncService {
       localStorage.setItem('karaokelab_song_catalog', JSON.stringify(miniCatalog));
     } catch (_) {}
 
-    // Send over WebRTC data channels
-    this.guestConnections.forEach((conn) => {
-      if (conn.open) {
+    // Send over WebRTC data channels to non-banned guests
+    this.guestConnections.forEach((conn, pid) => {
+      if (conn.open && !this.bannedPeerIds.has(pid)) {
         try {
           conn.send({ type: 'CATALOG_SYNC', payload: miniCatalog });
         } catch (_) {}
@@ -197,6 +319,19 @@ class PeerSyncService {
     targetHostId: string,
     onCatalogReceived: (songs: SongItem[]) => void
   ) {
+    const deviceId = getOrCreateGuestDeviceId();
+
+    // Check if this host previously expelled this device
+    try {
+      const kickedFrom = localStorage.getItem('karaokelab_kicked_host');
+      if (kickedFrom && kickedFrom === targetHostId) {
+        if (this.onKickedCallback) {
+          this.onKickedCallback();
+        }
+        return;
+      }
+    } catch (_) {}
+
     if (this.peer && !this.peer.destroyed) {
       try {
         this.peer.destroy();
@@ -216,10 +351,12 @@ class PeerSyncService {
         this.hostConnection = conn;
 
         conn.on('open', () => {
-          console.log('✓ WebRTC P2P connected to Host:', targetHostId);
-          // Send guest name to host
+          // Send guest name + unique device ID to host
           const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
-          conn.send({ type: 'GUEST_INFO', payload: { name: savedName } });
+          conn.send({
+            type: 'GUEST_INFO',
+            payload: { name: savedName, deviceId },
+          });
         });
 
         conn.on('data', (data: any) => {
@@ -228,21 +365,34 @@ class PeerSyncService {
               this.onCatalogReceivedCallback(data.payload);
             }
           } else if (data && data.type === 'KICK') {
-            // Host kicked this guest — block access, require new QR scan
-            // Store the host ID that kicked us so we can't auto-reconnect
+            // Host kicked this guest — save to persistent storage and trigger UI block
             try {
-              localStorage.setItem('karaokelab_kicked_from', targetHostId);
+              localStorage.setItem('karaokelab_kicked_host', targetHostId);
               localStorage.removeItem('karaokelab_guest_name');
             } catch (_) {}
+
             // Destroy peer connection
             try { conn.close(); } catch (_) {}
             try { this.peer?.destroy(); } catch (_) {}
             this.hostConnection = null;
-            // Notify GuestRemoteView to show "scan QR" screen
+
+            // Notify GuestRemoteView to immediately display the blocked QR screen
             if (this.onKickedCallback) {
               this.onKickedCallback();
             }
           }
+        });
+
+        conn.on('close', () => {
+          // If closed, check if kicked flag was set
+          try {
+            const kickedFrom = localStorage.getItem('karaokelab_kicked_host');
+            if (kickedFrom && kickedFrom === targetHostId) {
+              if (this.onKickedCallback) {
+                this.onKickedCallback();
+              }
+            }
+          } catch (_) {}
         });
 
         conn.on('error', (err) => {
@@ -254,11 +404,15 @@ class PeerSyncService {
     }
   }
 
-  // Send guest name to host (can be called after setting name)
+  // Send guest name to host
   public sendGuestName(name: string) {
     if (this.hostConnection && this.hostConnection.open) {
       try {
-        this.hostConnection.send({ type: 'GUEST_INFO', payload: { name } });
+        const deviceId = getOrCreateGuestDeviceId();
+        this.hostConnection.send({
+          type: 'GUEST_INFO',
+          payload: { name, deviceId },
+        });
       } catch (_) {}
     }
   }
@@ -267,11 +421,11 @@ class PeerSyncService {
   public sendSongRequestFromGuest(songData: { id?: string; title: string; artist?: string; singerName?: string }) {
     if (this.hostConnection && this.hostConnection.open) {
       try {
-        // Include guest name in the request
         const guestName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
+        const deviceId = getOrCreateGuestDeviceId();
         this.hostConnection.send({
           type: 'ADD_TO_QUEUE',
-          payload: { ...songData, guestName },
+          payload: { ...songData, guestName, deviceId },
         });
       } catch (e) {
         console.warn('Error sending song request to host:', e);
