@@ -360,73 +360,65 @@ export default function App() {
     }
   }, [savedSongs]);
 
-  // Helper to handle guest song requests from mobile phones
-  const handleRemoteSongRequest = (data: any) => {
-    if (!data) return;
-    const { id, title, artist, isYouTube, videoId } = data;
-
-    if (isYouTube && videoId) {
-      setYouTubeEmbedId(videoId);
-      setIsYouTubeModalOpen(true);
-      return;
-    }
-
-    // 1. Try finding in savedSongs
-    let songToAdd = savedSongs.find(
-      (s) => (id && s.id === id) ||
-             (s.title && title && s.title.toLowerCase().trim() === title.toLowerCase().trim()) ||
-             (title && s.title && s.title.toLowerCase().includes(title.toLowerCase()))
-    );
-
-    // 2. If not found in local DB, build a clean SongItem object from remote guest request
-    if (!songToAdd && title) {
-      songToAdd = {
-        id: id || `guest_req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        title: title,
-        artist: artist || 'Petición Remota',
-        duration: 180,
-        bpm: 120,
-        key: 'C',
-        lyrics: [],
-        originalFileName: `${title}.mp3`,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-    }
-
-    if (songToAdd) {
-      const queueId = `queue_remote_${songToAdd.id}_${Date.now()}`;
-      const newItem: QueueItem = {
-        id: queueId,
-        fileName: `${songToAdd.title}${songToAdd.artist ? ' - ' + songToAdd.artist : ''}`,
-        status: 'ready',
-        progress: 100,
-        songData: songToAdd,
-      };
-      setQueue((prev) => [...prev, newItem]);
-    }
-  };
+  // Use a ref so the WebRTC/BroadcastChannel callbacks always see the latest savedSongs
+  const savedSongsRef = React.useRef(savedSongs);
+  React.useEffect(() => { savedSongsRef.current = savedSongs; }, [savedSongs]);
 
   // Listen for guest song requests from mobile phones via BroadcastChannel & WebRTC P2P
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
+      const handleRemoteRequest = (data: any) => {
+        if (!data) return;
+        const { id, title, artist, isYouTube, videoId } = data;
+
+        if (isYouTube && videoId) {
+          setYouTubeEmbedId(videoId);
+          setIsYouTubeModalOpen(true);
+          return;
+        }
+
+        // Always look up the REAL song from the host's current library (with audioBlob)
+        const latestSongs = savedSongsRef.current;
+        const matchedSong = latestSongs.find(
+          (s) =>
+            (id && s.id === id) ||
+            (title && s.title && s.title.toLowerCase().trim() === title.toLowerCase().trim()) ||
+            (title && s.title && s.title.toLowerCase().includes(title.toLowerCase()))
+        );
+
+        if (matchedSong) {
+          // Add the REAL song object (with audioBlob) to the queue
+          if (queue.some((q) => q.songData?.id === matchedSong.id)) {
+            showAlertToast(`ℹ️ "${matchedSong.title}" ya está en la cola.`);
+            return;
+          }
+          const newItem: QueueItem = {
+            id: `queue_remote_${matchedSong.id}_${Date.now()}`,
+            fileName: `${matchedSong.title}${matchedSong.artist ? ' - ' + matchedSong.artist : ''}`,
+            status: 'ready',
+            progress: 100,
+            songData: matchedSong,
+          };
+          setQueue((prev) => [...prev, newItem]);
+          showAlertToast(`🎤 "${matchedSong.title}" agregada a la cola desde control remoto.`);
+        } else {
+          showAlertToast(`⚠️ Petición: "${title || 'Desconocida'}". No encontrada en la biblioteca local.`);
+        }
+      };
+
       peerSync.initHost(
         (cmd, data) => {
-          if (cmd === 'ADD_TO_QUEUE') {
-            handleRemoteSongRequest(data);
-          }
+          if (cmd === 'ADD_TO_QUEUE') handleRemoteRequest(data);
         },
         (id) => setHostPeerId(id)
       );
 
       const unsub = tvBroadcast.onRemoteCommand((cmd, data) => {
-        if (cmd === 'ADD_TO_QUEUE') {
-          handleRemoteSongRequest(data);
-        }
+        if (cmd === 'ADD_TO_QUEUE') handleRemoteRequest(data);
       });
       return () => unsub();
     }
-  }, [isTvDisplayMode, isGuestMode, savedSongs]);
+  }, [isTvDisplayMode, isGuestMode]);
 
   // Sync catalog over WebRTC to connected guest mobile phones
   useEffect(() => {
@@ -755,19 +747,8 @@ export default function App() {
         audioEngine.setAudioBuffer(buffer);
         durationVal = buffer.duration;
       } else {
-        // If song has no local audio blob in memory, auto-launch YouTube Karaoke Video with real music & lyrics!
-        if (song.title) {
-          try {
-            const query = `${song.title} ${song.artist || ''} karaoke`;
-            const ytTracks = await searchYouTubeKaraoke(query);
-            if (ytTracks && ytTracks.length > 0) {
-              setYouTubeEmbedId(ytTracks[0].id);
-              setIsYouTubeModalOpen(true);
-              return;
-            }
-          } catch (_) {}
-        }
-        showAlertToast(`ℹ️ Petición recibida: "${song.title}". Importa el archivo de audio para reproducirla localmente.`);
+        // Song has no local audio - show notification
+        showAlertToast(`ℹ️ "${song.title}" no tiene audio local. Importa el archivo MP3 para reproducirla.`);
         return;
       }
 
