@@ -14,9 +14,8 @@ export interface ConnectedGuest {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google & Twilio public STUN servers for 100% reliable cross-device WebRTC NAT traversal (WiFi, 4G/5G, cross-network)
+// Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal
 const PEER_CONFIG = {
-  debug: 1,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -24,9 +23,7 @@ const PEER_CONFIG = {
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' },
     ],
-    iceCandidatePoolSize: 10,
   },
 };
 
