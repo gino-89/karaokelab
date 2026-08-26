@@ -21,7 +21,7 @@ export const GuestRemoteView: React.FC = () => {
           const params = new URLSearchParams(window.location.search);
           const catParam = params.get('cat');
           if (catParam) {
-            const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(catParam))));
+            const jsonStr = decodeURIComponent(catParam);
             const parsed = JSON.parse(jsonStr);
             if (Array.isArray(parsed) && parsed.length > 0) {
               songs = parsed.map((item: any) => ({

@@ -11,7 +11,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose }) => 
 
   if (!isOpen) return null;
 
-  // Generate URL for guest phones with encoded catalog payload
+  // Generate URL for guest phones with safe encoded catalog payload
   const catalogParam = React.useMemo(() => {
     try {
       const raw = localStorage.getItem('karaokelab_song_catalog');
@@ -24,10 +24,12 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose }) => 
             artist: s.artist || '',
             genre: s.genre || '',
           }));
-          return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(mini)))));
+          return encodeURIComponent(JSON.stringify(mini));
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.warn('Error encoding catalog parameter:', e);
+    }
     return '';
   }, [isOpen]);
 
