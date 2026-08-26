@@ -409,7 +409,38 @@ export default function App() {
 
       peerSync.initHost(
         (cmd, data) => {
-          if (cmd === 'ADD_TO_QUEUE') handleRemoteRequest(data);
+          if (cmd === 'ADD_TO_QUEUE') {
+            handleRemoteRequest(data);
+          } else if (cmd === 'CREATE_PROFILE') {
+            if (data?.name) {
+              const newProfile: SingerProfile = {
+                id: data.id || `profile_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                name: data.name.trim(),
+                avatar: data.avatar || '🎤',
+                color: data.color || '#00f0ff',
+                favoriteSongIds: data.favoriteSongIds || [],
+                createdAt: data.createdAt || Date.now(),
+              };
+              setProfiles((prev) => {
+                const exists = prev.some((p) => p.id === newProfile.id);
+                const updated = exists
+                  ? prev.map((p) => (p.id === newProfile.id ? newProfile : p))
+                  : [...prev, newProfile];
+                saveProfilesToStorage(updated);
+                peerSync.broadcastProfilesToGuests(updated);
+                return updated;
+              });
+              showAlertToast(`👤 Perfil creado desde móvil: "${data.name}"`);
+            }
+          } else if (cmd === 'DELETE_PROFILE') {
+            if (data?.profileId) {
+              handleDeleteProfile(data.profileId);
+            }
+          } else if (cmd === 'TOGGLE_FAVORITE') {
+            if (data?.profileId && data?.songId) {
+              handleToggleFavoriteSong(data.profileId, data.songId);
+            }
+          }
         },
         (id) => setHostPeerId(id)
       );
@@ -421,12 +452,18 @@ export default function App() {
     }
   }, [isTvDisplayMode, isGuestMode]);
 
-  // Sync catalog over WebRTC to connected guest mobile phones
+  // Sync catalog & profiles over WebRTC to connected guest mobile phones
   useEffect(() => {
     if (savedSongs.length > 0) {
       peerSync.broadcastCatalogToGuests(savedSongs);
     }
   }, [savedSongs]);
+
+  useEffect(() => {
+    if (profiles.length > 0) {
+      peerSync.broadcastProfilesToGuests(profiles);
+    }
+  }, [profiles]);
 
   // ── Global Dynamic Video Background state ──
   const [videoBgConfig, setVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());

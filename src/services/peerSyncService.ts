@@ -1,8 +1,8 @@
 import Peer, { DataConnection } from 'peerjs';
-import { SongItem } from '../types';
+import { SongItem, SingerProfile } from '../types';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'ADD_TO_QUEUE' | 'HEARTBEAT' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'HEARTBEAT' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
   payload?: any;
 }
 
@@ -35,10 +35,12 @@ class PeerSyncService {
   private currentQrKey: string = Math.random().toString(36).substring(2, 8);
   private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
+  private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
   private onKickedCallback: ((kickedKey?: string) => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
+  private currentProfiles: SingerProfile[] = [];
 
   // Get or rotate dynamic QR session key
   public getQrKey(): string {
@@ -75,9 +77,15 @@ class PeerSyncService {
         this.guestConnections.set(conn.peer, conn);
 
         conn.on('open', () => {
+          // Send initial catalog & profiles when guest connects
           if (this.currentMiniCatalog.length > 0) {
             try {
               conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
+            } catch (_) {}
+          }
+          if (this.currentProfiles.length > 0) {
+            try {
+              conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
             } catch (_) {}
           }
         });
@@ -95,18 +103,32 @@ class PeerSyncService {
             this.connectedGuests.set(conn.peer, guest);
             this._notifyGuestsChanged();
 
-            // Send fresh catalog
+            // Send fresh catalog and profiles to newly registered guest
             if (this.currentMiniCatalog.length > 0) {
               try {
                 conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
               } catch (_) {}
             }
+            if (this.currentProfiles.length > 0) {
+              try {
+                conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
+              } catch (_) {}
+            }
           } else if (data.type === 'ADD_TO_QUEUE') {
-            // Only process if this connection is currently active and registered
-            if (this.connectedGuests.has(conn.peer)) {
-              if (this.onCommandCallback) {
-                this.onCommandCallback('ADD_TO_QUEUE', data.payload);
-              }
+            if (this.connectedGuests.has(conn.peer) && this.onCommandCallback) {
+              this.onCommandCallback('ADD_TO_QUEUE', data.payload);
+            }
+          } else if (data.type === 'CREATE_PROFILE') {
+            if (this.onCommandCallback) {
+              this.onCommandCallback('CREATE_PROFILE', data.payload);
+            }
+          } else if (data.type === 'DELETE_PROFILE') {
+            if (this.onCommandCallback) {
+              this.onCommandCallback('DELETE_PROFILE', data.payload);
+            }
+          } else if (data.type === 'TOGGLE_FAVORITE') {
+            if (this.onCommandCallback) {
+              this.onCommandCallback('TOGGLE_FAVORITE', data.payload);
             }
           }
         });
@@ -147,7 +169,6 @@ class PeerSyncService {
     const conn = this.guestConnections.get(peerId);
     const keyToBan = this.currentQrKey;
 
-    // Send KICK message containing the key that is now banned
     if (conn) {
       try {
         conn.send({
@@ -178,7 +199,7 @@ class PeerSyncService {
       }, 600);
     }
 
-    // Rotate QR key so any NEW scan from the host screen generates a brand new unbanned key!
+    // Rotate QR key so any NEW camera scan has a fresh unbanned key
     this.rotateQrKey();
 
     this.guestConnections.delete(peerId);
@@ -218,12 +239,10 @@ class PeerSyncService {
 
     this.currentMiniCatalog = miniCatalog;
 
-    // Save in localStorage for fallback
     try {
       localStorage.setItem('karaokelab_song_catalog', JSON.stringify(miniCatalog));
     } catch (_) {}
 
-    // Send over WebRTC data channels
     this.guestConnections.forEach((conn) => {
       if (conn.open) {
         try {
@@ -233,10 +252,25 @@ class PeerSyncService {
     });
   }
 
+  // Broadcast updated singer profiles to all connected guest phones
+  public broadcastProfilesToGuests(profiles: SingerProfile[]) {
+    if (!this.isHost) return;
+    this.currentProfiles = profiles;
+
+    this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'PROFILES_SYNC', payload: profiles });
+        } catch (_) {}
+      }
+    });
+  }
+
   // Initialize Guest session on mobile phone scanning QR
   public initGuest(
     targetHostId: string,
-    onCatalogReceived: (songs: SongItem[]) => void
+    onCatalogReceived: (songs: SongItem[]) => void,
+    onProfilesReceived?: (profiles: SingerProfile[]) => void
   ) {
     if (this.peer && !this.peer.destroyed) {
       try {
@@ -246,6 +280,7 @@ class PeerSyncService {
 
     this.isHost = false;
     this.onCatalogReceivedCallback = onCatalogReceived;
+    this.onProfilesReceivedCallback = onProfilesReceived || null;
 
     try {
       this.peer = new Peer(PEER_CONFIG);
@@ -257,7 +292,6 @@ class PeerSyncService {
         this.hostConnection = conn;
 
         conn.on('open', () => {
-          // Send guest name to host
           const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
           conn.send({
             type: 'GUEST_INFO',
@@ -266,11 +300,17 @@ class PeerSyncService {
         });
 
         conn.on('data', (data: any) => {
-          if (data && data.type === 'CATALOG_SYNC' && Array.isArray(data.payload)) {
+          if (!data) return;
+
+          if (data.type === 'CATALOG_SYNC' && Array.isArray(data.payload)) {
             if (this.onCatalogReceivedCallback) {
               this.onCatalogReceivedCallback(data.payload);
             }
-          } else if (data && data.type === 'KICK') {
+          } else if (data.type === 'PROFILES_SYNC' && Array.isArray(data.payload)) {
+            if (this.onProfilesReceivedCallback) {
+              this.onProfilesReceivedCallback(data.payload);
+            }
+          } else if (data.type === 'KICK') {
             const kickedKey = data.payload?.kickedKey || '';
             const hostId = data.payload?.hostId || targetHostId;
 
@@ -282,12 +322,10 @@ class PeerSyncService {
               localStorage.removeItem('karaokelab_guest_name');
             } catch (_) {}
 
-            // Destroy peer connection
             try { conn.close(); } catch (_) {}
             try { this.peer?.destroy(); } catch (_) {}
             this.hostConnection = null;
 
-            // Notify GuestRemoteView to immediately display blocked QR screen
             if (this.onKickedCallback) {
               this.onKickedCallback(kickedKey);
             }
@@ -315,7 +353,7 @@ class PeerSyncService {
     }
   }
 
-  // Send song request command from guest mobile phone to host
+  // Send song request from guest to host
   public sendSongRequestFromGuest(songData: { id?: string; title: string; artist?: string; singerName?: string }) {
     if (this.hostConnection && this.hostConnection.open) {
       try {
@@ -326,6 +364,48 @@ class PeerSyncService {
         });
       } catch (e) {
         console.warn('Error sending song request to host:', e);
+      }
+    }
+  }
+
+  // Send profile creation from guest to host
+  public sendCreateProfileFromGuest(profile: SingerProfile) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'CREATE_PROFILE',
+          payload: profile,
+        });
+      } catch (e) {
+        console.warn('Error sending create profile to host:', e);
+      }
+    }
+  }
+
+  // Send profile deletion from guest to host
+  public sendDeleteProfileFromGuest(profileId: string) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'DELETE_PROFILE',
+          payload: { profileId },
+        });
+      } catch (e) {
+        console.warn('Error sending delete profile to host:', e);
+      }
+    }
+  }
+
+  // Send toggle favorite from guest to host
+  public sendToggleFavoriteFromGuest(profileId: string, songId: string) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'TOGGLE_FAVORITE',
+          payload: { profileId, songId },
+        });
+      } catch (e) {
+        console.warn('Error sending toggle favorite to host:', e);
       }
     }
   }

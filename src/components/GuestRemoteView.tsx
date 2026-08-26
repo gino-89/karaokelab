@@ -119,27 +119,35 @@ export const GuestRemoteView: React.FC = () => {
         const params = new URLSearchParams(window.location.search);
         const hostParam = params.get('host');
         if (hostParam) {
-          peerSync.initGuest(hostParam, (catalog) => {
-            if (catalog && Array.isArray(catalog) && catalog.length > 0) {
-              const mapped: SongItem[] = catalog.map((item: any) => ({
-                id: item.id || `remote_${Math.random()}`,
-                title: item.title,
-                artist: item.artist || '',
-                genre: item.genre || '',
-                duration: item.duration || 180,
-                bpm: item.bpm || 120,
-                key: 'C',
-                lyrics: [],
-                originalFileName: `${item.title}.mp3`,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-              }));
-              setSavedSongs(mapped);
-              try {
-                localStorage.setItem('karaokelab_song_catalog', JSON.stringify(mapped));
-              } catch (_) {}
+          peerSync.initGuest(
+            hostParam,
+            (catalog) => {
+              if (catalog && Array.isArray(catalog) && catalog.length > 0) {
+                const mapped: SongItem[] = catalog.map((item: any) => ({
+                  id: item.id || `remote_${Math.random()}`,
+                  title: item.title,
+                  artist: item.artist || '',
+                  genre: item.genre || '',
+                  duration: item.duration || 180,
+                  bpm: item.bpm || 120,
+                  key: 'C',
+                  lyrics: [],
+                  originalFileName: `${item.title}.mp3`,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                }));
+                setSavedSongs(mapped);
+                try {
+                  localStorage.setItem('karaokelab_song_catalog', JSON.stringify(mapped));
+                } catch (_) {}
+              }
+            },
+            (syncedProfiles) => {
+              if (syncedProfiles && Array.isArray(syncedProfiles) && syncedProfiles.length > 0) {
+                saveGuestProfiles(syncedProfiles);
+              }
             }
-          });
+          );
         }
       }
     };
@@ -153,7 +161,7 @@ export const GuestRemoteView: React.FC = () => {
       }
     });
     return () => unsub();
-  }, [nameConfirmed, kicked]);
+  }, [nameConfirmed, kicked, saveGuestProfiles]);
 
   const handleConfirmName = () => {
     const trimmed = guestName.trim() || 'Invitado';
@@ -197,13 +205,13 @@ export const GuestRemoteView: React.FC = () => {
     setTimeout(() => setQueuedFeedback(null), 4000);
   };
 
-  // ── Guest-side profile management ──
+  // ── Guest-side profile management synced with main host library ──
   const handleCreateProfile = (name: string, avatar: string, color: string) => {
     const newProfile: SingerProfile = {
-      id: `guest_profile_${Date.now()}`,
-      name,
-      avatar,
-      color,
+      id: `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: name.trim() || 'Cantante',
+      avatar: avatar || '🎤',
+      color: color || '#00f0ff',
       favoriteSongIds: [],
       createdAt: Date.now(),
     };
@@ -211,6 +219,11 @@ export const GuestRemoteView: React.FC = () => {
     saveGuestProfiles(updated);
     setActiveProfileId(newProfile.id);
     localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, newProfile.id);
+
+    // Send profile to Host so it appears and saves in main library
+    peerSync.sendCreateProfileFromGuest(newProfile);
+    setQueuedFeedback(`¡Perfil "${newProfile.name}" guardado en la biblioteca principal! 👤`);
+    setTimeout(() => setQueuedFeedback(null), 4000);
   };
 
   const handleDeleteProfile = (profileId: string) => {
@@ -219,6 +232,9 @@ export const GuestRemoteView: React.FC = () => {
     saveGuestProfiles(updated.length > 0 ? updated : [{ id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 }]);
     setActiveProfileId('profile_all');
     localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, 'profile_all');
+
+    // Notify Host to delete profile
+    peerSync.sendDeleteProfileFromGuest(profileId);
   };
 
   const handleSelectProfile = (profileId: string) => {
@@ -235,6 +251,9 @@ export const GuestRemoteView: React.FC = () => {
       return { ...p, favoriteSongIds: favs };
     });
     saveGuestProfiles(updated);
+
+    // Sync favorite toggle to host
+    peerSync.sendToggleFavoriteFromGuest(profileId, songId);
   };
 
   // ── KICKED / EXPELLED SCREEN ──
