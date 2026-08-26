@@ -35,6 +35,7 @@ class PeerSyncService {
   private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
+  private onKickedCallback: (() => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
 
@@ -134,9 +135,10 @@ class PeerSyncService {
       try {
         conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
       } catch (_) {}
+      // Small delay so KICK message has time to arrive before we close
       setTimeout(() => {
         try { conn.close(); } catch (_) {}
-      }, 300);
+      }, 500);
     }
     this.guestConnections.delete(peerId);
     this.connectedGuests.delete(peerId);
@@ -147,6 +149,12 @@ class PeerSyncService {
   public onGuestsChanged(callback: (guests: ConnectedGuest[]) => void): () => void {
     this.onGuestsChangedCallback = callback;
     return () => { this.onGuestsChangedCallback = null; };
+  }
+
+  // Register callback for when this guest gets kicked
+  public onKicked(callback: () => void): () => void {
+    this.onKickedCallback = callback;
+    return () => { this.onKickedCallback = null; };
   }
 
   private _notifyGuestsChanged() {
@@ -220,15 +228,20 @@ class PeerSyncService {
               this.onCatalogReceivedCallback(data.payload);
             }
           } else if (data && data.type === 'KICK') {
-            // Host kicked this guest — clear local data and require QR rescan
-            alert('Has sido expulsado de la sesión por el anfitrión. Por favor, escanea el QR nuevamente para volver a conectar.');
-            // Clear guest-specific data
-            try { localStorage.removeItem('karaokelab_guest_name'); } catch (_) {}
-            try { localStorage.removeItem('karaokelab_guest_profiles'); } catch (_) {}
-            try { localStorage.removeItem('karaokelab_guest_active_profile'); } catch (_) {}
-            // Destroy peer connection and navigate to base URL (no host param)
+            // Host kicked this guest — block access, require new QR scan
+            // Store the host ID that kicked us so we can't auto-reconnect
+            try {
+              localStorage.setItem('karaokelab_kicked_from', targetHostId);
+              localStorage.removeItem('karaokelab_guest_name');
+            } catch (_) {}
+            // Destroy peer connection
+            try { conn.close(); } catch (_) {}
             try { this.peer?.destroy(); } catch (_) {}
-            window.location.href = window.location.origin;
+            this.hostConnection = null;
+            // Notify GuestRemoteView to show "scan QR" screen
+            if (this.onKickedCallback) {
+              this.onKickedCallback();
+            }
           }
         });
 

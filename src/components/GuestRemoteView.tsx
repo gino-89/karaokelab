@@ -4,7 +4,7 @@ import { getSongsFromDB, getProfilesFromStorage, saveProfilesToStorage, getActiv
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
-import { Check, ListPlus, UserRound } from 'lucide-react';
+import { Check, ListPlus, UserRound, ScanLine, ShieldX } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
 const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
@@ -12,6 +12,7 @@ const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
 export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
+  const [kicked, setKicked] = useState(false);
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [profiles, setProfiles] = useState<SingerProfile[]>([
     { id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 },
@@ -20,8 +21,20 @@ export const GuestRemoteView: React.FC = () => {
   const [queuedFeedback, setQueuedFeedback] = useState<string | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
-  // Check if guest already has a saved name
+  // Check if guest was kicked from this host (block reconnection on refresh)
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hostParam = params.get('host') || '';
+    const kickedFrom = localStorage.getItem('karaokelab_kicked_from');
+    if (kickedFrom && kickedFrom === hostParam) {
+      setKicked(true);
+      return;
+    }
+    // Clear any stale kicked flag if connecting to a different host (new QR scan)
+    if (kickedFrom && kickedFrom !== hostParam && hostParam) {
+      localStorage.removeItem('karaokelab_kicked_from');
+    }
+
     const saved = localStorage.getItem('karaokelab_guest_name');
     if (saved) {
       setGuestName(saved);
@@ -40,6 +53,12 @@ export const GuestRemoteView: React.FC = () => {
     // Load active profile
     const activeId = localStorage.getItem(GUEST_ACTIVE_PROFILE_KEY) || 'profile_all';
     setActiveProfileId(activeId);
+
+    // Register kicked callback so host can kick us in real-time
+    const unsubKick = peerSync.onKicked(() => {
+      setKicked(true);
+    });
+    return () => unsubKick();
   }, []);
 
   // Save profiles to localStorage whenever they change
@@ -187,6 +206,40 @@ export const GuestRemoteView: React.FC = () => {
     });
     saveGuestProfiles(updated);
   };
+
+  // ── KICKED / BLOCKED Screen ──
+  if (kicked) {
+    return (
+      <div className="min-h-screen bg-[#080811] text-white flex items-center justify-center p-4 font-sans">
+        <div className="w-full max-w-sm flex flex-col items-center gap-6">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-rose-600 to-rose-900 flex items-center justify-center shadow-[0_0_40px_rgba(255,0,80,0.4)]">
+              <ShieldX className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-xl font-black uppercase tracking-wider text-rose-400">
+              Sesión Terminada
+            </h1>
+          </div>
+
+          <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-rose-500/30 shadow-[0_0_30px_rgba(255,0,80,0.15)] flex flex-col items-center gap-4">
+            <p className="text-sm text-slate-300 text-center leading-relaxed">
+              Has sido <span className="text-rose-400 font-bold">expulsado</span> de la sesión por el anfitrión.
+            </p>
+            <div className="w-full h-px bg-slate-700" />
+            <div className="flex flex-col items-center gap-2">
+              <ScanLine className="w-12 h-12 text-cyan-400 animate-pulse" />
+              <p className="text-xs text-cyan-300 font-bold text-center">
+                Escanea el código QR nuevamente para volver a conectarte
+              </p>
+              <p className="text-[10px] text-slate-500 text-center">
+                Pide al anfitrión que muestre un nuevo código QR desde su dispositivo
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Name Entry Screen ──
   if (!nameConfirmed) {
