@@ -360,43 +360,68 @@ export default function App() {
     }
   }, [savedSongs]);
 
+  // Helper to handle guest song requests from mobile phones
+  const handleRemoteSongRequest = (data: any) => {
+    if (!data) return;
+    const { id, title, artist, isYouTube, videoId } = data;
+
+    if (isYouTube && videoId) {
+      setYouTubeEmbedId(videoId);
+      setIsYouTubeModalOpen(true);
+      return;
+    }
+
+    // 1. Try finding in savedSongs
+    let songToAdd = savedSongs.find(
+      (s) => (id && s.id === id) ||
+             (s.title && title && s.title.toLowerCase().trim() === title.toLowerCase().trim()) ||
+             (title && s.title && s.title.toLowerCase().includes(title.toLowerCase()))
+    );
+
+    // 2. If not found in local DB, build a clean SongItem object from remote guest request
+    if (!songToAdd && title) {
+      songToAdd = {
+        id: id || `guest_req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        title: title,
+        artist: artist || 'Petición Remota',
+        duration: 180,
+        bpm: 120,
+        key: 'C',
+        lyrics: [],
+        originalFileName: `${title}.mp3`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+    }
+
+    if (songToAdd) {
+      const queueId = `queue_remote_${songToAdd.id}_${Date.now()}`;
+      const newItem: QueueItem = {
+        id: queueId,
+        fileName: `${songToAdd.title}${songToAdd.artist ? ' - ' + songToAdd.artist : ''}`,
+        status: 'ready',
+        progress: 100,
+        songData: songToAdd,
+      };
+      setQueue((prev) => [...prev, newItem]);
+    }
+  };
+
   // Listen for guest song requests from mobile phones via BroadcastChannel & WebRTC P2P
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
       peerSync.initHost(
         (cmd, data) => {
-          if (cmd === 'ADD_TO_QUEUE' && data) {
-            const { id, title, artist, isYouTube, videoId } = data;
-            const matchedSong = savedSongs.find(
-              (s) => (id && s.id === id) ||
-                     (s.title.toLowerCase().trim() === (title || '').toLowerCase().trim() &&
-                      (!artist || (s.artist || '').toLowerCase().trim() === (artist || '').toLowerCase().trim()))
-            );
-            if (matchedSong) {
-              handleAddToQueue(matchedSong);
-            } else if (isYouTube && videoId) {
-              setYouTubeEmbedId(videoId);
-              setIsYouTubeModalOpen(true);
-            }
+          if (cmd === 'ADD_TO_QUEUE') {
+            handleRemoteSongRequest(data);
           }
         },
         (id) => setHostPeerId(id)
       );
 
       const unsub = tvBroadcast.onRemoteCommand((cmd, data) => {
-        if (cmd === 'ADD_TO_QUEUE' && data) {
-          const { id, title, artist, singerName, isYouTube, videoId } = data;
-          const matchedSong = savedSongs.find(
-            (s) => (id && s.id === id) ||
-                   (s.title.toLowerCase().trim() === (title || '').toLowerCase().trim() &&
-                    (!artist || (s.artist || '').toLowerCase().trim() === (artist || '').toLowerCase().trim()))
-          );
-          if (matchedSong) {
-            handleAddToQueue(matchedSong);
-          } else if (isYouTube && videoId) {
-            setYouTubeEmbedId(videoId);
-            setIsYouTubeModalOpen(true);
-          }
+        if (cmd === 'ADD_TO_QUEUE') {
+          handleRemoteSongRequest(data);
         }
       });
       return () => unsub();
