@@ -755,9 +755,20 @@ export default function App() {
         audioEngine.setAudioBuffer(buffer);
         durationVal = buffer.duration;
       } else {
-        const syntheticBuf = audioEngine.generateSyntheticToneBuffer(song.duration || 180, song.bpm || 120);
-        audioEngine.setAudioBuffer(syntheticBuf);
-        durationVal = syntheticBuf.duration;
+        // If song has no local audio blob in memory, auto-launch YouTube Karaoke Video with real music & lyrics!
+        if (song.title) {
+          try {
+            const query = `${song.title} ${song.artist || ''} karaoke`;
+            const ytTracks = await searchYouTubeKaraoke(query);
+            if (ytTracks && ytTracks.length > 0) {
+              setYouTubeEmbedId(ytTracks[0].id);
+              setIsYouTubeModalOpen(true);
+              return;
+            }
+          } catch (_) {}
+        }
+        showAlertToast(`ℹ️ Petición recibida: "${song.title}". Importa el archivo de audio para reproducirla localmente.`);
+        return;
       }
 
       // 2. Duet Mode Check
