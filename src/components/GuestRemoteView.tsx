@@ -4,7 +4,7 @@ import { getSongsFromDB } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
-import { Check, ListPlus, UserRound, ScanLine, ShieldX, RefreshCw, QrCode } from 'lucide-react';
+import { Check, ListPlus, UserRound, ScanLine, ShieldX, QrCode, Camera } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
 const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
@@ -13,14 +13,15 @@ export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
 
-  // Synchronously compute kicked state on first render to prevent ANY flash of catalog on refresh
+  // Synchronously compute kicked state on first render
   const [kicked, setKicked] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     try {
       const params = new URLSearchParams(window.location.search);
-      const hostParam = params.get('host') || '';
-      const kickedHost = localStorage.getItem('karaokelab_kicked_host') || localStorage.getItem('karaokelab_kicked_from');
-      if (kickedHost && (kickedHost === hostParam || !hostParam)) {
+      const urlKey = params.get('k') || '';
+      const kickedKey = localStorage.getItem('karaokelab_kicked_key') || '';
+      // If the current URL has the banned key, block immediately
+      if (kickedKey && urlKey && kickedKey === urlKey) {
         return true;
       }
     } catch (_) {}
@@ -35,21 +36,22 @@ export const GuestRemoteView: React.FC = () => {
   const [queuedFeedback, setQueuedFeedback] = useState<string | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
-  // Initial setup: check kicked status & load profiles
+  // Initial mount & URL validation
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const hostParam = params.get('host') || '';
-    const kickedHost = localStorage.getItem('karaokelab_kicked_host') || localStorage.getItem('karaokelab_kicked_from');
+    const urlKey = params.get('k') || '';
+    const kickedKey = localStorage.getItem('karaokelab_kicked_key') || '';
 
-    if (kickedHost && (kickedHost === hostParam || !hostParam)) {
+    // If opened with the banned key, enforce kick
+    if (kickedKey && urlKey && kickedKey === urlKey) {
       setKicked(true);
       return;
     }
 
-    // If connecting with a different host ID (new QR session), reset kicked status
-    if (kickedHost && hostParam && kickedHost !== hostParam) {
+    // If opened with a NEW QR key from a camera scan, UNBLOCK and clear old ban!
+    if (kickedKey && urlKey && kickedKey !== urlKey) {
+      localStorage.removeItem('karaokelab_kicked_key');
       localStorage.removeItem('karaokelab_kicked_host');
-      localStorage.removeItem('karaokelab_kicked_from');
       setKicked(false);
     }
 
@@ -74,9 +76,16 @@ export const GuestRemoteView: React.FC = () => {
     setActiveProfileId(activeId);
 
     // Real-time listener: host kicked this device
-    const unsubKick = peerSync.onKicked(() => {
+    const unsubKick = peerSync.onKicked((bannedKey) => {
+      const currentUrlKey = new URLSearchParams(window.location.search).get('k') || bannedKey || 'banned';
+      try {
+        localStorage.setItem('karaokelab_kicked_key', currentUrlKey);
+        localStorage.removeItem('karaokelab_guest_name');
+      } catch (_) {}
       setKicked(true);
+      setNameConfirmed(false);
     });
+
     return () => unsubKick();
   }, []);
 
@@ -88,7 +97,7 @@ export const GuestRemoteView: React.FC = () => {
     } catch (_) {}
   }, []);
 
-  // Connect to host and load songs once name is confirmed (and ONLY if not kicked)
+  // Connect to host and load songs once name is confirmed (and NOT kicked)
   useEffect(() => {
     if (!nameConfirmed || kicked) return;
 
@@ -105,7 +114,7 @@ export const GuestRemoteView: React.FC = () => {
 
       setSavedSongs(songs || []);
 
-      // Connect WebRTC P2P to Host if host parameter present in URL
+      // Connect WebRTC P2P to Host
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const hostParam = params.get('host');
@@ -228,7 +237,7 @@ export const GuestRemoteView: React.FC = () => {
     saveGuestProfiles(updated);
   };
 
-  // ── KICKED / EXPELLED SCREEN (Zero access, Must scan QR again) ──
+  // ── KICKED / EXPELLED SCREEN ──
   if (kicked) {
     return (
       <div className="min-h-screen bg-[#06070d] text-white flex items-center justify-center p-4 font-sans select-none">
@@ -239,7 +248,7 @@ export const GuestRemoteView: React.FC = () => {
             <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-900/40 border border-rose-500/50 flex items-center justify-center shadow-[0_0_50px_rgba(244,63,94,0.35)]">
               <ShieldX className="w-12 h-12 text-rose-400" />
             </div>
-            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xs">
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shadow-md">
               🚫
             </div>
           </div>
@@ -250,11 +259,11 @@ export const GuestRemoteView: React.FC = () => {
               Dispositivo Expulsado
             </h1>
             <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-              El anfitrión ha desconectado este dispositivo de la sala de Karaoke.
+              El anfitrión ha desconectado este dispositivo de la sala.
             </p>
           </div>
 
-          {/* Action Card: Must Scan QR */}
+          {/* Action Card: Must Scan QR with Camera */}
           <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col items-center gap-4 text-center">
             <div className="w-16 h-16 rounded-2xl bg-cyan-950/60 border border-cyan-500/50 flex items-center justify-center text-[#00f0ff] shadow-[0_0_25px_rgba(0,240,255,0.25)] animate-pulse">
               <ScanLine className="w-8 h-8" />
@@ -265,21 +274,13 @@ export const GuestRemoteView: React.FC = () => {
                 Escanea el Código QR
               </span>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Para volver a tener acceso y pedir canciones, debes pedir al anfitrión que te permita escanear su pantalla nuevamente.
+                Abre la <b>cámara de tu celular</b> y escanea el código QR que se muestra en la pantalla del anfitrión para volver a entrar.
               </p>
             </div>
 
-            <div className="w-full pt-2 border-t border-slate-800 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.reload();
-                }}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Comprobar Estado</span>
-              </button>
+            <div className="w-full pt-3 border-t border-slate-800/80 flex items-center justify-center gap-2 text-xs text-slate-400">
+              <Camera className="w-4 h-4 text-cyan-400 animate-bounce" />
+              <span className="font-semibold text-slate-300">Usa la cámara nativa de tu teléfono</span>
             </div>
           </div>
 
@@ -415,7 +416,7 @@ export const GuestRemoteView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Song Library Component — guest mode: no delete, with full profile management */}
+      {/* Main Song Library Component */}
       <SongLibrary
         savedSongs={savedSongs}
         queue={[]}
