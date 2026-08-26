@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { SongItem, SingerProfile } from '../types';
-import { getSongsFromDB, getProfilesFromStorage } from '../services/db';
+import { getSongsFromDB, getProfilesFromStorage, DEFAULT_PRESET_SONGS } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
-import { Check, ListPlus, Send } from 'lucide-react';
+import { Check, ListPlus } from 'lucide-react';
 
 export const GuestRemoteView: React.FC = () => {
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
@@ -24,6 +24,11 @@ export const GuestRemoteView: React.FC = () => {
           }
         } catch (_) {}
       }
+
+      if (!songs || songs.length === 0) {
+        songs = DEFAULT_PRESET_SONGS;
+      }
+
       setSavedSongs(songs || []);
 
       // Connect WebRTC P2P to Host if host parameter present in URL

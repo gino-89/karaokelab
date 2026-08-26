@@ -17,6 +17,107 @@ export const DEFAULT_PROFILES: SingerProfile[] = [
   },
 ];
 
+export const DEFAULT_PRESET_SONGS: SongItem[] = [
+  {
+    id: 'preset_despacito',
+    title: 'Despacito',
+    artist: 'Luis Fonsi ft. Daddy Yankee',
+    genre: 'Pop / Reggaeton',
+    duration: 228,
+    bpm: 89,
+    key: 'D Minor',
+    lyrics: [
+      { time: 0, text: '♪ Sí, sabes que ya llevo un rato mirándote' },
+      { time: 5, text: 'Tengo que bailar contigo hoy ♪' },
+      { time: 10, text: '¡Despacito!' },
+    ],
+    originalFileName: 'Despacito_Luis_Fonsi.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'preset_amor_prohibido',
+    title: 'Amor Prohibido',
+    artist: 'Selena',
+    genre: 'Cumbia / Tex-Mex',
+    duration: 168,
+    bpm: 90,
+    key: 'C Major',
+    lyrics: [
+      { time: 0, text: '♪ Con el corazón en la mano ♪' },
+      { time: 5, text: 'Amor prohibido murmuran por las calles ♪' },
+    ],
+    originalFileName: 'Amor_Prohibido_Selena.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'preset_provenza',
+    title: 'PROVENZA',
+    artist: 'Karol G',
+    genre: 'Urbano / Reggaeton',
+    duration: 210,
+    bpm: 111,
+    key: 'F# Minor',
+    lyrics: [{ time: 0, text: '♪ Baby, qué más, hace rato que no sé de ti ♪' }],
+    originalFileName: 'Provenza_Karol_G.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'preset_bohemian_rhapsody',
+    title: 'Bohemian Rhapsody',
+    artist: 'Queen',
+    genre: 'Rock / Anthem',
+    duration: 354,
+    bpm: 72,
+    key: 'Bb Major',
+    lyrics: [{ time: 0, text: '♪ Is this the real life? Is this just fantasy? ♪' }],
+    originalFileName: 'Bohemian_Rhapsody_Queen.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'preset_ojitos_lindos',
+    title: 'Ojitos Lindos',
+    artist: 'Bad Bunny ft. Bomba Estéreo',
+    genre: 'Urbano / Indie',
+    duration: 258,
+    bpm: 100,
+    key: 'A Minor',
+    lyrics: [{ time: 0, text: '♪ Hace mucho tiempo que no miro a los ojos a alguien ♪' }],
+    originalFileName: 'Ojitos_Lindos_Bad_Bunny.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'preset_el_rey',
+    title: 'El Rey',
+    artist: 'Vicente Fernández',
+    genre: 'Mariachi / Ranchera',
+    duration: 145,
+    bpm: 110,
+    key: 'G Major',
+    lyrics: [{ time: 0, text: '♪ Yo sé bien que estoy afuera, pero el día que yo me muera ♪' }],
+    originalFileName: 'El_Rey_Vicente_Fernandez.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'preset_fly_me_to_the_moon',
+    title: 'Fly Me To The Moon',
+    artist: 'Frank Sinatra',
+    genre: 'Jazz / Classic',
+    duration: 147,
+    bpm: 118,
+    key: 'C Major',
+    lyrics: [{ time: 0, text: '♪ Fly me to the moon and let me play among the stars ♪' }],
+    originalFileName: 'Fly_Me_To_The_Moon_Frank_Sinatra.mp3',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+];
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -54,13 +155,22 @@ export async function getSongsFromDB(): Promise<SongItem[]> {
     const tx = db.transaction(STORE_SONGS, 'readonly');
     const store = tx.objectStore(STORE_SONGS);
     const req = store.getAll();
-    return new Promise((resolve, reject) => {
+    const result = await new Promise<SongItem[]>((resolve, reject) => {
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
+
+    if (!result || result.length === 0) {
+      // Auto-seed default preset songs if DB is empty
+      for (const song of DEFAULT_PRESET_SONGS) {
+        await saveSongToDB(song);
+      }
+      return DEFAULT_PRESET_SONGS;
+    }
+    return result;
   } catch (err) {
     console.warn('Error reading from IndexedDB:', err);
-    return [];
+    return DEFAULT_PRESET_SONGS;
   }
 }
 
@@ -94,16 +204,13 @@ export async function clearAllSongsFromDB(): Promise<void> {
   }
 }
 
-// ── Singer Profiles Storage Helpers ─────────────────────────────────────
+// ── Singer Profiles Storage Helpers ──
 export function getProfilesFromStorage(): SingerProfile[] {
   try {
     const raw = localStorage.getItem(PROFILES_STORAGE_KEY);
     if (!raw) return DEFAULT_PROFILES;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-    return DEFAULT_PROFILES;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_PROFILES;
   } catch {
     return DEFAULT_PROFILES;
   }
@@ -125,21 +232,21 @@ export function getActiveProfileIdFromStorage(): string {
   }
 }
 
-export function setActiveProfileIdToStorage(id: string): void {
+export function saveActiveProfileIdToStorage(id: string): void {
   try {
     localStorage.setItem(ACTIVE_PROFILE_KEY, id);
   } catch (err) {
     console.warn('Error saving active profile ID:', err);
   }
 }
-
-const YOUTUBE_FAVORITES_KEY = 'karaokelab_youtube_favorites';
+export const setActiveProfileIdToStorage = saveActiveProfileIdToStorage;
 
 export function getYouTubeFavoritesFromStorage(): YouTubeFavoriteTrack[] {
   try {
-    const raw = localStorage.getItem(YOUTUBE_FAVORITES_KEY);
+    const raw = localStorage.getItem('karaokelab_yt_favorites');
     if (!raw) return [];
-    return JSON.parse(raw) as YouTubeFavoriteTrack[];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -147,9 +254,8 @@ export function getYouTubeFavoritesFromStorage(): YouTubeFavoriteTrack[] {
 
 export function saveYouTubeFavoritesToStorage(favorites: YouTubeFavoriteTrack[]): void {
   try {
-    localStorage.setItem(YOUTUBE_FAVORITES_KEY, JSON.stringify(favorites));
+    localStorage.setItem('karaokelab_yt_favorites', JSON.stringify(favorites));
   } catch (err) {
-    console.warn('Error saving YouTube favorites to localStorage:', err);
+    console.warn('Error saving YouTube favorites:', err);
   }
 }
-
