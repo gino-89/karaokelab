@@ -13,7 +13,44 @@ export const GuestRemoteView: React.FC = () => {
   useEffect(() => {
     // Load songs and profiles from local database with catalog fallback
     const loadSongs = async () => {
-      let songs = await getSongsFromDB();
+      let songs: SongItem[] = [];
+
+      // 1. Decode &cat= URL parameter (passed from scanned QR code)
+      if (typeof window !== 'undefined') {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const catParam = params.get('cat');
+          if (catParam) {
+            const jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(catParam))));
+            const parsed = JSON.parse(jsonStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              songs = parsed.map((item: any) => ({
+                id: item.id || `remote_${Math.random()}`,
+                title: item.title,
+                artist: item.artist || '',
+                genre: item.genre || '',
+                duration: item.duration || 180,
+                bpm: item.bpm || 120,
+                key: 'C',
+                lyrics: [],
+                originalFileName: `${item.title}.mp3`,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              }));
+              try {
+                localStorage.setItem('karaokelab_song_catalog', JSON.stringify(songs));
+              } catch (_) {}
+            }
+          }
+        } catch (err) {
+          console.warn('Could not parse catalog from URL:', err);
+        }
+      }
+
+      // 2. Fallback to IndexedDB or localStorage
+      if (songs.length === 0) {
+        songs = await getSongsFromDB();
+      }
       if (!songs || songs.length === 0) {
         try {
           const rawCatalog = localStorage.getItem('karaokelab_song_catalog');
@@ -22,6 +59,7 @@ export const GuestRemoteView: React.FC = () => {
           }
         } catch (_) {}
       }
+
       setSavedSongs(songs || []);
     };
     loadSongs();

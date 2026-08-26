@@ -11,10 +11,29 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose }) => 
 
   if (!isOpen) return null;
 
-  // Generate URL for guest phones
-  const guestUrl = typeof window !== 'undefined' 
-    ? `${window.location.protocol}//${window.location.host}?mode=guest`
-    : 'http://localhost:3002/?mode=guest';
+  // Generate URL for guest phones with encoded catalog payload
+  const catalogParam = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('karaokelab_song_catalog');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mini = parsed.slice(0, 100).map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            artist: s.artist || '',
+            genre: s.genre || '',
+          }));
+          return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(mini)))));
+        }
+      }
+    } catch (_) {}
+    return '';
+  }, [isOpen]);
+
+  const guestUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.host}?mode=guest${catalogParam ? `&cat=${catalogParam}` : ''}`
+    : 'http://localhost:3005/?mode=guest';
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(guestUrl)}&color=00f0ff&bgcolor=080811`;
 
