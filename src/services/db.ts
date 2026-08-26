@@ -159,18 +159,10 @@ export async function getSongsFromDB(): Promise<SongItem[]> {
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
-
-    if (!result || result.length === 0) {
-      // Auto-seed default preset songs if DB is empty
-      for (const song of DEFAULT_PRESET_SONGS) {
-        await saveSongToDB(song);
-      }
-      return DEFAULT_PRESET_SONGS;
-    }
-    return result;
+    return result || [];
   } catch (err) {
     console.warn('Error reading from IndexedDB:', err);
-    return DEFAULT_PRESET_SONGS;
+    return [];
   }
 }
 

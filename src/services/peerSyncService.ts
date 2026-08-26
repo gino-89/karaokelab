@@ -28,6 +28,8 @@ class PeerSyncService {
   private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
 
+  private currentMiniCatalog: any[] = [];
+
   // Initialize Host session on Mac/PC player
   public initHost(
     onCommand: (cmd: string, data?: any) => void,
@@ -52,6 +54,14 @@ class PeerSyncService {
       this.peer.on('connection', (conn) => {
         this.guestConnections.set(conn.peer, conn);
 
+        conn.on('open', () => {
+          if (this.currentMiniCatalog.length > 0) {
+            try {
+              conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
+            } catch (_) {}
+          }
+        });
+
         conn.on('data', (data: any) => {
           if (data && data.type === 'ADD_TO_QUEUE') {
             if (this.onCommandCallback) {
@@ -68,14 +78,12 @@ class PeerSyncService {
           this.guestConnections.delete(conn.peer);
         });
 
-        // Automatically send current catalog to newly connected guest
-        try {
-          const raw = localStorage.getItem('karaokelab_song_catalog');
-          if (raw) {
-            const catalog = JSON.parse(raw);
-            conn.send({ type: 'CATALOG_SYNC', payload: catalog });
-          }
-        } catch (_) {}
+        // Send immediately if channel open
+        if (this.currentMiniCatalog.length > 0) {
+          try {
+            conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
+          } catch (_) {}
+        }
       });
 
       this.peer.on('error', (err) => {
@@ -102,6 +110,8 @@ class PeerSyncService {
       duration: s.duration || 180,
       bpm: s.bpm || 120,
     }));
+
+    this.currentMiniCatalog = miniCatalog;
 
     // Save in localStorage for fallback
     try {
