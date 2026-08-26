@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SongItem, SingerProfile } from '../types';
 import { getSongsFromDB } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
-import { peerSync } from '../services/peerSyncService';
+import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
-import { Check, ListPlus, UserRound, ScanLine, ShieldX, QrCode, Camera } from 'lucide-react';
+import { Check, ListPlus, UserRound, ScanLine, ShieldX, QrCode, Camera, Wifi, WifiOff, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
 const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
@@ -12,45 +12,27 @@ const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
 export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
-
-  // Synchronously compute kicked state on first render
-  const [kicked, setKicked] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlKey = params.get('k') || '';
-      const kickedKey = localStorage.getItem('karaokelab_kicked_key') || '';
-      // If the current URL has the banned key, block immediately
-      if (kickedKey && urlKey && kickedKey === urlKey) {
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  });
+  const [kicked, setKicked] = useState(false);
+  const [connStatus, setConnStatus] = useState<ConnectionStatus>('reconnecting');
 
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [profiles, setProfiles] = useState<SingerProfile[]>([
     { id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 },
   ]);
   const [activeProfileId, setActiveProfileId] = useState('profile_all');
-  const [queuedFeedback, setQueuedFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
   // Initial mount & URL validation
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const urlKey = params.get('k') || '';
-    const kickedKey = localStorage.getItem('karaokelab_kicked_key') || '';
+    const hostParam = params.get('host') || '';
+    const kickedHost = localStorage.getItem('karaokelab_kicked_host');
 
-    // If opened with the banned key, enforce kick
-    if (kickedKey && urlKey && kickedKey === urlKey) {
+    // If host was kicked in this exact session, enforce kick
+    if (kickedHost && hostParam && kickedHost === hostParam) {
       setKicked(true);
-      return;
-    }
-
-    // If opened with a NEW QR key from a camera scan, UNBLOCK and clear old ban!
-    if (kickedKey && urlKey && kickedKey !== urlKey) {
-      localStorage.removeItem('karaokelab_kicked_key');
+    } else if (kickedHost && hostParam && kickedHost !== hostParam) {
       localStorage.removeItem('karaokelab_kicked_host');
       setKicked(false);
     }
@@ -76,17 +58,20 @@ export const GuestRemoteView: React.FC = () => {
     setActiveProfileId(activeId);
 
     // Real-time listener: host kicked this device
-    const unsubKick = peerSync.onKicked((bannedKey) => {
-      const currentUrlKey = new URLSearchParams(window.location.search).get('k') || bannedKey || 'banned';
-      try {
-        localStorage.setItem('karaokelab_kicked_key', currentUrlKey);
-        localStorage.removeItem('karaokelab_guest_name');
-      } catch (_) {}
+    const unsubKick = peerSync.onKicked(() => {
       setKicked(true);
       setNameConfirmed(false);
     });
 
-    return () => unsubKick();
+    // Connection status listener (Heartbeat monitor)
+    const unsubConn = peerSync.onConnectionStatusChanged((status) => {
+      setConnStatus(status);
+    });
+
+    return () => {
+      unsubKick();
+      unsubConn();
+    };
   }, []);
 
   // Save profiles to localStorage whenever they change
@@ -174,7 +159,7 @@ export const GuestRemoteView: React.FC = () => {
   const handleRequestSong = (song: SongItem) => {
     if (kicked) return;
 
-    peerSync.sendSongRequestFromGuest({
+    const result = peerSync.sendSongRequestFromGuest({
       id: song.id,
       title: song.title,
       artist: song.artist || '',
@@ -187,22 +172,38 @@ export const GuestRemoteView: React.FC = () => {
       guestName: guestName,
     });
 
-    setQueuedFeedback(`¡"${song.title}" enviada a la cola! 🎤`);
-    setTimeout(() => setQueuedFeedback(null), 4000);
+    if (result.success) {
+      setFeedback({ type: 'success', message: `¡"${song.title}" enviada a la cola! 🎤` });
+    } else {
+      setFeedback({
+        type: 'error',
+        message: result.error || '⚠️ Sin conexión con el anfitrión. Escanea el código QR de nuevo.',
+      });
+    }
+
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   const handleRequestCustomSong = (title: string) => {
     if (kicked || !title.trim()) return;
 
-    peerSync.sendSongRequestFromGuest({ title: title.trim() });
+    const result = peerSync.sendSongRequestFromGuest({ title: title.trim() });
     tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
       title: title.trim(),
       guestName: guestName,
     });
 
-    setQueuedFeedback(`¡"${title.trim()}" enviada a la cola! 🎤`);
-    setCustomRequestTitle('');
-    setTimeout(() => setQueuedFeedback(null), 4000);
+    if (result.success) {
+      setFeedback({ type: 'success', message: `¡"${title.trim()}" enviada a la cola! 🎤` });
+      setCustomRequestTitle('');
+    } else {
+      setFeedback({
+        type: 'error',
+        message: result.error || '⚠️ Sin conexión con el anfitrión. Escanea el código QR de nuevo.',
+      });
+    }
+
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   // ── Guest-side profile management synced with main host library ──
@@ -222,8 +223,8 @@ export const GuestRemoteView: React.FC = () => {
 
     // Send profile to Host so it appears and saves in main library
     peerSync.sendCreateProfileFromGuest(newProfile);
-    setQueuedFeedback(`¡Perfil "${newProfile.name}" guardado en la biblioteca principal! 👤`);
-    setTimeout(() => setQueuedFeedback(null), 4000);
+    setFeedback({ type: 'success', message: `¡Perfil "${newProfile.name}" guardado en la biblioteca principal! 👤` });
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   const handleDeleteProfile = (profileId: string) => {
@@ -261,8 +262,6 @@ export const GuestRemoteView: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#06070d] text-white flex items-center justify-center p-4 font-sans select-none">
         <div className="w-full max-w-sm flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-300">
-          
-          {/* Expelled Icon Header */}
           <div className="relative flex items-center justify-center">
             <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-900/40 border border-rose-500/50 flex items-center justify-center shadow-[0_0_50px_rgba(244,63,94,0.35)]">
               <ShieldX className="w-12 h-12 text-rose-400" />
@@ -272,7 +271,6 @@ export const GuestRemoteView: React.FC = () => {
             </div>
           </div>
 
-          {/* Title & Description */}
           <div className="text-center flex flex-col gap-1">
             <h1 className="text-xl font-black uppercase tracking-wider text-rose-400">
               Dispositivo Expulsado
@@ -282,7 +280,6 @@ export const GuestRemoteView: React.FC = () => {
             </p>
           </div>
 
-          {/* Action Card: Must Scan QR with Camera */}
           <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col items-center gap-4 text-center">
             <div className="w-16 h-16 rounded-2xl bg-cyan-950/60 border border-cyan-500/50 flex items-center justify-center text-[#00f0ff] shadow-[0_0_25px_rgba(0,240,255,0.25)] animate-pulse">
               <ScanLine className="w-8 h-8" />
@@ -307,7 +304,6 @@ export const GuestRemoteView: React.FC = () => {
             <QrCode className="w-3 h-3 text-cyan-500" />
             <span>KaraokeLab Studio Party Connect</span>
           </div>
-
         </div>
       </div>
     );
@@ -318,7 +314,6 @@ export const GuestRemoteView: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#080811] text-white flex items-center justify-center p-4 font-sans">
         <div className="w-full max-w-sm flex flex-col items-center gap-6">
-          {/* Logo */}
           <div className="flex flex-col items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00f0ff] to-[#ff007f] flex items-center justify-center text-3xl shadow-[0_0_40px_rgba(0,240,255,0.4)]">
               🎤
@@ -329,7 +324,6 @@ export const GuestRemoteView: React.FC = () => {
             <p className="text-xs text-slate-400 font-mono">Control Remoto en Vivo</p>
           </div>
 
-          {/* Name Input Card */}
           <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col gap-4">
             <div className="flex items-center gap-2 text-cyan-300">
               <UserRound className="w-5 h-5" />
@@ -341,7 +335,9 @@ export const GuestRemoteView: React.FC = () => {
               placeholder="Escribe tu nombre..."
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmName(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmName();
+              }}
               autoFocus
               className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all"
             />
@@ -356,7 +352,7 @@ export const GuestRemoteView: React.FC = () => {
           </div>
 
           <p className="text-[10px] text-slate-600 font-mono text-center">
-            Tu nombre aparecerá cuando pidas canciones
+            Tu nombre aparecerá en la pantalla principal cuando pidas canciones
           </p>
         </div>
       </div>
@@ -366,6 +362,33 @@ export const GuestRemoteView: React.FC = () => {
   // ── Main Remote View ──
   return (
     <div className="min-h-screen bg-[#080811] text-white p-3 flex flex-col gap-3 font-sans max-w-4xl mx-auto">
+      {/* Disconnection Warning Banner */}
+      {connStatus === 'disconnected' && (
+        <div className="p-3 rounded-2xl bg-rose-950/90 border border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-rose-200">
+            <WifiOff className="w-5 h-5 text-rose-400 shrink-0 animate-pulse" />
+            <div className="flex flex-col">
+              <span className="text-xs font-black uppercase tracking-wide text-rose-300">
+                Conexión Perdida con el Anfitrión
+              </span>
+              <span className="text-[11px] text-rose-200/80 leading-snug">
+                El equipo principal no responde o inició una nueva sesión. Pide escanear el QR nuevo.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <button
+              type="button"
+              onClick={() => peerSync.reconnectGuest()}
+              className="px-3 py-1.5 rounded-xl bg-rose-800 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 border border-rose-400/40"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reconectar</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <div className="flex items-center gap-2.5">
@@ -393,17 +416,42 @@ export const GuestRemoteView: React.FC = () => {
           >
             Cambiar Nombre
           </button>
-          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold font-mono">
-            ● En Vivo
-          </span>
+
+          {/* Real-time Heartbeat Connection Pill */}
+          {connStatus === 'connected' ? (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold font-mono flex items-center gap-1">
+              <Wifi className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span>En Vivo</span>
+            </span>
+          ) : connStatus === 'reconnecting' ? (
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold font-mono flex items-center gap-1 animate-pulse">
+              <RefreshCw className="w-3 h-3 text-amber-400 animate-spin" />
+              <span>Reconectando</span>
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold font-mono flex items-center gap-1">
+              <WifiOff className="w-3 h-3 text-rose-400" />
+              <span>Desconectado</span>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Queued Feedback Notification */}
-      {queuedFeedback && (
-        <div className="p-3 rounded-xl bg-emerald-950/90 border border-emerald-500/60 text-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in shadow-lg">
-          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{queuedFeedback}</span>
+      {/* Toast Feedback Notification */}
+      {feedback && (
+        <div
+          className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 animate-in fade-in shadow-lg ${
+            feedback.type === 'success'
+              ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-200'
+              : 'bg-rose-950/95 border-rose-500/80 text-rose-200'
+          }`}
+        >
+          {feedback.type === 'success' ? (
+            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          )}
+          <span>{feedback.message}</span>
         </div>
       )}
 
@@ -420,7 +468,9 @@ export const GuestRemoteView: React.FC = () => {
             value={customRequestTitle}
             onChange={(e) => setCustomRequestTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && customRequestTitle.trim()) handleRequestCustomSong(customRequestTitle.trim());
+              if (e.key === 'Enter' && customRequestTitle.trim()) {
+                handleRequestCustomSong(customRequestTitle.trim());
+              }
             }}
             className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
           />
@@ -435,7 +485,7 @@ export const GuestRemoteView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Song Library Component */}
+      {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management) */}
       <SongLibrary
         savedSongs={savedSongs}
         queue={[]}

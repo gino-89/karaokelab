@@ -2,7 +2,7 @@ import Peer, { DataConnection } from 'peerjs';
 import { SongItem, SingerProfile } from '../types';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'HEARTBEAT' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
   payload?: any;
 }
 
@@ -12,8 +12,11 @@ export interface ConnectedGuest {
   connectedAt: number;
 }
 
-// Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
+
+// Google & Twilio public STUN servers for 100% reliable cross-device WebRTC NAT traversal (WiFi, 4G/5G, cross-network)
 const PEER_CONFIG = {
+  debug: 1,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -21,7 +24,9 @@ const PEER_CONFIG = {
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
     ],
+    iceCandidatePoolSize: 10,
   },
 };
 
@@ -38,9 +43,17 @@ class PeerSyncService {
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
   private onKickedCallback: ((kickedKey?: string) => void) | null = null;
+  private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
   private currentProfiles: SingerProfile[] = [];
+
+  // Heartbeat & connection monitoring
+  private hostHeartbeatTimer: any = null;
+  private guestHeartbeatMonitorTimer: any = null;
+  private lastHeartbeatReceived: number = 0;
+  private currentConnectionStatus: ConnectionStatus = 'disconnected';
+  private targetHostId: string | null = null;
 
   // Get or rotate dynamic QR session key
   public getQrKey(): string {
@@ -52,14 +65,39 @@ class PeerSyncService {
     return this.currentQrKey;
   }
 
+  public getConnectionStatus(): ConnectionStatus {
+    return this.currentConnectionStatus;
+  }
+
+  public onConnectionStatusChanged(callback: (status: ConnectionStatus) => void): () => void {
+    this.onConnectionStatusCallback = callback;
+    return () => { this.onConnectionStatusCallback = null; };
+  }
+
+  private _setConnectionStatus(status: ConnectionStatus) {
+    if (this.currentConnectionStatus !== status) {
+      this.currentConnectionStatus = status;
+      if (this.onConnectionStatusCallback) {
+        this.onConnectionStatusCallback(status);
+      }
+    }
+  }
+
   // Initialize Host session on Mac/PC player
   public initHost(
     onCommand: (cmd: string, data?: any) => void,
     onPeerIdReady?: (peerId: string) => void
   ) {
-    if (this.peer && !this.peer.destroyed) return;
     this.isHost = true;
     this.onCommandCallback = onCommand;
+
+    // If host peer is already open, immediately return current ID
+    if (this.peer && !this.peer.destroyed) {
+      if (this.hostId && onPeerIdReady) {
+        onPeerIdReady(this.hostId);
+      }
+      return;
+    }
 
     // Create unique room ID
     const randomSuffix = Math.random().toString(36).substring(2, 8);
@@ -70,14 +108,27 @@ class PeerSyncService {
 
       this.peer.on('open', (id) => {
         this.hostId = id;
+        console.log('✓ Host PeerJS online with ID:', id);
         if (onPeerIdReady) onPeerIdReady(id);
+
+        // Start sending periodic heartbeats to all connected guests every 3s
+        if (this.hostHeartbeatTimer) clearInterval(this.hostHeartbeatTimer);
+        this.hostHeartbeatTimer = setInterval(() => {
+          this.guestConnections.forEach((conn) => {
+            if (conn.open) {
+              try {
+                conn.send({ type: 'HEARTBEAT', payload: { ts: Date.now() } });
+              } catch (_) {}
+            }
+          });
+        }, 3000);
       });
 
       this.peer.on('connection', (conn) => {
         this.guestConnections.set(conn.peer, conn);
 
         conn.on('open', () => {
-          // Send initial catalog & profiles when guest connects
+          console.log('✓ Guest connected:', conn.peer);
           if (this.currentMiniCatalog.length > 0) {
             try {
               conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
@@ -88,6 +139,9 @@ class PeerSyncService {
               conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
             } catch (_) {}
           }
+          try {
+            conn.send({ type: 'HEARTBEAT', payload: { ts: Date.now() } });
+          } catch (_) {}
         });
 
         conn.on('data', (data: any) => {
@@ -103,7 +157,6 @@ class PeerSyncService {
             this.connectedGuests.set(conn.peer, guest);
             this._notifyGuestsChanged();
 
-            // Send fresh catalog and profiles to newly registered guest
             if (this.currentMiniCatalog.length > 0) {
               try {
                 conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
@@ -115,7 +168,17 @@ class PeerSyncService {
               } catch (_) {}
             }
           } else if (data.type === 'ADD_TO_QUEUE') {
-            if (this.connectedGuests.has(conn.peer) && this.onCommandCallback) {
+            console.log('✓ Host received ADD_TO_QUEUE from guest:', data.payload);
+            // Ensure guest is recognized in list if not already
+            if (!this.connectedGuests.has(conn.peer)) {
+              this.connectedGuests.set(conn.peer, {
+                peerId: conn.peer,
+                name: data.payload?.guestName || 'Invitado',
+                connectedAt: Date.now(),
+              });
+              this._notifyGuestsChanged();
+            }
+            if (this.onCommandCallback) {
               this.onCommandCallback('ADD_TO_QUEUE', data.payload);
             }
           } else if (data.type === 'CREATE_PROFILE') {
@@ -139,7 +202,8 @@ class PeerSyncService {
           this._notifyGuestsChanged();
         });
 
-        conn.on('error', () => {
+        conn.on('error', (err) => {
+          console.warn('Guest connection error:', err);
           this.guestConnections.delete(conn.peer);
           this.connectedGuests.delete(conn.peer);
           this._notifyGuestsChanged();
@@ -272,6 +336,8 @@ class PeerSyncService {
     onCatalogReceived: (songs: SongItem[]) => void,
     onProfilesReceived?: (profiles: SingerProfile[]) => void
   ) {
+    this.targetHostId = targetHostId;
+
     if (this.peer && !this.peer.destroyed) {
       try {
         this.peer.destroy();
@@ -281,6 +347,7 @@ class PeerSyncService {
     this.isHost = false;
     this.onCatalogReceivedCallback = onCatalogReceived;
     this.onProfilesReceivedCallback = onProfilesReceived || null;
+    this._setConnectionStatus('reconnecting');
 
     try {
       this.peer = new Peer(PEER_CONFIG);
@@ -288,25 +355,50 @@ class PeerSyncService {
       this.peer.on('open', () => {
         if (!this.peer || !targetHostId) return;
 
+        console.log('Connecting to Host:', targetHostId);
         const conn = this.peer.connect(targetHostId, { reliable: true });
         this.hostConnection = conn;
 
         conn.on('open', () => {
+          console.log('✓ WebRTC P2P connected to Host:', targetHostId);
+          this.lastHeartbeatReceived = Date.now();
+          this._setConnectionStatus('connected');
+
           const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
           conn.send({
             type: 'GUEST_INFO',
             payload: { name: savedName },
           });
+
+          // Start Heartbeat monitor on Guest: check every 3s
+          if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
+          this.guestHeartbeatMonitorTimer = setInterval(() => {
+            const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
+            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 8000) {
+              this._setConnectionStatus('disconnected');
+            } else {
+              this._setConnectionStatus('connected');
+            }
+          }, 2500);
         });
 
         conn.on('data', (data: any) => {
           if (!data) return;
 
-          if (data.type === 'CATALOG_SYNC' && Array.isArray(data.payload)) {
+          this.lastHeartbeatReceived = Date.now();
+          this._setConnectionStatus('connected');
+
+          if (data.type === 'HEARTBEAT') {
+            try {
+              conn.send({ type: 'HEARTBEAT_ACK', payload: { ts: Date.now() } });
+            } catch (_) {}
+          } else if (data.type === 'CATALOG_SYNC' && Array.isArray(data.payload)) {
+            console.log('✓ Received catalog sync from Host:', data.payload.length, 'songs');
             if (this.onCatalogReceivedCallback) {
               this.onCatalogReceivedCallback(data.payload);
             }
           } else if (data.type === 'PROFILES_SYNC' && Array.isArray(data.payload)) {
+            console.log('✓ Received profiles sync from Host:', data.payload.length, 'profiles');
             if (this.onProfilesReceivedCallback) {
               this.onProfilesReceivedCallback(data.payload);
             }
@@ -325,6 +417,7 @@ class PeerSyncService {
             try { conn.close(); } catch (_) {}
             try { this.peer?.destroy(); } catch (_) {}
             this.hostConnection = null;
+            this._setConnectionStatus('disconnected');
 
             if (this.onKickedCallback) {
               this.onKickedCallback(kickedKey);
@@ -332,12 +425,34 @@ class PeerSyncService {
           }
         });
 
+        conn.on('close', () => {
+          this._setConnectionStatus('disconnected');
+        });
+
         conn.on('error', (err) => {
           console.warn('Guest WebRTC connection error:', err);
+          this._setConnectionStatus('disconnected');
         });
+      });
+
+      this.peer.on('error', (err) => {
+        console.warn('Guest PeerJS error:', err);
+        this._setConnectionStatus('disconnected');
       });
     } catch (e) {
       console.warn('Guest PeerJS init exception:', e);
+      this._setConnectionStatus('disconnected');
+    }
+  }
+
+  // Reconnect guest on demand
+  public reconnectGuest() {
+    if (this.targetHostId && !this.isHost && this.onCatalogReceivedCallback) {
+      this.initGuest(
+        this.targetHostId,
+        this.onCatalogReceivedCallback,
+        this.onProfilesReceivedCallback || undefined
+      );
     }
   }
 
@@ -354,7 +469,7 @@ class PeerSyncService {
   }
 
   // Send song request from guest to host
-  public sendSongRequestFromGuest(songData: { id?: string; title: string; artist?: string; singerName?: string }) {
+  public sendSongRequestFromGuest(songData: { id?: string; title: string; artist?: string; singerName?: string }): { success: boolean; error?: string } {
     if (this.hostConnection && this.hostConnection.open) {
       try {
         const guestName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
@@ -362,9 +477,15 @@ class PeerSyncService {
           type: 'ADD_TO_QUEUE',
           payload: { ...songData, guestName },
         });
-      } catch (e) {
+        console.log('✓ Song request sent to host:', songData.title);
+        return { success: true };
+      } catch (e: any) {
         console.warn('Error sending song request to host:', e);
+        return { success: false, error: 'Error al enviar petición' };
       }
+    } else {
+      console.warn('Host connection is not open:', this.hostConnection);
+      return { success: false, error: 'Sin conexión con el anfitrión. Escanea el código QR de nuevo.' };
     }
   }
 
