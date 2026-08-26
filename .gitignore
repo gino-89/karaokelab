@@ -1,0 +1,14 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+dist-electron
+temp_ai
+
+# Environment & OS files
+.env
+.env.local
+.DS_Store
+*.log

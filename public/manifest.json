@@ -1,0 +1,18 @@
+{
+  "short_name": "KaraokeLab",
+  "name": "KaraokeLab Studio // DSP Engine",
+  "description": "Plataforma de Karaoke Profesional On-Device con IA, Separación de Pistas y Modo TV Standalone.",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/?mode=app",
+  "background_color": "#080811",
+  "theme_color": "#080811",
+  "display": "standalone",
+  "orientation": "any"
+}
