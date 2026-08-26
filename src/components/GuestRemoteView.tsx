@@ -4,12 +4,13 @@ import { getSongsFromDB, getProfilesFromStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
-import { Check } from 'lucide-react';
+import { Check, ListPlus, Send } from 'lucide-react';
 
 export const GuestRemoteView: React.FC = () => {
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [profiles, setProfiles] = useState<SingerProfile[]>([]);
   const [queuedFeedback, setQueuedFeedback] = useState<string | null>(null);
+  const [customRequestTitle, setCustomRequestTitle] = useState('');
 
   useEffect(() => {
     // Load songs and profiles from local database with catalog fallback
@@ -86,6 +87,22 @@ export const GuestRemoteView: React.FC = () => {
     setTimeout(() => setQueuedFeedback(null), 4000);
   };
 
+  const handleRequestCustomSong = (title: string) => {
+    if (!title.trim()) return;
+
+    peerSync.sendSongRequestFromGuest({
+      title: title.trim(),
+    });
+
+    tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
+      title: title.trim(),
+    });
+
+    setQueuedFeedback(`¡"${title.trim()}" enviada a la cola de reproducción en vivo! 🎤`);
+    setCustomRequestTitle('');
+    setTimeout(() => setQueuedFeedback(null), 4000);
+  };
+
   return (
     <div className="min-h-screen bg-[#080811] text-white p-3 flex flex-col gap-3 font-sans max-w-4xl mx-auto">
       {/* Header */}
@@ -98,7 +115,7 @@ export const GuestRemoteView: React.FC = () => {
             <h1 className="text-base font-black italic uppercase tracking-wider text-white">
               KaraokeLab Remote
             </h1>
-            <p className="text-[10px] text-cyan-400 font-mono">Pedir Canciones de la Biblioteca</p>
+            <p className="text-[10px] text-cyan-400 font-mono">Pedir Canciones en Vivo</p>
           </div>
         </div>
 
@@ -114,6 +131,36 @@ export const GuestRemoteView: React.FC = () => {
           <span>{queuedFeedback}</span>
         </div>
       )}
+
+      {/* Quick Custom Song Request Bar */}
+      <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/40 flex flex-col gap-2 shadow-lg">
+        <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+          <span>🎤</span>
+          <span>¿No ves tu canción? Pídela directamente:</span>
+        </span>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Escribe el nombre de la canción o artista..."
+            value={customRequestTitle}
+            onChange={(e) => setCustomRequestTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && customRequestTitle.trim()) {
+                handleRequestCustomSong(customRequestTitle.trim());
+              }
+            }}
+            className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
+          />
+          <button
+            type="button"
+            onClick={() => customRequestTitle.trim() && handleRequestCustomSong(customRequestTitle.trim())}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
+          >
+            <ListPlus className="w-3.5 h-3.5" />
+            <span>Pedir</span>
+          </button>
+        </div>
+      </div>
 
       {/* Main Song Library Component */}
       <SongLibrary

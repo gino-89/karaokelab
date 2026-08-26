@@ -6,6 +6,19 @@ export interface PeerMessage {
   payload?: any;
 }
 
+// Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal (WiFi, 4G/5G, cross-network)
+const PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ],
+  },
+};
+
 class PeerSyncService {
   private peer: Peer | null = null;
   private hostConnection: DataConnection | null = null;
@@ -29,7 +42,7 @@ class PeerSyncService {
     const sessionPeerId = `klab_host_${randomSuffix}`;
 
     try {
-      this.peer = new Peer(sessionPeerId);
+      this.peer = new Peer(sessionPeerId, PEER_CONFIG);
 
       this.peer.on('open', (id) => {
         this.hostId = id;
@@ -120,7 +133,7 @@ class PeerSyncService {
     this.onCatalogReceivedCallback = onCatalogReceived;
 
     try {
-      this.peer = new Peer();
+      this.peer = new Peer(PEER_CONFIG);
 
       this.peer.on('open', () => {
         if (!this.peer || !targetHostId) return;
@@ -129,7 +142,7 @@ class PeerSyncService {
         this.hostConnection = conn;
 
         conn.on('open', () => {
-          console.log('✓ WebRTC connected to Host:', targetHostId);
+          console.log('✓ WebRTC P2P connected to Host:', targetHostId);
           // Request initial catalog sync
           conn.send({ type: 'HEARTBEAT' });
         });
