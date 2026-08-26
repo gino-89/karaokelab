@@ -18,6 +18,7 @@ export interface TvStatePayload {
   isDuetMode?: boolean;
   youTubeEmbedId?: string | null;
   videoBgConfig?: VideoBackgroundConfig;
+  catalog?: Array<{ id: string; title: string; artist?: string; genre?: string; bpm?: number; duration?: number }>;
   timestamp: number;
 }
 

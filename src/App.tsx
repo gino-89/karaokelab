@@ -212,7 +212,12 @@ export default function App() {
 
   // ── Dual Screen TV & Chromecast / AirPlay Remote Control States ──
   const isTvDisplayMode = typeof window !== 'undefined' && window.location.search.includes('mode=tv_display');
-  const isGuestMode = typeof window !== 'undefined' && window.location.search.includes('mode=guest');
+  const isGuestMode = typeof window !== 'undefined' && (
+    window.location.search.includes('mode=guest') ||
+    window.location.search.includes('guest') ||
+    window.location.search.includes('remote') ||
+    window.location.hash.includes('guest')
+  );
 
   const [isCastModalOpen, setIsCastModalOpen] = useState(false);
   const [isCastingActive, setIsCastingActive] = useState(false);
@@ -490,6 +495,14 @@ export default function App() {
           isDuetMode,
           youTubeEmbedId,
           videoBgConfig,
+          catalog: savedSongs.map((s) => ({
+            id: s.id,
+            title: s.title,
+            artist: s.artist,
+            genre: s.genre,
+            bpm: s.bpm,
+            duration: s.duration,
+          })),
         });
       }
     }
@@ -508,6 +521,7 @@ export default function App() {
     isDuetMode,
     youTubeEmbedId,
     videoBgConfig,
+    savedSongs,
   ]);
 
   if (isTvDisplayMode) {
