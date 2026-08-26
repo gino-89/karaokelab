@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SongItem, SingerProfile } from '../types';
-import { getSongsFromDB, getProfilesFromStorage } from '../services/db';
+import { getSongsFromDB, getProfilesFromStorage, saveProfilesToStorage, getActiveProfileIdFromStorage, setActiveProfileIdToStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
 import { Check, ListPlus, UserRound } from 'lucide-react';
 
+const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
+const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
+
 export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
-  const [profiles, setProfiles] = useState<SingerProfile[]>([]);
+  const [profiles, setProfiles] = useState<SingerProfile[]>([
+    { id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 },
+  ]);
+  const [activeProfileId, setActiveProfileId] = useState('profile_all');
   const [queuedFeedback, setQueuedFeedback] = useState<string | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
@@ -21,6 +27,27 @@ export const GuestRemoteView: React.FC = () => {
       setGuestName(saved);
       setNameConfirmed(true);
     }
+    // Load guest-local profiles
+    try {
+      const raw = localStorage.getItem(GUEST_PROFILE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProfiles(parsed);
+        }
+      }
+    } catch (_) {}
+    // Load active profile
+    const activeId = localStorage.getItem(GUEST_ACTIVE_PROFILE_KEY) || 'profile_all';
+    setActiveProfileId(activeId);
+  }, []);
+
+  // Save profiles to localStorage whenever they change
+  const saveGuestProfiles = useCallback((updatedProfiles: SingerProfile[]) => {
+    setProfiles(updatedProfiles);
+    try {
+      localStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(updatedProfiles));
+    } catch (_) {}
   }, []);
 
   // Connect to host and load songs once name is confirmed
@@ -71,7 +98,6 @@ export const GuestRemoteView: React.FC = () => {
     };
 
     loadSongs();
-    setProfiles(getProfilesFromStorage());
 
     // Listen to live catalog updates from broadcast
     const unsub = tvBroadcast.onStateUpdate((state: any) => {
@@ -87,7 +113,6 @@ export const GuestRemoteView: React.FC = () => {
     setGuestName(trimmed);
     localStorage.setItem('karaokelab_guest_name', trimmed);
     setNameConfirmed(true);
-    // If already connected, send name update to host
     peerSync.sendGuestName(trimmed);
   };
 
@@ -112,10 +137,7 @@ export const GuestRemoteView: React.FC = () => {
   const handleRequestCustomSong = (title: string) => {
     if (!title.trim()) return;
 
-    peerSync.sendSongRequestFromGuest({
-      title: title.trim(),
-    });
-
+    peerSync.sendSongRequestFromGuest({ title: title.trim() });
     tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
       title: title.trim(),
       guestName: guestName,
@@ -124,6 +146,46 @@ export const GuestRemoteView: React.FC = () => {
     setQueuedFeedback(`¡"${title.trim()}" enviada a la cola! 🎤`);
     setCustomRequestTitle('');
     setTimeout(() => setQueuedFeedback(null), 4000);
+  };
+
+  // ── Guest-side profile management (stored in guest's localStorage only) ──
+  const handleCreateProfile = (name: string, avatar: string, color: string) => {
+    const newProfile: SingerProfile = {
+      id: `guest_profile_${Date.now()}`,
+      name,
+      avatar,
+      color,
+      favoriteSongIds: [],
+      createdAt: Date.now(),
+    };
+    const updated = [...profiles, newProfile];
+    saveGuestProfiles(updated);
+    setActiveProfileId(newProfile.id);
+    localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, newProfile.id);
+  };
+
+  const handleDeleteProfile = (profileId: string) => {
+    if (profileId === 'profile_all') return;
+    const updated = profiles.filter((p) => p.id !== profileId);
+    saveGuestProfiles(updated.length > 0 ? updated : [{ id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 }]);
+    setActiveProfileId('profile_all');
+    localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, 'profile_all');
+  };
+
+  const handleSelectProfile = (profileId: string) => {
+    setActiveProfileId(profileId);
+    localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, profileId);
+  };
+
+  const handleToggleFavoriteSong = (profileId: string, songId: string) => {
+    const updated = profiles.map((p) => {
+      if (p.id !== profileId) return p;
+      const favs = p.favoriteSongIds.includes(songId)
+        ? p.favoriteSongIds.filter((id) => id !== songId)
+        : [...p.favoriteSongIds, songId];
+      return { ...p, favoriteSongIds: favs };
+    });
+    saveGuestProfiles(updated);
   };
 
   // ── Name Entry Screen ──
@@ -154,9 +216,7 @@ export const GuestRemoteView: React.FC = () => {
               placeholder="Escribe tu nombre..."
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleConfirmName();
-              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmName(); }}
               autoFocus
               className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all"
             />
@@ -171,7 +231,7 @@ export const GuestRemoteView: React.FC = () => {
           </div>
 
           <p className="text-[10px] text-slate-600 font-mono text-center">
-            Tu nombre aparecerá en la pantalla principal cuando pidas canciones
+            Tu nombre aparecerá cuando pidas canciones
           </p>
         </div>
       </div>
@@ -235,9 +295,7 @@ export const GuestRemoteView: React.FC = () => {
             value={customRequestTitle}
             onChange={(e) => setCustomRequestTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && customRequestTitle.trim()) {
-                handleRequestCustomSong(customRequestTitle.trim());
-              }
+              if (e.key === 'Enter' && customRequestTitle.trim()) handleRequestCustomSong(customRequestTitle.trim());
             }}
             className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
           />
@@ -252,7 +310,7 @@ export const GuestRemoteView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Song Library Component */}
+      {/* Main Song Library Component — guest mode: no delete, with full profile management */}
       <SongLibrary
         savedSongs={savedSongs}
         queue={[]}
@@ -261,6 +319,12 @@ export const GuestRemoteView: React.FC = () => {
         onDeleteSong={() => {}}
         onAddToQueue={handleRequestSong}
         profiles={profiles}
+        activeProfileId={activeProfileId}
+        onSelectProfile={handleSelectProfile}
+        onCreateProfile={handleCreateProfile}
+        onDeleteProfile={handleDeleteProfile}
+        onToggleFavoriteSong={handleToggleFavoriteSong}
+        isGuestMode={true}
       />
     </div>
   );

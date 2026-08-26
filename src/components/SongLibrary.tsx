@@ -47,6 +47,8 @@ interface SongLibraryProps {
   onCreateProfile?: (name: string, avatar: string, color: string) => void;
   onDeleteProfile?: (profileId: string) => void;
   onToggleFavoriteSong?: (profileId: string, songId: string) => void;
+  /** When true: hides host-only controls (delete, import, etc.) — used in guest QR remote view */
+  isGuestMode?: boolean;
 }
 
 export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
@@ -78,6 +80,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   onCreateProfile,
   onDeleteProfile,
   onToggleFavoriteSong,
+  isGuestMode = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const expandedFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1131,7 +1134,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             )}
                           </button>
 
-                          {(!activeProfile || activeProfile.id === 'profile_all') && (
+                          {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1257,8 +1260,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                               )}
                             </button>
 
-                            {/* Delete button only appears in Todos to prevent accidental database deletion when viewing a profile */}
-                            {(!activeProfile || activeProfile.id === 'profile_all') && (
+                            {/* Delete button only appears in Todos and is hidden in guest mode */}
+                            {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1780,7 +1783,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
 
-                          {(!activeProfile || activeProfile.id === 'profile_all') && (
+                          {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
                             <button
                               onClick={() => setSongToDelete(song)}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-[#ff007f] hover:bg-[#ff007f]/10 cursor-pointer transition-colors"
@@ -1911,7 +1914,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
-                            {(!activeProfile || activeProfile.id === 'profile_all') && (
+                            {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
                               <button
                                 onClick={() => setSongToDelete(song)}
                                 className="p-1 rounded hover:text-[#ff007f] hover:bg-slate-800 cursor-pointer"

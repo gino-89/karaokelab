@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Smartphone, X, Copy, Check, Users, Wifi } from 'lucide-react';
+import { QrCode, Smartphone, X, Copy, Check, Users, Wifi, UserX } from 'lucide-react';
 import { peerSync, ConnectedGuest } from '../services/peerSyncService';
 
 interface QrCodeModalProps {
@@ -100,9 +100,17 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <Wifi className="w-3 h-3 text-emerald-400 animate-pulse" />
                     <span className="text-[9px] font-bold text-emerald-400">En Vivo</span>
+                    <button
+                      type="button"
+                      onClick={() => peerSync.kickGuest(guest.peerId)}
+                      className="ml-1 p-1 rounded-lg bg-rose-900/40 hover:bg-rose-700/60 text-rose-400 hover:text-rose-200 cursor-pointer transition-all border border-rose-500/30"
+                      title={`Expulsar a ${guest.name}`}
+                    >
+                      <UserX className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               ))}

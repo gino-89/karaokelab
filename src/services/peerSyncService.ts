@@ -2,7 +2,7 @@ import Peer, { DataConnection } from 'peerjs';
 import { SongItem } from '../types';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'ADD_TO_QUEUE' | 'HEARTBEAT' | 'GUEST_JOINED' | 'GUEST_INFO';
+  type: 'CATALOG_SYNC' | 'ADD_TO_QUEUE' | 'HEARTBEAT' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
   payload?: any;
 }
 
@@ -127,6 +127,22 @@ class PeerSyncService {
     return Array.from(this.connectedGuests.values());
   }
 
+  // Kick/expel a guest by peerId
+  public kickGuest(peerId: string) {
+    const conn = this.guestConnections.get(peerId);
+    if (conn) {
+      try {
+        conn.send({ type: 'KICK', payload: { reason: 'Expulsado por el host' } });
+      } catch (_) {}
+      setTimeout(() => {
+        try { conn.close(); } catch (_) {}
+      }, 300);
+    }
+    this.guestConnections.delete(peerId);
+    this.connectedGuests.delete(peerId);
+    this._notifyGuestsChanged();
+  }
+
   // Register callback for guest connection changes
   public onGuestsChanged(callback: (guests: ConnectedGuest[]) => void): () => void {
     this.onGuestsChangedCallback = callback;
@@ -203,6 +219,11 @@ class PeerSyncService {
             if (this.onCatalogReceivedCallback) {
               this.onCatalogReceivedCallback(data.payload);
             }
+          } else if (data && data.type === 'KICK') {
+            // Host kicked this guest — show message and redirect
+            alert('Has sido expulsado de la sesión por el anfitrión.');
+            try { this.peer?.destroy(); } catch (_) {}
+            window.location.href = window.location.origin;
           }
         });
 
