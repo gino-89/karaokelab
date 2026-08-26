@@ -220,8 +220,13 @@ class PeerSyncService {
               this.onCatalogReceivedCallback(data.payload);
             }
           } else if (data && data.type === 'KICK') {
-            // Host kicked this guest — show message and redirect
-            alert('Has sido expulsado de la sesión por el anfitrión.');
+            // Host kicked this guest — clear local data and require QR rescan
+            alert('Has sido expulsado de la sesión por el anfitrión. Por favor, escanea el QR nuevamente para volver a conectar.');
+            // Clear guest-specific data
+            try { localStorage.removeItem('karaokelab_guest_name'); } catch (_) {}
+            try { localStorage.removeItem('karaokelab_guest_profiles'); } catch (_) {}
+            try { localStorage.removeItem('karaokelab_guest_active_profile'); } catch (_) {}
+            // Destroy peer connection and navigate to base URL (no host param)
             try { this.peer?.destroy(); } catch (_) {}
             window.location.href = window.location.origin;
           }
