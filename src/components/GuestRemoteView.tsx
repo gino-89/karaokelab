@@ -159,17 +159,25 @@ export const GuestRemoteView: React.FC = () => {
         )}
       </div>
 
-      {/* Search Input */}
-      <div className="relative flex items-center">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Buscar canción o artista..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
-        />
-      </div>
+      {/* Direct Quick Song Request Card (if guest types query) */}
+      {searchQuery.trim().length > 0 && (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-950/90 via-slate-900 to-purple-950/90 border border-cyan-500/50 flex items-center justify-between gap-2 shadow-lg animate-in fade-in">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] text-cyan-300 font-mono font-bold uppercase tracking-wider">Pedir canción en vivo:</span>
+            <span className="text-xs font-black text-white truncate">🎵 {searchQuery.trim()}</span>
+          </div>
+          <button
+            onClick={() => {
+              handleRequestSong(searchQuery.trim(), '', false);
+              setSearchQuery('');
+            }}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs flex items-center gap-1.5 shrink-0 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          >
+            <ListPlus className="w-4 h-4" />
+            <span>Pedir Pista</span>
+          </button>
+        </div>
+      )}
 
       {/* Song List Results */}
       <div className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[50vh]">
