@@ -328,42 +328,11 @@ export default function App() {
     window.addEventListener('dragleave', handleDragLeave);
     window.addEventListener('drop', handleDrop);
 
-    // Tauri Native Drag-Drop Listener
-    let unlistenTauri: (() => void) | null = null;
-    (async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-        const { invoke } = await import('@tauri-apps/api/core');
-        const unlisten = await listen<any>('tauri://drag-drop', async (event) => {
-          setIsWindowDragging(false);
-          const paths: string[] = event.payload?.paths || [];
-          if (paths && paths.length > 0) {
-            const files: File[] = [];
-            for (const p of paths) {
-              try {
-                const res = await invoke<{ name: string; data_base64: string }>('read_file_as_base64', { path: p });
-                if (res?.data_base64) {
-                  const blob = base64ToBlob(res.data_base64, 'audio/mp3');
-                  const file = new File([blob], res.name, { type: 'audio/mp3' });
-                  files.push(file);
-                }
-              } catch (_) {}
-            }
-            if (files.length > 0) {
-              handleFilesSelected(files);
-            }
-          }
-        });
-        unlistenTauri = unlisten;
-      } catch (_) {}
-    })();
-
     return () => {
       window.removeEventListener('dragenter', handleDragEnter);
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('drop', handleDrop);
-      if (unlistenTauri) unlistenTauri();
     };
   }, []);
 

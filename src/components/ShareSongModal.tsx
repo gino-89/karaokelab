@@ -147,8 +147,11 @@ export function ShareSongModal({
   const handleOpenInFinder = async () => {
     if (!driveFolder) return;
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('open_folder_in_finder', { folderPath: driveFolder });
+      if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__?.invoke) {
+        await (window as any).__TAURI_INTERNALS__.invoke('open_folder_in_finder', { folderPath: driveFolder });
+      } else {
+        alert(`Carpeta ubicada en: ${driveFolder}`);
+      }
     } catch {
       alert(`Carpeta ubicada en: ${driveFolder}`);
     }

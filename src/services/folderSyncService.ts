@@ -46,15 +46,10 @@ export function setLastFolderSyncTimestamp(ts: number = Date.now()): void {
 }
 
 async function invokeTauri<T>(cmd: string, args: Record<string, any> = {}): Promise<T | null> {
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<T>(cmd, args);
-  } catch {
-    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__?.invoke) {
-      return await (window as any).__TAURI_INTERNALS__.invoke(cmd, args);
-    }
-    return null;
+  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__?.invoke) {
+    return await (window as any).__TAURI_INTERNALS__.invoke(cmd, args);
   }
+  return null;
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {

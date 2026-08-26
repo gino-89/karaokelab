@@ -63,10 +63,9 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
 
   const handleOpenTvWindow = async () => {
     try {
-      const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+      const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__?.invoke;
       if (isTauri) {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('open_native_tv_window');
+        await (window as any).__TAURI_INTERNALS__.invoke('open_native_tv_window');
         onToggleCasting(true);
         setCastStatus('✓ Pantalla TV abierta en ventana independiente');
         return;
@@ -102,10 +101,9 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
     setCastStatus('Abriendo Modo TV en Google Chrome para transmitir a Chromecast...');
 
     try {
-      const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+      const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__?.invoke;
       if (isTauri) {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('open_in_chrome_cast', { url: tvUrl });
+        await (window as any).__TAURI_INTERNALS__.invoke('open_in_chrome_cast', { url: tvUrl });
         onToggleCasting(true);
         setCastStatus('✓ Modo TV abierto en Google Chrome. Haz clic en Transmitir para seleccionar tu TV.');
         setIsScanning(false);
