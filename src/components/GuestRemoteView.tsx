@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SongItem, SingerProfile } from '../types';
 import { getSongsFromDB, getProfilesFromStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
+import { peerSync } from '../services/peerSyncService';
 import { SongLibrary } from './SongLibrary';
 import { Check } from 'lucide-react';
 
@@ -13,18 +14,25 @@ export const GuestRemoteView: React.FC = () => {
   useEffect(() => {
     // Load songs and profiles from local database with catalog fallback
     const loadSongs = async () => {
-      let songs: SongItem[] = [];
-
-      // 1. Decode &cat= URL parameter (passed from scanned QR code)
-      if (typeof window !== 'undefined') {
+      let songs = await getSongsFromDB();
+      if (!songs || songs.length === 0) {
         try {
-          const params = new URLSearchParams(window.location.search);
-          const catParam = params.get('cat');
-          if (catParam) {
-            const jsonStr = decodeURIComponent(catParam);
-            const parsed = JSON.parse(jsonStr);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              songs = parsed.map((item: any) => ({
+          const rawCatalog = localStorage.getItem('karaokelab_song_catalog');
+          if (rawCatalog) {
+            songs = JSON.parse(rawCatalog);
+          }
+        } catch (_) {}
+      }
+      setSavedSongs(songs || []);
+
+      // Connect WebRTC P2P to Host if host parameter present in URL
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const hostParam = params.get('host');
+        if (hostParam) {
+          peerSync.initGuest(hostParam, (catalog) => {
+            if (catalog && Array.isArray(catalog) && catalog.length > 0) {
+              const mapped: SongItem[] = catalog.map((item: any) => ({
                 id: item.id || `remote_${Math.random()}`,
                 title: item.title,
                 artist: item.artist || '',
@@ -37,35 +45,20 @@ export const GuestRemoteView: React.FC = () => {
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
               }));
+              setSavedSongs(mapped);
               try {
-                localStorage.setItem('karaokelab_song_catalog', JSON.stringify(songs));
+                localStorage.setItem('karaokelab_song_catalog', JSON.stringify(mapped));
               } catch (_) {}
             }
-          }
-        } catch (err) {
-          console.warn('Could not parse catalog from URL:', err);
+          });
         }
       }
-
-      // 2. Fallback to IndexedDB or localStorage
-      if (songs.length === 0) {
-        songs = await getSongsFromDB();
-      }
-      if (!songs || songs.length === 0) {
-        try {
-          const rawCatalog = localStorage.getItem('karaokelab_song_catalog');
-          if (rawCatalog) {
-            songs = JSON.parse(rawCatalog);
-          }
-        } catch (_) {}
-      }
-
-      setSavedSongs(songs || []);
     };
+
     loadSongs();
     setProfiles(getProfilesFromStorage());
 
-    // Listen to live catalog updates from host
+    // Listen to live catalog updates from broadcast
     const unsub = tvBroadcast.onStateUpdate((state: any) => {
       if (state?.catalog && Array.isArray(state.catalog) && state.catalog.length > 0) {
         setSavedSongs(state.catalog);
@@ -75,6 +68,14 @@ export const GuestRemoteView: React.FC = () => {
   }, []);
 
   const handleRequestSong = (song: SongItem) => {
+    // Send via WebRTC P2P
+    peerSync.sendSongRequestFromGuest({
+      id: song.id,
+      title: song.title,
+      artist: song.artist || '',
+    });
+
+    // Send via local BroadcastChannel fallback
     tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
       id: song.id,
       title: song.title,

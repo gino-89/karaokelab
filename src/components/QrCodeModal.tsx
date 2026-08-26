@@ -3,17 +3,18 @@ import { QrCode, Smartphone, X, Copy, Check } from 'lucide-react';
 
 interface QrCodeModalProps {
   isOpen: boolean;
+  hostPeerId?: string | null;
   onClose: () => void;
 }
 
-export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose }) => {
+export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  // Clean, lightweight URL for guest mobile phones (approx 45 characters, fits 100% into standard QR code)
+  // Clean, lightweight WebRTC URL for guest mobile phones
   const guestUrl = typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.host}?mode=guest`
+    ? `${window.location.protocol}//${window.location.host}?mode=guest${hostPeerId ? `&host=${hostPeerId}` : ''}`
     : 'http://localhost:3005/?mode=guest';
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(guestUrl)}&color=00f0ff&bgcolor=080811`;

@@ -39,6 +39,7 @@ import { CastTvModal } from './components/CastTvModal';
 import { TvStandaloneDisplay } from './components/TvStandaloneDisplay';
 import { GuestRemoteView } from './components/GuestRemoteView';
 import { QrCodeModal } from './components/QrCodeModal';
+import { peerSync } from './services/peerSyncService';
 import { DspSettingsModal } from './components/DspSettingsModal';
 import { DynamicVideoBackground } from './components/DynamicVideoBackground';
 import { ShareSongModal } from './components/ShareSongModal';
@@ -222,6 +223,7 @@ export default function App() {
   const [isCastModalOpen, setIsCastModalOpen] = useState(false);
   const [isCastingActive, setIsCastingActive] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [hostPeerId, setHostPeerId] = useState<string | null>(null);
   const [isDspModalOpen, setIsDspModalOpen] = useState(false);
   const [isVocalAutomationModalOpen, setIsVocalAutomationModalOpen] = useState(false);
 
@@ -358,9 +360,29 @@ export default function App() {
     }
   }, [savedSongs]);
 
-  // Listen for guest song requests from mobile phones
+  // Listen for guest song requests from mobile phones via BroadcastChannel & WebRTC P2P
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
+      peerSync.initHost(
+        (cmd, data) => {
+          if (cmd === 'ADD_TO_QUEUE' && data) {
+            const { id, title, artist, isYouTube, videoId } = data;
+            const matchedSong = savedSongs.find(
+              (s) => (id && s.id === id) ||
+                     (s.title.toLowerCase().trim() === (title || '').toLowerCase().trim() &&
+                      (!artist || (s.artist || '').toLowerCase().trim() === (artist || '').toLowerCase().trim()))
+            );
+            if (matchedSong) {
+              handleAddToQueue(matchedSong);
+            } else if (isYouTube && videoId) {
+              setYouTubeEmbedId(videoId);
+              setIsYouTubeModalOpen(true);
+            }
+          }
+        },
+        (id) => setHostPeerId(id)
+      );
+
       const unsub = tvBroadcast.onRemoteCommand((cmd, data) => {
         if (cmd === 'ADD_TO_QUEUE' && data) {
           const { id, title, artist, singerName, isYouTube, videoId } = data;
@@ -380,6 +402,13 @@ export default function App() {
       return () => unsub();
     }
   }, [isTvDisplayMode, isGuestMode, savedSongs]);
+
+  // Sync catalog over WebRTC to connected guest mobile phones
+  useEffect(() => {
+    if (savedSongs.length > 0) {
+      peerSync.broadcastCatalogToGuests(savedSongs);
+    }
+  }, [savedSongs]);
 
   // ── Global Dynamic Video Background state ──
   const [videoBgConfig, setVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
@@ -1940,6 +1969,7 @@ export default function App() {
       {/* ── Party QR Code Guest Song Request Modal ── */}
       <QrCodeModal
         isOpen={isQrModalOpen}
+        hostPeerId={hostPeerId}
         onClose={() => setIsQrModalOpen(false)}
       />
 
