@@ -1121,12 +1121,12 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             {inQueue ? (
                               <>
                                 <Check className="w-3.5 h-3.5" />
-                                <span className="text-[10px] hidden sm:inline">En cola</span>
+                                <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
                               </>
                             ) : (
                               <>
                                 <ListPlus className="w-3.5 h-3.5 text-[#00f0ff]" />
-                                <span className="text-[10px] hidden sm:inline">Cola</span>
+                                <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
                               </>
                             )}
                           </button>
@@ -1247,12 +1247,12 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                               {inQueue ? (
                                 <>
                                   <Check className="w-3.5 h-3.5" />
-                                  <span className="text-[10px] hidden sm:inline">En cola</span>
+                                  <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
                                 </>
                               ) : (
                                 <>
                                   <ListPlus className="w-3.5 h-3.5 text-[#00f0ff]" />
-                                  <span className="text-[10px] hidden sm:inline">Cola</span>
+                                  <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
                                 </>
                               )}
                             </button>
