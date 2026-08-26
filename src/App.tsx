@@ -369,7 +369,8 @@ export default function App() {
     if (!isTvDisplayMode && !isGuestMode) {
       const handleRemoteRequest = (data: any) => {
         if (!data) return;
-        const { id, title, artist, isYouTube, videoId } = data;
+        const { id, title, artist, isYouTube, videoId, guestName } = data;
+        const who = guestName || 'Invitado';
 
         if (isYouTube && videoId) {
           setYouTubeEmbedId(videoId);
@@ -400,9 +401,9 @@ export default function App() {
             songData: matchedSong,
           };
           setQueue((prev) => [...prev, newItem]);
-          showAlertToast(`🎤 "${matchedSong.title}" agregada a la cola desde control remoto.`);
+          showAlertToast(`🎤 ${who} pidió "${matchedSong.title}" · Agregada a la cola`);
         } else {
-          showAlertToast(`⚠️ Petición: "${title || 'Desconocida'}". No encontrada en la biblioteca local.`);
+          showAlertToast(`⚠️ ${who} pidió "${title || 'Desconocida'}" · No encontrada en la biblioteca`);
         }
       };
 

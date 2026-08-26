@@ -2,8 +2,14 @@ import Peer, { DataConnection } from 'peerjs';
 import { SongItem } from '../types';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'ADD_TO_QUEUE' | 'HEARTBEAT';
+  type: 'CATALOG_SYNC' | 'ADD_TO_QUEUE' | 'HEARTBEAT' | 'GUEST_JOINED' | 'GUEST_INFO';
   payload?: any;
+}
+
+export interface ConnectedGuest {
+  peerId: string;
+  name: string;
+  connectedAt: number;
 }
 
 // Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal (WiFi, 4G/5G, cross-network)
@@ -23,10 +29,12 @@ class PeerSyncService {
   private peer: Peer | null = null;
   private hostConnection: DataConnection | null = null;
   private guestConnections: Map<string, DataConnection> = new Map();
+  private connectedGuests: Map<string, ConnectedGuest> = new Map();
   private hostId: string | null = null;
   private isHost: boolean = false;
   private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
+  private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
 
@@ -63,19 +71,34 @@ class PeerSyncService {
         });
 
         conn.on('data', (data: any) => {
-          if (data && data.type === 'ADD_TO_QUEUE') {
+          if (!data) return;
+
+          if (data.type === 'ADD_TO_QUEUE') {
             if (this.onCommandCallback) {
               this.onCommandCallback('ADD_TO_QUEUE', data.payload);
             }
+          } else if (data.type === 'GUEST_INFO') {
+            // Guest is sending their name
+            const guest: ConnectedGuest = {
+              peerId: conn.peer,
+              name: data.payload?.name || 'Invitado',
+              connectedAt: Date.now(),
+            };
+            this.connectedGuests.set(conn.peer, guest);
+            this._notifyGuestsChanged();
           }
         });
 
         conn.on('close', () => {
           this.guestConnections.delete(conn.peer);
+          this.connectedGuests.delete(conn.peer);
+          this._notifyGuestsChanged();
         });
 
         conn.on('error', () => {
           this.guestConnections.delete(conn.peer);
+          this.connectedGuests.delete(conn.peer);
+          this._notifyGuestsChanged();
         });
 
         // Send immediately if channel open
@@ -97,6 +120,23 @@ class PeerSyncService {
   // Get current host peer ID for QR code generation
   public getHostId(): string | null {
     return this.hostId;
+  }
+
+  // Get list of connected guests
+  public getConnectedGuests(): ConnectedGuest[] {
+    return Array.from(this.connectedGuests.values());
+  }
+
+  // Register callback for guest connection changes
+  public onGuestsChanged(callback: (guests: ConnectedGuest[]) => void): () => void {
+    this.onGuestsChangedCallback = callback;
+    return () => { this.onGuestsChangedCallback = null; };
+  }
+
+  private _notifyGuestsChanged() {
+    if (this.onGuestsChangedCallback) {
+      this.onGuestsChangedCallback(this.getConnectedGuests());
+    }
   }
 
   // Broadcast updated catalog to all connected guest phones
@@ -153,8 +193,9 @@ class PeerSyncService {
 
         conn.on('open', () => {
           console.log('✓ WebRTC P2P connected to Host:', targetHostId);
-          // Request initial catalog sync
-          conn.send({ type: 'HEARTBEAT' });
+          // Send guest name to host
+          const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
+          conn.send({ type: 'GUEST_INFO', payload: { name: savedName } });
         });
 
         conn.on('data', (data: any) => {
@@ -174,13 +215,24 @@ class PeerSyncService {
     }
   }
 
+  // Send guest name to host (can be called after setting name)
+  public sendGuestName(name: string) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({ type: 'GUEST_INFO', payload: { name } });
+      } catch (_) {}
+    }
+  }
+
   // Send song request command from guest mobile phone to host
   public sendSongRequestFromGuest(songData: { id?: string; title: string; artist?: string; singerName?: string }) {
     if (this.hostConnection && this.hostConnection.open) {
       try {
+        // Include guest name in the request
+        const guestName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
         this.hostConnection.send({
           type: 'ADD_TO_QUEUE',
-          payload: songData,
+          payload: { ...songData, guestName },
         });
       } catch (e) {
         console.warn('Error sending song request to host:', e);
