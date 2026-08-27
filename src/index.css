@@ -13,15 +13,16 @@
   }
 
   /* ── Eliminate ALL 300ms tap delay on iOS Safari / iPad ──
-     touch-action: manipulation on EVERY element tells WebKit:
-     never wait for a possible double-tap gesture on any element. */
+     touch-action: manipulation tells WebKit to never wait for double-tap.
+     Vertical/horizontal scroll still works — manipulation only disables zoom gestures.
+     We apply it universally with !important so nothing can override it. */
   html, body {
     touch-action: manipulation;
   }
 
   *, *::before, *::after {
     -webkit-tap-highlight-color: transparent !important;
-    touch-action: manipulation;
+    touch-action: manipulation !important;
   }
 
   html, body {
@@ -32,44 +33,28 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Range sliders: pan-x for horizontal drag, manipulation for tap-to-set.
-     Do NOT use touch-action:none — that breaks tap responsiveness on iOS. */
+  /* Range sliders need pan-x so drag works on iOS — tap-to-set still fires via manipulation on the track */
   input[type="range"] {
-    touch-action: pan-x;
+    touch-action: pan-x !important;
   }
 
-  textarea, input[type="text"], input[type="search"], input[type="email"], input[type="password"], select {
-    touch-action: auto;
+  /* Text inputs: restore auto so keyboard and selection work normally */
+  textarea,
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  select {
+    touch-action: auto !important;
   }
 
-  /* All interactive elements — must come AFTER scroll containers so it wins */
+  /* Interactive elements */
   button, a, [role="button"], label, .cursor-pointer {
-    touch-action: manipulation !important;
     -webkit-user-select: none;
     user-select: none;
   }
-
-  /* Scrollable containers: pan-y AND manipulation so children respond to tap AND scroll works.
-     The child button/cursor-pointer rule above takes priority for actual tap targets. */
-  .overflow-y-auto, .overflow-y-scroll,
-  .overflow-auto, .overflow-scroll {
-    /* allow vertical pan in the container itself */
-    touch-action: pan-y;
-  }
-
-  /* Divs that act as list items (library cards, song rows, menus) inside scrollable areas */
-  .overflow-y-auto *, .overflow-y-scroll *,
-  .overflow-auto *, .overflow-scroll * {
-    /* keep manipulation on all descendants so taps fire immediately */
-    touch-action: manipulation;
-  }
-
-  /* Restore pan-y for nested scroll containers inside other scroll containers */
-  .overflow-y-auto .overflow-y-auto,
-  .overflow-y-scroll .overflow-y-scroll {
-    touch-action: pan-y;
-  }
 }
+
 
 
 .font-cyber {
@@ -192,7 +177,7 @@ input[type="range"].real-studio-slider {
   border-radius: 9999px;
   outline: none;
   cursor: pointer;
-  touch-action: none;
+  touch-action: pan-x;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
@@ -271,11 +256,6 @@ input[type="range"].slider-vertical {
 
 /* Prevent Safari double-tap on touch screens */
 @media (hover: none) and (pointer: coarse) {
-  *:hover, *:hover * {
-    transform: none !important;
-    transition-duration: 0ms !important;
-  }
-
   button, a, [role="button"], input, select, textarea, .cursor-pointer {
     touch-action: manipulation !important;
     -webkit-touch-callout: none !important;
