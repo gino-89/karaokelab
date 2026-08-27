@@ -735,6 +735,23 @@ export default function App() {
     };
   }, []);
 
+  // ── Global Instant 1-Tap Touch Fast-Path for iPad & iOS Safari ──
+  useEffect(() => {
+    const handleGlobalTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const btn = target.closest('button, [role="button"], a, input, select, textarea') as HTMLElement | null;
+      if (btn && !btn.hasAttribute('disabled') && !(btn as any).disabled) {
+        btn.style.touchAction = 'manipulation';
+      }
+    };
+
+    window.addEventListener('touchstart', handleGlobalTouchStart, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener('touchstart', handleGlobalTouchStart, { capture: true });
+    };
+  }, []);
+
   // 1. Load saved songs from IndexedDB on startup (Purges any legacy demo track)
   useEffect(() => {
     async function initDB() {

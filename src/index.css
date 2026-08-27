@@ -13,7 +13,7 @@
   }
 
   *, *::before, *::after {
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   html, body {
@@ -25,8 +25,8 @@
   }
 
   /* Responsive & touch optimized interactive targets */
-  button, a, select, [role="button"] {
-    touch-action: manipulation;
+  button, a, select, [role="button"], .cursor-pointer {
+    touch-action: manipulation !important;
     -webkit-user-select: none;
     user-select: none;
   }
@@ -231,8 +231,14 @@ input[type="range"].slider-vertical {
 
 /* Prevent Safari double-tap on touch screens */
 @media (hover: none) and (pointer: coarse) {
-  button:hover, a:hover, [role="button"]:hover {
+  *:hover, *:hover * {
     transform: none !important;
+    transition-duration: 0ms !important;
+  }
+
+  button, a, [role="button"], input, select, textarea, .cursor-pointer {
+    touch-action: manipulation !important;
+    -webkit-touch-callout: none !important;
   }
 }
 
