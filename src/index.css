@@ -12,10 +12,23 @@
     --neon-yellow: #ffe600;
   }
 
-  body {
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
     font-family: var(--font-sans);
     background-color: #080811;
     color: #f1f5f9;
+    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Responsive & touch optimized interactive targets */
+  button, a, select, [role="button"] {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 
@@ -178,8 +191,8 @@ input[type="range"].slider-vertical {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -188,11 +201,41 @@ input[type="range"].slider-vertical {
 
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 240, 255, 0.5);
+}
+
+/* Tablet & Touch Optimization Rules */
+@media (pointer: coarse) {
+  /* Enlarge range slider thumb for precise finger control on iPad/tablets */
+  input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 4px #fff;
+  }
+
+  input[type="range"].real-studio-slider::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Smooth scroll container behavior */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Safe Area Insets for modern iPads with Home Bar */
+.safe-area-bottom {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.safe-area-top {
+  padding-top: max(12px, env(safe-area-inset-top));
 }
 
 /* Pulse Keyframes */
