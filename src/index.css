@@ -32,14 +32,21 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Scrollable containers need pan gestures – override manipulation for them */
-  .overflow-y-auto, .overflow-x-auto, .overflow-auto, .overflow-y-scroll, .overflow-x-scroll, [class*="overflow-y"], [class*="overflow-x"] {
+  /* Scrollable containers: allow pan but still allow child taps via manipulation */
+  .overflow-y-auto, .overflow-y-scroll {
     touch-action: pan-y;
   }
+  .overflow-x-auto, .overflow-x-scroll {
+    touch-action: pan-x;
+  }
+  .overflow-auto, .overflow-scroll {
+    touch-action: pan-x pan-y;
+  }
 
-  /* Inputs and range sliders need their own touch behaviour */
+  /* Range sliders: pan-x for horizontal drag, manipulation for tap-to-set.
+     Do NOT use touch-action:none — that breaks tap responsiveness on iOS. */
   input[type="range"] {
-    touch-action: none;
+    touch-action: pan-x;
   }
 
   textarea, input[type="text"], input[type="search"], input[type="email"], input[type="password"], select {
