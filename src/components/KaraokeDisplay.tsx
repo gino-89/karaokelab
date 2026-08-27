@@ -1071,39 +1071,34 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       {/* ── PROFESSIONAL KARAOKE TELEPROMPTER STAGE ───── */}
       <div className="relative bg-[#0c0e17] border border-slate-700/70 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
         {/* Top Title & Calibration Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900/95 border-b border-slate-800">
-          <div className="flex flex-col min-w-0">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-3 sm:px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 gap-2.5">
+          <div className="flex flex-col min-w-0 w-full md:w-auto">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white tracking-tight truncate">{songTitle || '— Selecciona una canción —'}</span>
+              <span className="text-sm sm:text-base font-bold text-white tracking-tight truncate max-w-md">{songTitle || '— Selecciona una canción —'}</span>
               {isDuetMode && (
                 <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-black bg-[#ff007f]/20 text-[#ff007f] border border-[#ff007f]/50 shadow-[0_0_8px_rgba(255,0,127,0.3)] shrink-0 animate-pulse">
                   👥 MODO DUETO
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono mt-0.5">
-              {songArtist && <span className="truncate max-w-[140px]">{songArtist} · </span>}
-              <div className="flex items-center bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 font-mono mt-1">
+              {songArtist && <span className="truncate max-w-[130px] font-medium text-slate-300">{songArtist} ·</span>}
+              <div className="flex items-center bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 shrink-0">
                 <span className="text-amber-300 font-bold">{bpm || 120} BPM</span>
                 {onUpdateBpm && (
                   <div className="flex items-center ml-1.5 pl-1 border-l border-slate-700 text-slate-400">
-                    <button onClick={() => onUpdateBpm(Math.max(40, (bpm || 120) - 1))} className="hover:text-white px-1 font-bold cursor-pointer">−</button>
-                    <button onClick={() => onUpdateBpm(Math.min(240, (bpm || 120) + 1))} className="hover:text-white px-1 font-bold cursor-pointer">+</button>
+                    <button onClick={() => onUpdateBpm(Math.max(40, (bpm || 120) - 1))} className="hover:text-white px-1.5 py-0.5 font-bold cursor-pointer transition-colors active:scale-90">−</button>
+                    <button onClick={() => onUpdateBpm(Math.min(240, (bpm || 120) + 1))} className="hover:text-white px-1.5 py-0.5 font-bold cursor-pointer transition-colors active:scale-90">+</button>
                   </div>
                 )}
               </div>
               {/* Exact Pitch Shifter / Key Transpose Module from Console */}
-              <div className="bg-[#0c0e17] border border-slate-700/80 rounded-xl px-2.5 py-1 flex items-center gap-2">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300 font-mono leading-none">
-                    Tono / Pitch
-                  </span>
-                  <span className="text-[8px] font-mono text-slate-500 leading-none mt-0.5">
-                    Phase Vocoder
-                  </span>
-                </div>
+              <div className="bg-[#0c0e17] border border-slate-700/80 rounded-xl px-2 py-0.5 flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300 font-mono leading-none">
+                  Tono:
+                </span>
 
-                <div className="flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded-lg border border-slate-800">
+                <div className="flex items-center gap-1 bg-slate-950 px-1 py-0.5 rounded-lg border border-slate-800">
                   <button
                     onClick={() => onPitchShiftChange && onPitchShiftChange(Math.max(-6, pitchShift - 1))}
                     className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer transition-all active:scale-90"
@@ -1112,7 +1107,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                     −
                   </button>
 
-                  <div className="min-w-[68px] text-center px-1">
+                  <div className="min-w-[62px] text-center px-1">
                     <span className="text-[11px] font-bold text-amber-300 font-mono block leading-tight">
                       {detectedKey ? transposeKey(detectedKey, pitchShift) : 'Am'}
                     </span>
@@ -1132,7 +1127,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                   {pitchShift !== 0 && (
                     <button
                       onClick={() => onPitchShiftChange && onPitchShiftChange(0)}
-                      className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-slate-800 cursor-pointer ml-0.5"
+                      className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-slate-800 cursor-pointer ml-0.5 active:scale-90"
                       title="Restablecer a tono original"
                     >
                       <RefreshCw className="w-2.5 h-2.5" />
@@ -1143,10 +1138,10 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end md:self-center">
             <button
               onClick={() => setIsVideoBgModalOpen(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-all shadow-sm ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all shadow-sm ${
                 videoBgConfig.enabled && videoBgConfig.mode !== 'off'
                   ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40 shadow-[0_0_12px_rgba(217,70,239,0.3)] font-bold'
                   : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
@@ -1161,17 +1156,17 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               <button
                 onClick={onOpenVocalAutomation}
                 disabled={!hasSong}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
                 title="Editor de Automatización de Voz Guía (Timeline / Waveform)"
               >
                 <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Voz Guía</span>
+                <span className="hidden sm:inline">Voz Guía</span>
               </button>
             )}
 
             <button
               onClick={() => setShowLyricTools(!showLyricTools)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-all"
             >
               {showLyricTools ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               <span>Letras</span>
@@ -1180,7 +1175,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               onClick={onOpenPartyMode}
               disabled={!hasSong}
-              className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-md"
+              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-md active:scale-95"
             >
               Modo TV
             </button>
@@ -1497,12 +1492,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         </div>
 
         {/* ── Transport Controls ── */}
-        <div className="px-4 pb-4 pt-1 flex items-center justify-between gap-3 bg-slate-900/90">
+        <div className="px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 bg-slate-900/95 border-t border-slate-800/80">
           {/* Left: Dueto (40% de voz) & Guía Coros */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={onToggleVocalGuide}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
                 vocalGain > 0.05
                   ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.45)] font-black'
                   : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
@@ -1511,12 +1506,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             >
               <Mic className="w-4 h-4 text-cyan-300" />
               <span className="hidden sm:inline">
-                {vocalGain > 0.05 ? 'Voz Guía: 40% (ON)' : 'Voz Guía (40%)'}
+                {vocalGain > 0.05 ? 'Voz Guía (40%) ON' : 'Voz Guía'}
               </span>
             </button>
             <button
               onClick={onToggleSmartVocalCue}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
                 isSmartVocalCue
                   ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_14px_rgba(99,102,241,0.5)] font-black'
                   : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
@@ -1525,23 +1520,23 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             >
               <Sparkles className="w-4 h-4 text-indigo-400" />
               <span className="hidden sm:inline">
-                {isSmartVocalCue ? 'Guía Coros: ON' : 'Guía Coros'}
+                {isSmartVocalCue ? 'Coros ON' : 'Guía Coros'}
               </span>
             </button>
           </div>
 
           {/* Center: Play / Pause / Stop / Next */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 mx-auto order-first sm:order-none w-full sm:w-auto py-0.5">
             <button
               onClick={onStop}
-              className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+              className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
               title="Detener"
             >
               <Square className="w-4 h-4 text-slate-300 fill-current" />
             </button>
             <button
               onClick={isPlaying ? onPause : onPlay}
-              className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 transition-all active:scale-95"
+              className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 transition-all active:scale-95"
               title={isPlaying ? 'Pausar' : 'Reproducir'}
             >
               {isPlaying
@@ -1551,7 +1546,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </button>
             <button
               onClick={() => onSeek(0)}
-              className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+              className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
               title="Reiniciar"
             >
               <RotateCcw className="w-4 h-4 text-slate-300" />
@@ -1562,7 +1557,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               disabled={!hasNextInQueue || !onNextInQueue}
               className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
                 hasNextInQueue && onNextInQueue
-                  ? 'border-cyan-400/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 hover:border-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.4)] cursor-pointer active:scale-95'
+                  ? 'border-cyan-400/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 hover:border-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.4)] cursor-pointer active:scale-90'
                   : 'border-slate-800 bg-slate-900/60 text-slate-600 cursor-not-allowed opacity-40'
               }`}
               title={hasNextInQueue ? 'Siguiente canción en cola' : 'No hay más canciones en la cola'}
@@ -1572,11 +1567,11 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           </div>
 
           {/* Right: Quick Offset adjustment */}
-          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400 shrink-0 ml-auto sm:ml-0">
             <span className="hidden md:inline font-semibold">Calibrar:</span>
             <button
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay - 0.2)}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
               title="Adelantar Letra -0.2s"
             >
               -0.2s
@@ -1584,7 +1579,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <span className="text-amber-300 font-bold px-1">{syncDelay > 0 ? `+${syncDelay.toFixed(1)}s` : `${syncDelay.toFixed(1)}s`}</span>
             <button
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay + 0.2)}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
               title="Atrasar Letra +0.2s"
             >
               +0.2s
