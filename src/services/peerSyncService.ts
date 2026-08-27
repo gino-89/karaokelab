@@ -375,16 +375,7 @@ class PeerSyncService {
         const conn = this.peer.connect(targetHostId);
         this.hostConnection = conn;
 
-        // If connection hangs for 5 seconds due to Wi-Fi AP isolation, fallback to TURN relay
-        const connectionTimeout = setTimeout(() => {
-          if (this.currentConnectionStatus !== 'connected' && !isFallback) {
-            console.warn('⚠️ WebRTC connection stuck. Router likely blocking local traffic (AP Isolation). Forcing TURN Relay...');
-            this.initGuest(targetHostId, onCatalogReceived, onProfilesReceived, true);
-          }
-        }, 5000);
-
         conn.on('open', () => {
-          clearTimeout(connectionTimeout);
           console.log('✓ WebRTC P2P connected to Host:', targetHostId);
           this.lastHeartbeatReceived = Date.now();
           this._setConnectionStatus('connected');
