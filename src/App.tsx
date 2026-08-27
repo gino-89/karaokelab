@@ -735,20 +735,85 @@ export default function App() {
     };
   }, []);
 
-  // ── Global Instant 1-Tap Touch Fast-Path for iPad & iOS Safari ──
+  // ── Global Universal 1-Tap FastClick Engine for iPad & iOS Safari ──
   useEffect(() => {
+    let touchStartTime = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let activeTouchTarget: HTMLElement | null = null;
+    let lastClickDispatchedTime = 0;
+
     const handleGlobalTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) {
+        activeTouchTarget = null;
+        return;
+      }
+      const touch = e.touches[0];
+      touchStartTime = Date.now();
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+
       const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const btn = target.closest('button, [role="button"], a, input, select, textarea') as HTMLElement | null;
-      if (btn && !btn.hasAttribute('disabled') && !(btn as any).disabled) {
-        btn.style.touchAction = 'manipulation';
+      if (!target) {
+        activeTouchTarget = null;
+        return;
+      }
+
+      // Ignore text input fields, textareas, selects, and range sliders so native interaction works
+      if (
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        (target.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes((target as HTMLInputElement).type))
+      ) {
+        activeTouchTarget = null;
+        return;
+      }
+
+      activeTouchTarget = target.closest('button, [role="button"], a, input[type="checkbox"], input[type="radio"]') as HTMLElement | null;
+      if (activeTouchTarget) {
+        activeTouchTarget.style.touchAction = 'manipulation';
       }
     };
 
+    const handleGlobalTouchEnd = (e: TouchEvent) => {
+      if (!activeTouchTarget || e.changedTouches.length === 0) {
+        activeTouchTarget = null;
+        return;
+      }
+
+      const touch = e.changedTouches[0];
+      const dx = Math.abs(touch.clientX - touchStartX);
+      const dy = Math.abs(touch.clientY - touchStartY);
+      const dt = Date.now() - touchStartTime;
+
+      // Genuine tap threshold: movement under 14px and duration under 400ms (not a scroll)
+      if (dx < 14 && dy < 14 && dt < 400) {
+        const btn = activeTouchTarget;
+        if (!btn.hasAttribute('disabled') && !(btn as any).disabled) {
+          const now = Date.now();
+          if (now - lastClickDispatchedTime > 60) {
+            lastClickDispatchedTime = now;
+            // Suppress Safari iOS double-tap / hover simulation delay
+            try {
+              if (e.cancelable) {
+                e.preventDefault();
+              }
+            } catch (_) {}
+
+            // Instantly execute click handler on 1st tap
+            btn.click();
+          }
+        }
+      }
+      activeTouchTarget = null;
+    };
+
     window.addEventListener('touchstart', handleGlobalTouchStart, { passive: true, capture: true });
+    window.addEventListener('touchend', handleGlobalTouchEnd, { passive: false, capture: true });
+
     return () => {
       window.removeEventListener('touchstart', handleGlobalTouchStart, { capture: true });
+      window.removeEventListener('touchend', handleGlobalTouchEnd, { capture: true });
     };
   }, []);
 
