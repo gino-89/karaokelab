@@ -26,74 +26,9 @@
   <body class="bg-[#080811] text-slate-100 antialiased overflow-x-hidden selection:bg-[#ff007f] selection:text-white" style="touch-action: manipulation;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- ── KaraokeLab 1-Tap Engine for iOS/iPadOS ──
-         When audio is playing, iOS may suppress the native click event generated
-         from touch. We fire it ourselves from touchend (isTrusted=false) and then
-         block the browser's delayed ghost click (isTrusted=true) to prevent double-fire.
-    -->
+    <!-- ── Enforce 1-tap manipulation on all dynamic DOM nodes ── -->
     <script>
       (function() {
-        // pendingSuppression = true means we already fired a synthetic click
-        // and are waiting to suppress the browser's 300ms ghost click
-        var pendingSuppression = false;
-        var suppressTimer = null;
-
-        function isSkipped(el) {
-          if (!el) return true;
-          var tag = el.tagName;
-          if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
-          if (tag === 'INPUT') {
-            var t = el.type;
-            // skip text-like inputs and range sliders
-            if (t === 'text' || t === 'search' || t === 'email' ||
-                t === 'password' || t === 'number' || t === 'range') return true;
-          }
-          return false;
-        }
-
-        function findBtn(el) {
-          if (!el || typeof el.closest !== 'function') return null;
-          return el.closest('button, [role="button"], a, label, summary');
-        }
-
-        // TOUCHEND: fire click immediately (before browser's 300ms delayed click)
-        document.addEventListener('touchend', function(e) {
-          if (e.changedTouches.length === 0 || e.touches.length > 0) return;
-
-          var touch = e.changedTouches[0];
-          var target = document.elementFromPoint(touch.clientX, touch.clientY);
-          if (isSkipped(target)) return;
-
-          var btn = target ? findBtn(target) : null;
-          if (!btn) return;
-          if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
-
-          // Arm suppressor BEFORE dispatching so the handler below can suppress the ghost
-          pendingSuppression = true;
-          clearTimeout(suppressTimer);
-          suppressTimer = setTimeout(function() { pendingSuppression = false; }, 800);
-
-          btn.dispatchEvent(new MouseEvent('click', {
-            bubbles: true, cancelable: true, view: window, detail: 1,
-            clientX: touch.clientX, clientY: touch.clientY
-          }));
-        }, { passive: true, capture: true });
-
-        // CLICK: only suppress the browser ghost click (isTrusted=true).
-        // Our synthetic click has isTrusted=false — let it pass through.
-        // IMPORTANT: do NOT clear pendingSuppression on isTrusted=false.
-        // The ghost click arrives ~300ms later and must still be suppressed.
-        document.addEventListener('click', function(e) {
-          if (pendingSuppression && e.isTrusted) {
-            // Ghost click from browser — block it
-            e.stopImmediatePropagation();
-            pendingSuppression = false;
-            clearTimeout(suppressTimer);
-          }
-          // isTrusted=false (our synthetic click) → do nothing, let React handle it
-        }, { capture: true });
-
-        // MutationObserver: stamp touch-action on every React-added node
         function applyTA(node) {
           if (node.nodeType !== 1) return;
           var tag = node.tagName;

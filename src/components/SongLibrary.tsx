@@ -1046,8 +1046,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                     return (
                       <div
                         key={song.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSongActionTarget(song)}
-                        className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl"
+                        className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
                       >
                         <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
                           <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
@@ -1181,8 +1183,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       return (
                         <div
                           key={song.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setSongActionTarget(song)}
-                          className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl"
+                          className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
                         >
                           <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
                             <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />

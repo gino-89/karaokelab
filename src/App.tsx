@@ -117,25 +117,30 @@ export default function App() {
   const [shareTargetSong, setShareTargetSong] = useState<SongItem | null>(null);
   const [syncDelay, setSyncDelay] = useState<number>(0.0);
 
-  const handleOpenShareModal = (song?: SongItem) => {
-    setShareTargetSong(song || currentSong);
+  const currentSongRef = useRef<SongItem | null>(null);
+  currentSongRef.current = currentSong;
+
+  const handleOpenShareModal = useCallback((song?: SongItem) => {
+    setShareTargetSong(song || currentSongRef.current);
     setIsShareModalOpen(true);
-  };
+  }, []);
 
   // Singer Profiles System
   const [profiles, setProfiles] = useState<SingerProfile[]>(() => getProfilesFromStorage());
   const [activeProfileId, setActiveProfileId] = useState<string>(() => getActiveProfileIdFromStorage());
+  const activeProfileIdRef = useRef<string>(activeProfileId);
+  activeProfileIdRef.current = activeProfileId;
 
   const activeProfile = useMemo(() => {
     return profiles.find((p) => p.id === activeProfileId) || profiles[0];
   }, [profiles, activeProfileId]);
 
-  const handleSelectProfile = (id: string) => {
+  const handleSelectProfile = useCallback((id: string) => {
     setActiveProfileId(id);
     setActiveProfileIdToStorage(id);
-  };
+  }, []);
 
-  const handleCreateProfile = (name: string, avatar: string, color: string) => {
+  const handleCreateProfile = useCallback((name: string, avatar: string, color: string) => {
     const newProfile: SingerProfile = {
       id: `profile_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       name: name.trim() || 'Cantante',
@@ -144,25 +149,32 @@ export default function App() {
       favoriteSongIds: [],
       createdAt: Date.now(),
     };
-    const updated = [...profiles, newProfile];
-    setProfiles(updated);
-    saveProfilesToStorage(updated);
+    setProfiles((prev) => {
+      const updated = [...prev, newProfile];
+      saveProfilesToStorage(updated);
+      return updated;
+    });
     setActiveProfileId(newProfile.id);
     setActiveProfileIdToStorage(newProfile.id);
-  };
+  }, []);
 
-  const handleDeleteProfile = (id: string) => {
+  const handleDeleteProfile = useCallback((id: string) => {
     if (id === 'profile_all') return;
-    const updated = profiles.filter((p) => p.id !== id);
-    setProfiles(updated);
-    saveProfilesToStorage(updated);
-    if (activeProfileId === id) {
-      setActiveProfileId('profile_all');
-      setActiveProfileIdToStorage('profile_all');
-    }
-  };
+    setProfiles((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      saveProfilesToStorage(updated);
+      return updated;
+    });
+    setActiveProfileId((prev) => {
+      if (prev === id) {
+        setActiveProfileIdToStorage('profile_all');
+        return 'profile_all';
+      }
+      return prev;
+    });
+  }, []);
 
-  const handleToggleFavoriteSong = (profileId: string, songId: string) => {
+  const handleToggleFavoriteSong = useCallback((profileId: string, songId: string) => {
     setProfiles((prev) => {
       const updated = prev.map((p) => {
         if (p.id === profileId) {
@@ -177,18 +189,18 @@ export default function App() {
       saveProfilesToStorage(updated);
       return updated;
     });
-  };
+  }, []);
 
   // YouTube Hybrid Search & Favorites Modal State
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [youTubeEmbedId, setYouTubeEmbedId] = useState<string | null>(null);
   const [youtubeFavorites, setYoutubeFavorites] = useState<YouTubeFavoriteTrack[]>(getYouTubeFavoritesFromStorage());
 
-  const handleToggleYouTubeFavorite = (
+  const handleToggleYouTubeFavorite = useCallback((
     track: { id: string; title: string; channel: string; duration: string; thumbnail: string; url: string },
     singerProfileId?: string
   ) => {
-    const profId = singerProfileId || activeProfileId;
+    const profId = singerProfileId || activeProfileIdRef.current;
     setYoutubeFavorites((prev) => {
       const exists = prev.some((item) => item.id === track.id && (item.singerProfileId === profId || profId === 'profile_all'));
       let updated: YouTubeFavoriteTrack[];
@@ -211,7 +223,7 @@ export default function App() {
       peerSync.broadcastYouTubeFavoritesToGuests(updated);
       return updated;
     });
-  };
+  }, []);
 
   // ── Dual Screen TV & Chromecast / AirPlay Remote Control States ──
   const isTvDisplayMode = typeof window !== 'undefined' && (
@@ -955,7 +967,7 @@ export default function App() {
   };
 
   // Helper to download individual Stems
-  const handleDownloadStem = (song: SongItem, type: 'instrumental' | 'vocals') => {
+  const handleDownloadStem = useCallback((song: SongItem, type: 'instrumental' | 'vocals') => {
     const blob = type === 'instrumental' ? song.stems?.instrumentalBlob : song.stems?.vocalsBlob;
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -966,15 +978,15 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }, []);
 
   // Re-analyze exact BPM, Key, Lyrics Sync, and Vocal Gender for any song
-  const handleReanalyzeSong = async (song: SongItem) => {
+  const handleReanalyzeSong = useCallback(async (song: SongItem) => {
     try {
       let buf: AudioBuffer | null = null;
       let vocBuf: AudioBuffer | null = null;
 
-      if (currentSong?.id === song.id) {
+      if (currentSongRef.current?.id === song.id) {
         buf = audioEngine.getAudioBuffer();
         vocBuf = audioEngine.getVocalsBuffer();
       }
@@ -1033,7 +1045,7 @@ export default function App() {
         lyrics: finalLyrics,
       };
 
-      if (currentSong?.id === song.id) {
+      if (currentSongRef.current?.id === song.id) {
         setBpm(newBpm);
         setDetectedKey(newKey);
         setLyrics(finalLyrics);
@@ -1047,14 +1059,14 @@ export default function App() {
     } catch (err) {
       console.warn('Re-analyze DSP error:', err);
     }
-  };
+  }, []);
 
   // Re-analyze exact BPM and Key for current song
-  const handleReanalyzeCurrentSong = async () => {
-    if (currentSong) {
-      await handleReanalyzeSong(currentSong);
+  const handleReanalyzeCurrentSong = useCallback(async () => {
+    if (currentSongRef.current) {
+      await handleReanalyzeSong(currentSongRef.current);
     }
-  };
+  }, [handleReanalyzeSong]);
 
   // 4. Sequential Queue Processor (Processes 1 file at a time to keep UI fast & RAM low)
   useEffect(() => {
@@ -1338,7 +1350,7 @@ export default function App() {
   };
 
   // 6. Handle File Uploads (Drag & Drop or Input)
-  const handleFilesSelected = (files: FileList | File[]) => {
+  const handleFilesSelected = useCallback((files: FileList | File[]) => {
     const fileList = Array.from(files);
     if (fileList.length === 0) return;
 
@@ -1352,8 +1364,8 @@ export default function App() {
           const parsed = parseLRC(text);
           if (parsed.length > 0) {
             setLyrics(parsed);
-            if (currentSong) {
-              const updated = { ...currentSong, lyrics: parsed, rawLrc: text };
+            if (currentSongRef.current) {
+              const updated = { ...currentSongRef.current, lyrics: parsed, rawLrc: text };
               setCurrentSong(updated);
               saveSongToDB(updated);
             }
@@ -1368,52 +1380,63 @@ export default function App() {
     if (audioFiles.length > 0) {
       processBatchAudioFiles(audioFiles);
     }
-  };
+  }, []);
 
-  const handleAddToQueue = (song: SongItem) => {
-    if (queue.some((q) => q.songData?.id === song.id)) return;
-    const newItem: QueueItem = {
-      id: `queue_lib_${song.id}_${Date.now()}`,
-      fileName: `${song.title}${song.artist ? ' - ' + song.artist : ''}`,
-      status: 'ready',
-      progress: 100,
-      songData: song,
-    };
-    setQueue((prev) => [...prev, newItem]);
-  };
+  const handleAddToQueue = useCallback((song: SongItem) => {
+    setQueue((prev) => {
+      if (prev.some((q) => q.songData?.id === song.id)) return prev;
+      const newItem: QueueItem = {
+        id: `queue_lib_${song.id}_${Date.now()}`,
+        fileName: `${song.title}${song.artist ? ' - ' + song.artist : ''}`,
+        status: 'ready',
+        progress: 100,
+        songData: song,
+      };
+      return [...prev, newItem];
+    });
+  }, []);
 
-  const handleRemoveFromQueue = (queueId: string) => {
-    const itemToRemove = queue.find((q) => q.id === queueId);
-    const isPlayingThisSong = !!(
-      itemToRemove &&
-      ((itemToRemove.songData && itemToRemove.songData.id === currentSong?.id) ||
-        itemToRemove.id === currentSong?.id ||
-        itemToRemove.id === `queue_active_${currentSong?.id}`)
-    );
+  const handleRemoveFromQueue = useCallback((queueId: string) => {
+    setQueue((prev) => {
+      const itemToRemove = prev.find((q) => q.id === queueId);
+      const isPlayingThisSong = !!(
+        itemToRemove &&
+        ((itemToRemove.songData && itemToRemove.songData.id === currentSongRef.current?.id) ||
+          itemToRemove.id === currentSongRef.current?.id ||
+          itemToRemove.id === `queue_active_${currentSongRef.current?.id}`)
+      );
 
-    if (isPlayingThisSong) {
-      handleStop();
-    }
+      if (isPlayingThisSong) {
+        audioEngine.stop();
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setCurrentIndex(-1);
+        setCurrentSong(null);
+        setLyrics([]);
+        setDuration(0);
+      }
 
-    setQueue((prev) => prev.filter((q) => q.id !== queueId));
-  };
+      return prev.filter((q) => q.id !== queueId);
+    });
+  }, []);
 
   // Play next song in queue (skip current song and load next ready track)
-  const handleNextInQueue = () => {
-    const nextItem = queue.find((q) => q.status === 'ready' && q.songData && q.songData.id !== currentSong?.id);
-    if (!nextItem || !nextItem.songData) return;
+  const handleNextInQueue = useCallback(() => {
+    setQueue((prevQueue) => {
+      const nextItem = prevQueue.find((q) => q.status === 'ready' && q.songData && q.songData.id !== currentSongRef.current?.id);
+      if (!nextItem || !nextItem.songData) return prevQueue;
 
-    setQueue((prevQueue) =>
-      prevQueue.filter(
+      const remainingQueue = prevQueue.filter(
         (q) =>
           q.id !== nextItem.id &&
-          (!currentSong || (q.songData?.id !== currentSong.id && q.id !== currentSong.id))
-      )
-    );
+          (!currentSongRef.current || (q.songData?.id !== currentSongRef.current.id && q.id !== currentSongRef.current.id))
+      );
 
-    audioEngine.stop();
-    loadSongIntoEngine(nextItem.songData, true);
-  };
+      audioEngine.stop();
+      loadSongIntoEngine(nextItem.songData, true);
+      return remainingQueue;
+    });
+  }, []);
 
   // Auto-play next song in queue with Score & Countdown Intermission when track ends
   useEffect(() => {
@@ -1468,19 +1491,19 @@ export default function App() {
     };
   }, [currentSong, activeProfile]);
 
-  const handleUpdateSong = async (updated: SongItem) => {
+  const handleUpdateSong = useCallback(async (updated: SongItem) => {
     await saveSongToDB(updated);
     setSavedSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-    if (currentSong?.id === updated.id) {
+    if (currentSongRef.current?.id === updated.id) {
       setCurrentSong(updated);
       setBpm(updated.bpm);
     }
-  };
+  }, []);
 
-  const handleSaveVocalAutomation = async (updatedSong: SongItem, config: VocalAutomationConfig) => {
+  const handleSaveVocalAutomation = useCallback(async (updatedSong: SongItem, config: VocalAutomationConfig) => {
     await saveSongToDB(updatedSong);
     setSavedSongs((prev) => prev.map((s) => (s.id === updatedSong.id ? updatedSong : s)));
-    if (currentSong?.id === updatedSong.id) {
+    if (currentSongRef.current?.id === updatedSong.id) {
       setCurrentSong(updatedSong);
       audioEngine.setVocalAutomationConfig(config);
     }
@@ -1488,52 +1511,53 @@ export default function App() {
     setVocalGain(0.0);
     setIsSmartVocalCue(false);
     setActiveCueType(null);
-  };
-
-
+  }, []);
 
   const [alertToast, setAlertToast] = useState<string | null>(null);
 
-  const showAlertToast = (msg: string) => {
+  const showAlertToast = useCallback((msg: string) => {
     setAlertToast(msg);
     setTimeout(() => {
       setAlertToast((prev) => (prev === msg ? null : prev));
     }, 4500);
-  };
+  }, []);
 
   // 7. Transport Controls Handlers
-  const handlePlay = async () => {
+  const handlePlay = useCallback(async () => {
+    const cur = currentSongRef.current;
     // If no song is loaded in player
-    if (!currentSong) {
+    if (!cur) {
       // Check if there is a ready song in queue to play
-      const nextInQueue = queue.find((q) => q.status === 'ready' && q.songData);
-      if (nextInQueue && nextInQueue.songData) {
-        await loadSongIntoEngine(nextInQueue.songData, true);
-        return;
-      }
-
-      showAlertToast('⚠️ No hay ninguna pista en el reproductor. Selecciona una canción de la biblioteca o de la cola.');
+      setQueue((q) => {
+        const nextInQueue = q.find((item) => item.status === 'ready' && item.songData);
+        if (nextInQueue && nextInQueue.songData) {
+          loadSongIntoEngine(nextInQueue.songData, true);
+        } else {
+          showAlertToast('⚠️ No hay ninguna pista en el reproductor. Selecciona una canción de la biblioteca o de la cola.');
+        }
+        return q;
+      });
       return;
     }
 
     // If no buffer loaded yet, load current song
     if (!audioEngine.getAudioBuffer()) {
-      await loadSongIntoEngine(currentSong, true);
+      await loadSongIntoEngine(cur, true);
       return;
     }
     await audioEngine.play();
     setIsPlaying(true);
     const ctx = audioEngine.getAudioContext();
     karaokeScoringTracker.init(ctx, audioEngine.getMicGainNode() || undefined);
-    karaokeScoringTracker.startSession(bpm, lyrics);
-  };
+    karaokeScoringTracker.startSession(cur.bpm || 120, cur.lyrics || []);
+  }, [showAlertToast]);
 
-  const handlePause = () => {
+  const handlePause = useCallback(() => {
     audioEngine.pause();
     setIsPlaying(false);
-  };
+  }, []);
 
-  const handleStop = () => {
+  const handleStop = useCallback(() => {
     audioEngine.stop();
     setIsPlaying(false);
     setCurrentTime(0);
@@ -1541,74 +1565,80 @@ export default function App() {
     setCurrentSong(null);
     setLyrics([]);
     setDuration(0);
-  };
+  }, []);
 
-  const handleSeek = (seconds: number) => {
+  const handleSeek = useCallback((seconds: number) => {
     audioEngine.seek(seconds);
     setCurrentTime(seconds);
-  };
+  }, []);
 
-  const handleVocalGainChange = (val: number) => {
+  const handleVocalGainChange = useCallback((val: number) => {
     if (val > 0.05) {
       setIsSmartVocalCue(false);
       setActiveCueType(null);
     } else {
-      if (currentSong?.vocalAutomation) {
-        audioEngine.setVocalAutomationConfig(currentSong.vocalAutomation);
+      if (currentSongRef.current?.vocalAutomation) {
+        audioEngine.setVocalAutomationConfig(currentSongRef.current.vocalAutomation);
       }
     }
     setVocalGain(val);
     audioEngine.setVocalGain(val);
-  };
+  }, []);
 
-  const handleMusicGainChange = (val: number) => {
+  const handleMusicGainChange = useCallback((val: number) => {
     setMusicGain(val);
     audioEngine.setMusicGain(val);
-  };
+  }, []);
 
-  const handleMasterGainChange = (val: number) => {
+  const handleMasterGainChange = useCallback((val: number) => {
     setMasterGain(val);
     audioEngine.setMasterGain(val);
-  };
+  }, []);
 
-  const handlePitchShiftChange = (semitones: number) => {
+  const handlePitchShiftChange = useCallback((semitones: number) => {
     setPitchShift(semitones);
     audioEngine.setPitchShift(semitones);
-  };
+  }, []);
 
-  const handleToggleLoop = () => {
-    const next = !isLooping;
-    setIsLooping(next);
-    audioEngine.setLoop(next, 0, duration);
-  };
+  const handleToggleLoop = useCallback(() => {
+    setIsLooping((prev) => {
+      const next = !prev;
+      audioEngine.setLoop(next, 0, audioEngine.getDuration());
+      return next;
+    });
+  }, []);
 
-  const handleToggleMic = async () => {
-    const active = await audioEngine.enableMicrophone(!isMicActive);
-    setIsMicActive(active);
-    if (active) {
-      const ctx = audioEngine.getAudioContext();
-      const micGain = audioEngine.getMicGainNode();
-      if (micGain) {
-        karaokeScoringTracker.init(ctx, micGain);
-      }
-    }
-  };
+  const handleToggleMic = useCallback(async () => {
+    setIsMicActive((prev) => {
+      const next = !prev;
+      audioEngine.enableMicrophone(next).then((active) => {
+        if (active) {
+          const ctx = audioEngine.getAudioContext();
+          const micGain = audioEngine.getMicGainNode();
+          if (micGain) {
+            karaokeScoringTracker.init(ctx, micGain);
+          }
+        }
+      });
+      return next;
+    });
+  }, []);
 
-  const handleMicGainChange = (val: number) => {
+  const handleMicGainChange = useCallback((val: number) => {
     setMicGain(val);
     audioEngine.setMicGain(val);
-  };
+  }, []);
 
-  const handleDeleteSong = async (id: string) => {
+  const handleDeleteSong = useCallback(async (id: string) => {
     await deleteSongFromDB(id);
     invalidateVocalProfileCache();
     setSavedSongs((prev) => prev.filter((s) => s.id !== id));
     setQueue((prev) => prev.filter((q) => q.songData?.id !== id && q.id !== id));
-    if (currentSong?.id === id) {
+    if (currentSongRef.current?.id === id) {
       handleStop();
       setCurrentSong(null);
     }
-  };
+  }, [handleStop]);
 
   // 8. Video Export Engine
   const handleStartVideoExport = () => {
