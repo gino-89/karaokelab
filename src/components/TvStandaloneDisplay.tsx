@@ -14,9 +14,16 @@ export const TvStandaloneDisplay: React.FC = () => {
   const [videoBgConfig, setVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('reconnecting');
 
-  // Read target host ID from URL (?join=xxx or ?host=xxx)
+  // Read target host ID from URL (?tv=code or ?join=xxx or ?host=xxx)
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const targetHostId = queryParams?.get('join') || queryParams?.get('host') || null;
+  const tvParam = queryParams?.get('tv');
+  const joinParam = queryParams?.get('join') || queryParams?.get('host');
+  
+  let rawHostId = joinParam || (tvParam && tvParam !== '1' && tvParam !== 'true' ? tvParam : null);
+  let targetHostId = rawHostId;
+  if (targetHostId && !targetHostId.startsWith('klab_host_')) {
+    targetHostId = `klab_host_${targetHostId}`;
+  }
 
   useEffect(() => {
     // 1. Cross-Device WebRTC P2P Connection (Smart TV / Tablets / Apple TV)

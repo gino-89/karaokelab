@@ -60,9 +60,10 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
   if (!isOpen) return null;
 
   const currentHost = hostPeerId || peerSync.getHostId();
+  const roomCode = currentHost ? currentHost.replace('klab_host_', '') : '';
   const tvUrl = typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.host}?mode=tv_display${currentHost ? `&join=${currentHost}` : ''}`
-    : `http://localhost:3000/?mode=tv_display${currentHost ? `&join=${currentHost}` : ''}`;
+    ? `${window.location.protocol}//${window.location.host}?tv=${roomCode || currentHost || ''}`
+    : `http://localhost:3000/?tv=${roomCode || currentHost || ''}`;
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tvUrl)}&color=00f0ff&bgcolor=080811`;
 

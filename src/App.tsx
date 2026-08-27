@@ -215,6 +215,8 @@ export default function App() {
 
   // ── Dual Screen TV & Chromecast / AirPlay Remote Control States ──
   const isTvDisplayMode = typeof window !== 'undefined' && (
+    window.location.search.includes('tv=') ||
+    window.location.search === '?tv' ||
     window.location.search.includes('mode=tv_display') ||
     window.location.search.includes('mode=tv') ||
     window.location.search.includes('tv_display') ||
