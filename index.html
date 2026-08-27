@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- ── iOS/iPadOS 1-tap: applied BEFORE any framework CSS loads ── -->
+    <style>
+      html, body, * { touch-action: manipulation !important; }
+      input[type="range"] { touch-action: pan-x !important; }
+      textarea, input[type="text"], input[type="search"],
+      input[type="email"], input[type="password"], select { touch-action: auto !important; }
+    </style>
     <title>KaraokeLab // DSP Karaoke Engine</title>
     <meta name="description" content="PWA de Karaoke Futurista On-Device con DSP de separación vocal, visualizador Canvas 2D, detección de BPM/Tono y exportación de video." />
     <meta name="theme-color" content="#080811" />
@@ -19,6 +26,37 @@
   <body class="bg-[#080811] text-slate-100 antialiased overflow-x-hidden selection:bg-[#ff007f] selection:text-white" style="touch-action: manipulation;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- ── Enforce 1-tap on every React-created DOM node during audio playback re-renders ── -->
+    <script>
+      (function() {
+        // Stamp touch-action on any node added to the DOM by React (e.g. during playback re-renders)
+        var SKIP_TAGS = { INPUT: true, TEXTAREA: true, SELECT: true };
+        var RANGE_INPUTS = 'INPUT[type="range"]';
+        function applyTA(node) {
+          if (node.nodeType !== 1) return; // elements only
+          var tag = node.tagName;
+          if (SKIP_TAGS[tag] && node.type !== 'range') return; // text inputs: leave as auto
+          node.style.touchAction = (tag === 'INPUT' && node.type === 'range') ? 'pan-x' : 'manipulation';
+        }
+        var obs = new MutationObserver(function(mutations) {
+          for (var i = 0; i < mutations.length; i++) {
+            var added = mutations[i].addedNodes;
+            for (var j = 0; j < added.length; j++) {
+              var n = added[j];
+              applyTA(n);
+              // Also stamp all descendants
+              if (n.querySelectorAll) {
+                var all = n.querySelectorAll('*');
+                for (var k = 0; k < all.length; k++) applyTA(all[k]);
+              }
+            }
+          }
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+          obs.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+        });
+      })();
+    </script>
   </body>
 </html>
 
