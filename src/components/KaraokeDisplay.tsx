@@ -9,8 +9,6 @@ import { detectFirstVocalOnset, transposeKey } from '../services/dspAnalysis';
 import { calibrateLyricsWithVocalStem } from '../services/vocalSyncCalibrator';
 import { classifyVocalGenderForLine, classifyAllLyricsVocalGender, analyzeSongVocalProfile, invalidateVocalProfileCache, SingerGender } from '../services/vocalGenderClassifier';
 import { audioEngine, audioBufferToWavBlob } from '../services/audioEngine';
-import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundSelectorModal } from './VideoBackgroundSelectorModal';
 import { loadVideoBackgroundConfig, saveVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
 
@@ -1284,16 +1282,8 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           </div>
         )}
 
-        {/* ── TELEPROMPTER LYRICS STAGE (With Dynamic Video Background, Singer Names & Smooth Typography) ── */}
-        <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e] overflow-hidden">
-          {/* Dynamic Video Background Layer */}
-          <DynamicVideoBackground
-            config={videoBgConfig}
-            isPlaying={isPlaying}
-            songKey={`${songTitle}___${songArtist || ''}`}
-            currentTime={currentTime}
-            duration={duration}
-          />
+        {/* ── TELEPROMPTER LYRICS STAGE (Singer Names, Smooth Typography & Dynamic Backing) ── */}
+        <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e]/85 backdrop-blur-md overflow-hidden">
 
           {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
           <div className="h-7 w-full flex items-center justify-center shrink-0">
