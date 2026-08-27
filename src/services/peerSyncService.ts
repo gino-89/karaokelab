@@ -14,7 +14,6 @@ export interface ConnectedGuest {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google STUN + OpenRelay TURN for 100% reliable cross-device & same-network WebRTC NAT traversal
 const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -36,6 +35,13 @@ const PEER_CONFIG = {
         credential: 'openrelayproject',
       }
     ],
+  },
+};
+
+const PEER_CONFIG_RELAY_ONLY = {
+  config: {
+    iceServers: PEER_CONFIG.config.iceServers,
+    iceTransportPolicy: 'relay' as RTCIceTransportPolicy,
   },
 };
 
@@ -343,7 +349,8 @@ class PeerSyncService {
   public initGuest(
     targetHostId: string,
     onCatalogReceived: (songs: SongItem[]) => void,
-    onProfilesReceived?: (profiles: SingerProfile[]) => void
+    onProfilesReceived?: (profiles: SingerProfile[]) => void,
+    isFallback: boolean = false
   ) {
     this.targetHostId = targetHostId;
 
@@ -359,16 +366,25 @@ class PeerSyncService {
     this._setConnectionStatus('reconnecting');
 
     try {
-      this.peer = new Peer(PEER_CONFIG);
+      this.peer = new Peer(isFallback ? PEER_CONFIG_RELAY_ONLY : PEER_CONFIG);
 
       this.peer.on('open', () => {
         if (!this.peer || !targetHostId) return;
 
-        console.log('Connecting to Host:', targetHostId);
+        console.log(`Connecting to Host: ${targetHostId} (Fallback: ${isFallback})`);
         const conn = this.peer.connect(targetHostId);
         this.hostConnection = conn;
 
+        // If connection hangs for 5 seconds due to Wi-Fi AP isolation, fallback to TURN relay
+        const connectionTimeout = setTimeout(() => {
+          if (this.currentConnectionStatus !== 'connected' && !isFallback) {
+            console.warn('⚠️ WebRTC connection stuck. Router likely blocking local traffic (AP Isolation). Forcing TURN Relay...');
+            this.initGuest(targetHostId, onCatalogReceived, onProfilesReceived, true);
+          }
+        }, 5000);
+
         conn.on('open', () => {
+          clearTimeout(connectionTimeout);
           console.log('✓ WebRTC P2P connected to Host:', targetHostId);
           this.lastHeartbeatReceived = Date.now();
           this._setConnectionStatus('connected');
@@ -446,7 +462,13 @@ class PeerSyncService {
 
       this.peer.on('error', (err) => {
         console.warn('Guest PeerJS error:', err);
-        this._setConnectionStatus('disconnected');
+        // If there's an immediate error (like signaling failure) before timeout
+        if (!isFallback) {
+          console.warn('⚠️ PeerJS error on initial connection. Trying TURN fallback...');
+          this.initGuest(targetHostId, onCatalogReceived, onProfilesReceived, true);
+        } else {
+          this._setConnectionStatus('disconnected');
+        }
       });
     } catch (e) {
       console.warn('Guest PeerJS init exception:', e);
