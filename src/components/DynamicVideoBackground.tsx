@@ -82,24 +82,24 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }}
       />
 
-      {/* Scaled & Centered 16:9 Desktop Frame - Scaled 1.45x to crop top title and bottom bars */}
+      {/* Scaled & Centered 16:9 Frame - Strictly bounded to container box */}
       <div className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
         isVideoVisible ? 'opacity-100' : 'opacity-0'
-      }`}>
+      }`} style={{ pointerEvents: 'none', touchAction: 'none' }}>
         <iframe
           ref={iframeRef}
           key={`${config.videoId}_${songKey || 'default'}`}
           src={embedUrl}
           title="Dynamic Background Video"
-          width="1920"
-          height="1080"
+          tabIndex={-1}
+          aria-hidden="true"
           allow="autoplay; encrypted-media"
-          className="pointer-events-none border-0 select-none scale-[1.45]"
+          className="pointer-events-none border-0 select-none scale-[1.35]"
           style={{
-            width: '100vw',
-            height: '56.25vw',
-            minHeight: '100vh',
-            minWidth: '177.77vh',
+            width: '120%',
+            height: '120%',
+            pointerEvents: 'none',
+            touchAction: 'none',
             filter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
           }}
         />
