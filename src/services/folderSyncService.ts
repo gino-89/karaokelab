@@ -124,7 +124,17 @@ export async function chooseSyncFolder(): Promise<string | null> {
     }
   }
 
-  return getSavedSyncFolderPath() || null;
+  const saved = getSavedSyncFolderPath();
+  if (saved) return saved;
+
+  // If on Safari/iOS/iPadOS where showDirectoryPicker is not implemented by Apple
+  if (typeof window !== 'undefined' && !(window as any).showDirectoryPicker) {
+    throw new Error(
+      'Safari e iPadOS no permiten seleccionar carpetas completas por restricciones de seguridad de Apple. Por favor, usa el botón "Importar Copia (.zip)" o selecciona tus archivos MP3 directamente.'
+    );
+  }
+
+  return null;
 }
 
 /**
