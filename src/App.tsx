@@ -736,30 +736,30 @@ export default function App() {
   }, []);
 
   // ── Global Universal 1-Tap FastClick Engine for iPad & iOS Safari ──
+  // How it works:
+  //   1. On touchend we immediately call btn.click() to avoid the 300ms Safari delay.
+  //   2. Safari will also fire a real 'click' event ~300ms later on the same element.
+  //   3. We track which element we fast-clicked and suppress that delayed browser click
+  //      so every button fires EXACTLY ONCE per tap, on ALL buttons in the app.
   useEffect(() => {
     let touchStartTime = 0;
     let touchStartX = 0;
     let touchStartY = 0;
     let activeTouchTarget: HTMLElement | null = null;
-    let lastClickDispatchedTime = 0;
+    // Weak map so GC can clean up elements
+    const suppressedElements = new WeakMap<HTMLElement, number>();
 
     const handleGlobalTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) {
-        activeTouchTarget = null;
-        return;
-      }
+      if (e.touches.length !== 1) { activeTouchTarget = null; return; }
       const touch = e.touches[0];
       touchStartTime = Date.now();
       touchStartX = touch.clientX;
       touchStartY = touch.clientY;
 
       const target = e.target as HTMLElement | null;
-      if (!target) {
-        activeTouchTarget = null;
-        return;
-      }
+      if (!target) { activeTouchTarget = null; return; }
 
-      // Ignore text input fields, textareas, selects, and range sliders so native interaction works
+      // Leave text inputs, textareas, selects, range sliders alone
       if (
         target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
@@ -770,50 +770,61 @@ export default function App() {
       }
 
       activeTouchTarget = target.closest('button, [role="button"], a, input[type="checkbox"], input[type="radio"]') as HTMLElement | null;
-      if (activeTouchTarget) {
-        activeTouchTarget.style.touchAction = 'manipulation';
-      }
     };
 
     const handleGlobalTouchEnd = (e: TouchEvent) => {
-      if (!activeTouchTarget || e.changedTouches.length === 0) {
-        activeTouchTarget = null;
-        return;
-      }
+      const btn = activeTouchTarget;
+      activeTouchTarget = null;
+      if (!btn || e.changedTouches.length === 0) return;
 
       const touch = e.changedTouches[0];
       const dx = Math.abs(touch.clientX - touchStartX);
       const dy = Math.abs(touch.clientY - touchStartY);
       const dt = Date.now() - touchStartTime;
 
-      // Genuine tap threshold: movement under 14px and duration under 400ms (not a scroll)
-      if (dx < 14 && dy < 14 && dt < 400) {
-        const btn = activeTouchTarget;
-        if (!btn.hasAttribute('disabled') && !(btn as any).disabled) {
-          const now = Date.now();
-          if (now - lastClickDispatchedTime > 60) {
-            lastClickDispatchedTime = now;
-            // Suppress Safari iOS double-tap / hover simulation delay
-            try {
-              if (e.cancelable) {
-                e.preventDefault();
-              }
-            } catch (_) {}
+      // Genuine tap: finger didn't scroll, tap was short
+      if (dx < 14 && dy < 14 && dt < 400 && !btn.hasAttribute('disabled') && !(btn as any).disabled) {
+        // Mark element: suppress the next browser click on it (within 700ms)
+        suppressedElements.set(btn, Date.now());
 
-            // Instantly execute click handler on 1st tap
-            btn.click();
-          }
+        // Suppress Safari's hover/double-tap delay
+        try { if (e.cancelable) e.preventDefault(); } catch (_) {}
+
+        // Fire the action NOW, first tap only
+        btn.click();
+      }
+    };
+
+    // Intercept and swallow the delayed browser click that Safari fires after our fast click
+    const handleGlobalClick = (e: MouseEvent) => {
+      // Only suppress non-trusted browser-generated clicks (synthetic click() is trusted)
+      // We use a timestamp window: if we fast-clicked this element < 700ms ago, drop the browser click
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const btn = target.closest('button, [role="button"], a') as HTMLElement | null;
+      if (!btn) return;
+      const suppressedAt = suppressedElements.get(btn);
+      if (suppressedAt !== undefined) {
+        const age = Date.now() - suppressedAt;
+        if (age > 20 && age < 700) {
+          // This is the delayed browser click — kill it
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          suppressedElements.delete(btn);
+        } else if (age >= 700) {
+          suppressedElements.delete(btn);
         }
       }
-      activeTouchTarget = null;
     };
 
     window.addEventListener('touchstart', handleGlobalTouchStart, { passive: true, capture: true });
     window.addEventListener('touchend', handleGlobalTouchEnd, { passive: false, capture: true });
+    window.addEventListener('click', handleGlobalClick, { capture: true });
 
     return () => {
       window.removeEventListener('touchstart', handleGlobalTouchStart, { capture: true });
       window.removeEventListener('touchend', handleGlobalTouchEnd, { capture: true });
+      window.removeEventListener('click', handleGlobalClick, { capture: true });
     };
   }, []);
 
