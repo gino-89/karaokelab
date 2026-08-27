@@ -229,6 +229,13 @@ input[type="range"].slider-vertical {
   }
 }
 
+/* Prevent Safari double-tap on touch screens */
+@media (hover: none) and (pointer: coarse) {
+  button:hover, a:hover, [role="button"]:hover {
+    transform: none !important;
+  }
+}
+
 /* Safe Area Insets for modern iPads with Home Bar */
 .safe-area-bottom {
   padding-bottom: max(12px, env(safe-area-inset-bottom));

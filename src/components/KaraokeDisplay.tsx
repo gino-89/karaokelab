@@ -1498,6 +1498,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={onToggleVocalGuide}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onToggleVocalGuide?.();
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
                 vocalGain > 0.05
@@ -1514,6 +1520,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={onToggleSmartVocalCue}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onToggleSmartVocalCue?.();
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
                 isSmartVocalCue
@@ -1534,6 +1546,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={onStop}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onStop?.();
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
               title="Detener"
@@ -1543,6 +1561,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={isPlaying ? onPause : onPlay}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  isPlaying ? onPause?.() : onPlay?.();
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 transition-all active:scale-95"
               title={isPlaying ? 'Pausar' : 'Reproducir'}
@@ -1555,6 +1579,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={() => onSeek(0)}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onSeek?.(0);
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
               title="Reiniciar"
@@ -1564,6 +1594,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={onNextInQueue}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch' && hasNextInQueue && onNextInQueue) {
+                  e.preventDefault();
+                  onNextInQueue();
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               disabled={!hasNextInQueue || !onNextInQueue}
               className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
@@ -1583,6 +1619,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay - 0.2)}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onUpdateSyncDelay?.(syncDelay - 0.2);
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
               title="Adelantar Letra -0.2s"
@@ -1593,6 +1635,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay + 0.2)}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onUpdateSyncDelay?.(syncDelay + 0.2);
+                }
+              }}
               style={{ touchAction: 'manipulation' }}
               className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
               title="Atrasar Letra +0.2s"

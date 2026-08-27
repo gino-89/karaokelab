@@ -55,8 +55,16 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
         <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900/80 to-[#0c0e17] border-b border-[#00ff9d]/30 p-3 flex items-center justify-between gap-2.5 shadow-inner">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
+              type="button"
               onClick={() => onTogglePlay && onTogglePlay()}
-              className="w-8 h-8 rounded-full bg-[#00ff9d]/20 border border-[#00ff9d] flex items-center justify-center text-[#00ff9d] cursor-pointer hover:scale-105 transition-transform shrink-0 shadow-[0_0_10px_rgba(0,255,157,0.3)]"
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch') {
+                  e.preventDefault();
+                  onTogglePlay?.();
+                }
+              }}
+              style={{ touchAction: 'manipulation' }}
+              className="w-8 h-8 rounded-full bg-[#00ff9d]/20 border border-[#00ff9d] flex items-center justify-center text-[#00ff9d] cursor-pointer hover:scale-105 transition-transform shrink-0 shadow-[0_0_10px_rgba(0,255,157,0.3)] active:scale-90"
               title={isPlaying ? 'Pausar canción' : 'Reanudar canción'}
             >
               {isPlaying ? (
@@ -86,8 +94,16 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
           <div className="flex items-center gap-1 shrink-0">
             {onTogglePlay && (
               <button
+                type="button"
                 onClick={onTogglePlay}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[#00ff9d] border border-slate-700 cursor-pointer transition-colors"
+                onPointerDown={(e) => {
+                  if (e.pointerType === 'touch') {
+                    e.preventDefault();
+                    onTogglePlay();
+                  }
+                }}
+                style={{ touchAction: 'manipulation' }}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[#00ff9d] border border-slate-700 cursor-pointer transition-colors active:scale-90"
                 title={isPlaying ? 'Pausar' : 'Reproducir'}
               >
                 {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
@@ -95,8 +111,16 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
             )}
             {onStop && (
               <button
+                type="button"
                 onClick={onStop}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-800/60 cursor-pointer transition-colors"
+                onPointerDown={(e) => {
+                  if (e.pointerType === 'touch') {
+                    e.preventDefault();
+                    onStop();
+                  }
+                }}
+                style={{ touchAction: 'manipulation' }}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-800/60 cursor-pointer transition-colors active:scale-90"
                 title="Detener y quitar del player"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
