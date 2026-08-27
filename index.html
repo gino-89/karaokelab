@@ -26,17 +26,85 @@
   <body class="bg-[#080811] text-slate-100 antialiased overflow-x-hidden selection:bg-[#ff007f] selection:text-white" style="touch-action: manipulation;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- ── Enforce 1-tap on every React-created DOM node during audio playback re-renders ── -->
+    <!-- ── KaraokeLab 1-Tap Engine for iOS/iPadOS ──
+         When audio is playing, iOS may suppress the native click event generated
+         from touch. We fire it ourselves from touchend (isTrusted=false) and then
+         block the browser's delayed ghost click (isTrusted=true) to prevent double-fire.
+    -->
     <script>
       (function() {
-        // Stamp touch-action on any node added to the DOM by React (e.g. during playback re-renders)
-        var SKIP_TAGS = { INPUT: true, TEXTAREA: true, SELECT: true };
-        var RANGE_INPUTS = 'INPUT[type="range"]';
+        // true while we are waiting to suppress the browser ghost click
+        var pendingSuppression = false;
+        var suppressTimer = null;
+
+        // SKIP: pure text inputs and range sliders (handled natively)
+        function isSkipped(el) {
+          if (!el) return true;
+          var tag = el.tagName;
+          if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+          if (tag === 'INPUT') {
+            var t = el.type;
+            if (t === 'text' || t === 'search' || t === 'email' || t === 'password' || t === 'number' || t === 'range') return true;
+          }
+          return false;
+        }
+
+        // Find nearest button/link ancestor
+        function findBtn(el) {
+          if (!el || typeof el.closest !== 'function') return null;
+          return el.closest('button, [role="button"], a, label, summary');
+        }
+
+        document.addEventListener('touchend', function(e) {
+          // Only single-finger lifts (multi-touch = scroll/pinch, skip)
+          if (e.changedTouches.length === 0 || e.touches.length > 0) return;
+
+          var touch = e.changedTouches[0];
+          var target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (isSkipped(target)) return;
+
+          var btn = findBtn(target);
+          if (!btn) return;
+          if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+
+          // Fire the click NOW (synthetic, isTrusted=false → React catches it)
+          pendingSuppression = true;
+          clearTimeout(suppressTimer);
+          suppressTimer = setTimeout(function() { pendingSuppression = false; }, 700);
+
+          btn.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            detail: 1,
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          }));
+        }, { passive: true, capture: true });
+
+        // Suppress the browser's 300ms delayed ghost click (isTrusted=true)
+        document.addEventListener('click', function(e) {
+          if (pendingSuppression && e.isTrusted) {
+            // This is the browser ghost click — block it
+            pendingSuppression = false;
+            clearTimeout(suppressTimer);
+            e.stopImmediatePropagation();
+          } else {
+            // Our synthetic click (isTrusted=false) — clear flag but let it through
+            pendingSuppression = false;
+            clearTimeout(suppressTimer);
+          }
+        }, { capture: true });
+
+        // MutationObserver: stamp touch-action on every React-added node
         function applyTA(node) {
-          if (node.nodeType !== 1) return; // elements only
+          if (node.nodeType !== 1) return;
           var tag = node.tagName;
-          if (SKIP_TAGS[tag] && node.type !== 'range') return; // text inputs: leave as auto
-          node.style.touchAction = (tag === 'INPUT' && node.type === 'range') ? 'pan-x' : 'manipulation';
+          if (tag === 'INPUT' && node.type === 'range') {
+            node.style.touchAction = 'pan-x';
+          } else if (tag !== 'TEXTAREA' && tag !== 'SELECT' && tag !== 'INPUT') {
+            node.style.touchAction = 'manipulation';
+          }
         }
         var obs = new MutationObserver(function(mutations) {
           for (var i = 0; i < mutations.length; i++) {
@@ -44,7 +112,6 @@
             for (var j = 0; j < added.length; j++) {
               var n = added[j];
               applyTA(n);
-              // Also stamp all descendants
               if (n.querySelectorAll) {
                 var all = n.querySelectorAll('*');
                 for (var k = 0; k < all.length; k++) applyTA(all[k]);
