@@ -11,7 +11,7 @@ export class KaraokeScoringTracker {
   private analyser: AnalyserNode | null = null;
   private audioContext: AudioContext | null = null;
   private isTracking = false;
-  private animFrameId: number | null = null;
+  private timerId: any = null;
 
   // Real-time metric accumulators
   private totalFrames = 0;
@@ -24,14 +24,14 @@ export class KaraokeScoringTracker {
   private songStartTime = 0;
 
   // Buffer for pitch autocorrelation
-  private byteData = new Uint8Array(2048);
-  private floatData = new Float32Array(2048);
+  private floatData = new Float32Array(1024);
+  private corrBuffer = new Float32Array(1024);
 
   public init(ctx: AudioContext, sourceNode?: AudioNode) {
     this.audioContext = ctx;
     if (!this.analyser) {
       this.analyser = ctx.createAnalyser();
-      this.analyser.fftSize = 2048;
+      this.analyser.fftSize = 1024;
       this.analyser.smoothingTimeConstant = 0.8;
     }
     if (sourceNode && this.analyser) {
@@ -55,7 +55,10 @@ export class KaraokeScoringTracker {
     this.lyricsList = lyrics || [];
     this.isTracking = true;
     this.songStartTime = performance.now();
-    this.loop();
+    
+    // Use lightweight 100ms interval instead of blocking 60/120 FPS requestAnimationFrame
+    if (this.timerId) clearInterval(this.timerId);
+    this.timerId = setInterval(this.step, 100);
   }
 
   public reset() {
@@ -65,57 +68,56 @@ export class KaraokeScoringTracker {
     this.rhythmHits = 0;
     this.lyricPhrasesHit.clear();
     this.isTracking = false;
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = null;
     }
   }
 
-  private lastPitchTime = 0;
-
-  private loop = () => {
-    if (!this.isTracking) return;
+  private step = () => {
+    if (!this.isTracking || !this.analyser) return;
 
     const now = performance.now();
-    if (this.analyser && now - this.lastPitchTime >= 100) {
-      this.lastPitchTime = now;
-      this.analyser.getFloatTimeDomainData(this.floatData);
+    this.analyser.getFloatTimeDomainData(this.floatData);
 
-      // Compute RMS (Volume Energy) on downsampled buffer
-      let sumSquares = 0;
-      for (let i = 0; i < 512; i++) {
-        sumSquares += this.floatData[i] * this.floatData[i];
+    // Compute RMS (Volume Energy) on downsampled buffer
+    let sumSquares = 0;
+    const len = Math.min(256, this.floatData.length);
+    for (let i = 0; i < len; i++) {
+      const v = this.floatData[i];
+      sumSquares += v * v;
+    }
+    const rms = Math.sqrt(sumSquares / len);
+    const isSinging = rms > 0.02; // Threshold for vocal presence
+
+    this.totalFrames++;
+
+    if (isSinging) {
+      this.vocalActiveFrames++;
+
+      // Detect fundamental frequency (F0 pitch in Hz)
+      const pitchHz = this.autoCorrelate(this.floatData, this.audioContext?.sampleRate || 44100);
+
+      if (pitchHz > 65 && pitchHz < 950) {
+        // Check if pitch aligns with a musical semitone (in-tune tolerance ~50 cents)
+        const midiNote = 69 + 12 * Math.log2(pitchHz / 440);
+        const centsDiff = Math.abs(midiNote - Math.round(midiNote));
+        if (centsDiff < 0.45) {
+          this.pitchHits++;
+        }
       }
-      const rms = Math.sqrt(sumSquares / 512);
-      const isSinging = rms > 0.015; // Threshold for vocal presence
 
-      this.totalFrames++;
+      // Rhythm beat check based on current song BPM
+      const elapsedSecs = (now - this.songStartTime) / 1000;
+      const beatDuration = 60 / Math.max(60, this.currentBpm);
+      const beatOffset = elapsedSecs % beatDuration;
+      const isNearBeat = beatOffset < 0.12 || beatOffset > (beatDuration - 0.12);
+      if (isNearBeat) {
+        this.rhythmHits++;
+      }
 
-      if (isSinging) {
-        this.vocalActiveFrames++;
-
-        // Detect fundamental frequency (F0 pitch in Hz)
-        const pitchHz = this.autoCorrelate(this.floatData, this.audioContext?.sampleRate || 44100);
-
-        if (pitchHz > 65 && pitchHz < 950) {
-          // Check if pitch aligns with a musical semitone (in-tune tolerance ~50 cents)
-          const midiNote = 69 + 12 * Math.log2(pitchHz / 440);
-          const centsDiff = Math.abs(midiNote - Math.round(midiNote));
-          if (centsDiff < 0.45) {
-            this.pitchHits++;
-          }
-        }
-
-        // Rhythm beat check based on current song BPM
-        const elapsedSecs = (now - this.songStartTime) / 1000;
-        const beatDuration = 60 / Math.max(60, this.currentBpm);
-        const beatOffset = elapsedSecs % beatDuration;
-        const isNearBeat = beatOffset < 0.12 || beatOffset > (beatDuration - 0.12);
-        if (isNearBeat) {
-          this.rhythmHits++;
-        }
-
-        // Check active lyric phrase coverage
+      // Check active lyric phrase coverage
+      if (this.lyricsList.length > 0) {
         for (let idx = 0; idx < this.lyricsList.length; idx++) {
           const l = this.lyricsList[idx];
           const nextL = this.lyricsList[idx + 1];
@@ -127,22 +129,20 @@ export class KaraokeScoringTracker {
         }
       }
     }
-
-    this.animFrameId = requestAnimationFrame(this.loop);
   };
 
   /**
-   * Fast Autocorrelation Algorithm (YIN-like F0 detection)
+   * Fast Autocorrelation Algorithm (Optimized zero-alloc)
    */
   private autoCorrelate(buffer: Float32Array, sampleRate: number): number {
-    const SIZE = buffer.length;
+    const SIZE = Math.min(512, buffer.length);
     let sumOfSquares = 0;
     for (let i = 0; i < SIZE; i++) {
       const val = buffer[i];
       sumOfSquares += val * val;
     }
     const rootMeanSquare = Math.sqrt(sumOfSquares / SIZE);
-    if (rootMeanSquare < 0.01) return -1; // Not enough signal
+    if (rootMeanSquare < 0.015) return -1; // Not enough signal
 
     let r1 = 0, r2 = SIZE - 1;
     const threshold = 0.2;
@@ -159,24 +159,26 @@ export class KaraokeScoringTracker {
       }
     }
 
-    const trimmedBuffer = buffer.slice(r1, r2);
-    const c = new Array(trimmedBuffer.length).fill(0);
-    for (let i = 0; i < trimmedBuffer.length; i++) {
-      for (let j = 0; j < trimmedBuffer.length - i; j++) {
-        c[i] = c[i] + trimmedBuffer[j] * trimmedBuffer[j + i];
+    const trimmedLen = r2 - r1;
+    if (trimmedLen <= 16) return -1;
+
+    this.corrBuffer.fill(0);
+    for (let i = 0; i < trimmedLen; i += 2) {
+      for (let j = 0; j < trimmedLen - i; j += 2) {
+        this.corrBuffer[i] += buffer[r1 + j] * buffer[r1 + j + i];
       }
     }
 
     let d = 0;
-    while (c[d] > c[d + 1]) d++;
+    while (this.corrBuffer[d] > this.corrBuffer[d + 2] && d < trimmedLen - 2) d += 2;
     let maxval = -1, maxpos = -1;
-    for (let i = d; i < trimmedBuffer.length; i++) {
-      if (c[i] > maxval) {
-        maxval = c[i];
+    for (let i = d; i < trimmedLen; i += 2) {
+      if (this.corrBuffer[i] > maxval) {
+        maxval = this.corrBuffer[i];
         maxpos = i;
       }
     }
-    let T0 = maxpos;
+    const T0 = maxpos;
     if (T0 <= 0) return -1;
 
     return sampleRate / T0;
@@ -191,9 +193,9 @@ export class KaraokeScoringTracker {
     isMicActive = false
   ): KaraokePerformanceResult {
     this.isTracking = false;
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = null;
     }
 
     let pitchScore: number;

@@ -56,7 +56,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         '*'
       );
     } catch (_) {}
-  }, [isPlaying, config.enabled, config.mode, config.videoId, currentTime, duration]);
+  }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
   if (!config.enabled || config.mode === 'off' || !config.videoId || !isPlaying) {
     return null;

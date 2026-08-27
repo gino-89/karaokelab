@@ -1496,7 +1496,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           {/* Left: Dueto (40% de voz) & Guía Coros */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
+              type="button"
               onClick={onToggleVocalGuide}
+              style={{ touchAction: 'manipulation' }}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
                 vocalGain > 0.05
                   ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.45)] font-black'
@@ -1510,7 +1512,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               </span>
             </button>
             <button
+              type="button"
               onClick={onToggleSmartVocalCue}
+              style={{ touchAction: 'manipulation' }}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
                 isSmartVocalCue
                   ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_14px_rgba(99,102,241,0.5)] font-black'
@@ -1528,14 +1532,18 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           {/* Center: Play / Pause / Stop / Next */}
           <div className="flex items-center justify-center gap-2 sm:gap-3 mx-auto order-first sm:order-none w-full sm:w-auto py-0.5">
             <button
+              type="button"
               onClick={onStop}
+              style={{ touchAction: 'manipulation' }}
               className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
               title="Detener"
             >
               <Square className="w-4 h-4 text-slate-300 fill-current" />
             </button>
             <button
+              type="button"
               onClick={isPlaying ? onPause : onPlay}
+              style={{ touchAction: 'manipulation' }}
               className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 transition-all active:scale-95"
               title={isPlaying ? 'Pausar' : 'Reproducir'}
             >
@@ -1545,7 +1553,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               }
             </button>
             <button
+              type="button"
               onClick={() => onSeek(0)}
+              style={{ touchAction: 'manipulation' }}
               className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
               title="Reiniciar"
             >
@@ -1554,6 +1564,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             <button
               type="button"
               onClick={onNextInQueue}
+              style={{ touchAction: 'manipulation' }}
               disabled={!hasNextInQueue || !onNextInQueue}
               className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
                 hasNextInQueue && onNextInQueue
@@ -1570,7 +1581,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400 shrink-0 ml-auto sm:ml-0">
             <span className="hidden md:inline font-semibold">Calibrar:</span>
             <button
+              type="button"
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay - 0.2)}
+              style={{ touchAction: 'manipulation' }}
               className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
               title="Adelantar Letra -0.2s"
             >
@@ -1578,7 +1591,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </button>
             <span className="text-amber-300 font-bold px-1">{syncDelay > 0 ? `+${syncDelay.toFixed(1)}s` : `${syncDelay.toFixed(1)}s`}</span>
             <button
+              type="button"
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay + 0.2)}
+              style={{ touchAction: 'manipulation' }}
               className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
               title="Atrasar Letra +0.2s"
             >
