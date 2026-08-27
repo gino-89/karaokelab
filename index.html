@@ -66,6 +66,8 @@
           var btn = findBtn(target);
           if (!btn) return;
           if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+          // Skip elements that handle their own touch (have data-touch-handled attr)
+          if (btn.getAttribute('data-touch-handled') || (target && target.getAttribute('data-touch-handled'))) return;
 
           // Fire the click NOW (synthetic, isTrusted=false → React catches it)
           pendingSuppression = true;

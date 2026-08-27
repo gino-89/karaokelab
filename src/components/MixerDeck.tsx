@@ -176,7 +176,14 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
               step={step}
               value={value}
               onChange={(e) => onChange(parseFloat(e.target.value))}
+              onTouchEnd={(e) => {
+                // iOS: fire onChange immediately on touch lift so 1 tap sets value
+                const input = e.currentTarget;
+                onChange(parseFloat(input.value));
+              }}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+              style={{ touchAction: 'pan-x' }}
+              data-touch-handled="true"
               title={`${title}: ${Math.round(value * 100)}% (${dbLabel(value)})`}
             />
           </div>
@@ -187,6 +194,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           {/* Quick Unity 0 dB / 100% Reset */}
           <button
             onClick={() => onChange(unityPoint)}
+            onTouchEnd={(e) => { e.stopPropagation(); onChange(unityPoint); }}
+            data-touch-handled="true"
             className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[10px] font-mono font-bold text-slate-300 hover:text-white border border-slate-700/60 cursor-pointer transition-all active:scale-95 shadow-sm"
             title="Restablecer volumen original a 100% (0.0 dB)"
           >
@@ -201,6 +210,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           {onMute && (
             <button
               onClick={onMute}
+              onTouchEnd={(e) => { e.stopPropagation(); onMute(); }}
+              data-touch-handled="true"
               className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 border ${
                 isMuted
                   ? 'bg-rose-900/60 border-rose-500 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
