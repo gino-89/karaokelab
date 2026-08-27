@@ -32,17 +32,6 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Scrollable containers: allow pan but still allow child taps via manipulation */
-  .overflow-y-auto, .overflow-y-scroll {
-    touch-action: pan-y;
-  }
-  .overflow-x-auto, .overflow-x-scroll {
-    touch-action: pan-x;
-  }
-  .overflow-auto, .overflow-scroll {
-    touch-action: pan-x pan-y;
-  }
-
   /* Range sliders: pan-x for horizontal drag, manipulation for tap-to-set.
      Do NOT use touch-action:none — that breaks tap responsiveness on iOS. */
   input[type="range"] {
@@ -53,11 +42,32 @@
     touch-action: auto;
   }
 
-  /* All interactive elements */
+  /* All interactive elements — must come AFTER scroll containers so it wins */
   button, a, [role="button"], label, .cursor-pointer {
     touch-action: manipulation !important;
     -webkit-user-select: none;
     user-select: none;
+  }
+
+  /* Scrollable containers: pan-y AND manipulation so children respond to tap AND scroll works.
+     The child button/cursor-pointer rule above takes priority for actual tap targets. */
+  .overflow-y-auto, .overflow-y-scroll,
+  .overflow-auto, .overflow-scroll {
+    /* allow vertical pan in the container itself */
+    touch-action: pan-y;
+  }
+
+  /* Divs that act as list items (library cards, song rows, menus) inside scrollable areas */
+  .overflow-y-auto *, .overflow-y-scroll *,
+  .overflow-auto *, .overflow-scroll * {
+    /* keep manipulation on all descendants so taps fire immediately */
+    touch-action: manipulation;
+  }
+
+  /* Restore pan-y for nested scroll containers inside other scroll containers */
+  .overflow-y-auto .overflow-y-auto,
+  .overflow-y-scroll .overflow-y-scroll {
+    touch-action: pan-y;
   }
 }
 

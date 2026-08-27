@@ -744,63 +744,10 @@ export default function App() {
     };
   }, []);
 
-  // ── Global 1-Tap FastClick: suppress Safari's delayed ghost click after our synthetic click ──
-  // CSS touch-action:manipulation (applied globally) eliminates the 300ms tap delay.
-  // But some elements can still emit a ghost click after we call btn.click() ourselves.
-  // This handler intercepts and drops those ghost clicks so actions fire EXACTLY ONCE.
-  useEffect(() => {
-    const suppressedElements = new WeakMap<HTMLElement, number>();
-
-    // On touchend: fire the click immediately and record this element so we can suppress the ghost
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (e.changedTouches.length === 0 || e.touches.length > 0) return;
-
-      const touch = e.changedTouches[0];
-      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
-      if (!target) return;
-
-      // Skip text inputs and range sliders — browser handles those natively
-      if (
-        target.tagName === 'TEXTAREA' ||
-        (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'range') ||
-        (target.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset'].includes((target as HTMLInputElement).type))
-      ) return;
-
-      const btn = target.closest('button, [role="button"], a, label, input[type="checkbox"], input[type="radio"]') as HTMLElement | null;
-      if (!btn || btn.hasAttribute('disabled') || (btn as any).disabled) return;
-
-      // Prevent the native 300ms-delayed click and fire ours now
-      try { if (e.cancelable) e.preventDefault(); } catch (_) {}
-      suppressedElements.set(btn, Date.now());
-      btn.click();
-    };
-
-    // Swallow the browser ghost click that arrives ~300ms after our synthetic click
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const btn = target.closest('button, [role="button"], a, label') as HTMLElement | null;
-      if (!btn) return;
-      const suppressedAt = suppressedElements.get(btn);
-      if (suppressedAt !== undefined) {
-        const age = Date.now() - suppressedAt;
-        if (age > 10 && age < 800) {
-          // Ghost click from browser — drop it
-          e.stopImmediatePropagation();
-          e.preventDefault();
-        }
-        if (age >= 10) suppressedElements.delete(btn);
-      }
-    };
-
-    window.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
-    window.addEventListener('click', handleClick, { capture: true });
-
-    return () => {
-      window.removeEventListener('touchend', handleTouchEnd, { capture: true });
-      window.removeEventListener('click', handleClick, { capture: true });
-    };
-  }, []);
+  // ── Global 1-Tap: CSS touch-action:manipulation (in index.css) eliminates the 300ms iOS tap delay.
+  // We do NOT add any synthetic click() calls here — those duplicate React's own event handlers
+  // and cause double-fires or blocked taps during playback re-renders.
+  // The only thing needed is unlocking the AudioContext on first user gesture.
 
   // 1. Load saved songs from IndexedDB on startup (Purges any legacy demo track)
   useEffect(() => {
