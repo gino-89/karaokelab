@@ -472,8 +472,16 @@ class PeerSyncService {
     }
   }
 
-  // Send song request from guest to host
-  public sendSongRequestFromGuest(songData: { id?: string; title: string; artist?: string; singerName?: string }): { success: boolean; error?: string } {
+  // Send song request from guest to host (Local Song or YouTube Video)
+  public sendSongRequestFromGuest(songData: {
+    id?: string;
+    title: string;
+    artist?: string;
+    singerName?: string;
+    isYouTube?: boolean;
+    videoId?: string;
+    thumbnail?: string;
+  }): { success: boolean; error?: string } {
     if (this.hostConnection && this.hostConnection.open) {
       try {
         const guestName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';

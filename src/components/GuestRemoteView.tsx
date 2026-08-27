@@ -3,8 +3,27 @@ import { SongItem, SingerProfile } from '../types';
 import { getSongsFromDB } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
+import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
 import { SongLibrary } from './SongLibrary';
-import { Check, ListPlus, UserRound, ScanLine, ShieldX, QrCode, Camera, Wifi, WifiOff, AlertTriangle, RefreshCw } from 'lucide-react';
+import {
+  Check,
+  ListPlus,
+  UserRound,
+  ScanLine,
+  ShieldX,
+  QrCode,
+  Camera,
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  RefreshCw,
+  Youtube,
+  Search,
+  Play,
+  Loader2,
+  BookOpen,
+  X,
+} from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
 const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
@@ -14,6 +33,12 @@ export const GuestRemoteView: React.FC = () => {
   const [nameConfirmed, setNameConfirmed] = useState(false);
   const [kicked, setKicked] = useState(false);
   const [connStatus, setConnStatus] = useState<ConnectionStatus>('reconnecting');
+
+  const [remoteTab, setRemoteTab] = useState<'library' | 'youtube'>('library');
+  const [ytQuery, setYtQuery] = useState('');
+  const [ytSearching, setYtSearching] = useState(false);
+  const [ytResults, setYtResults] = useState<YouTubeSearchResult[]>([]);
+  const [ytActiveEmbedId, setYtActiveEmbedId] = useState<string | null>(null);
 
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [profiles, setProfiles] = useState<SingerProfile[]>([
@@ -196,6 +221,54 @@ export const GuestRemoteView: React.FC = () => {
     if (result.success) {
       setFeedback({ type: 'success', message: `¡"${title.trim()}" enviada a la cola! 🎤` });
       setCustomRequestTitle('');
+    } else {
+      setFeedback({
+        type: 'error',
+        message: result.error || '⚠️ Sin conexión con el anfitrión. Escanea el código QR de nuevo.',
+      });
+    }
+
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  // ── YouTube Karaoke Search & Request from Mobile ──
+  const handleYouTubeSearch = async (searchTerm?: string) => {
+    const q = searchTerm !== undefined ? searchTerm : ytQuery;
+    if (!q || !q.trim()) return;
+    setYtSearching(true);
+    setYtActiveEmbedId(null);
+    try {
+      const res = await searchYouTubeVideos(q);
+      setYtResults(res);
+    } catch (err) {
+      console.error('YouTube search error in remote:', err);
+    } finally {
+      setYtSearching(false);
+    }
+  };
+
+  const handleRequestYouTubeSong = (item: YouTubeSearchResult) => {
+    if (kicked) return;
+
+    const result = peerSync.sendSongRequestFromGuest({
+      isYouTube: true,
+      videoId: item.id,
+      title: item.title,
+      artist: item.channel,
+      thumbnail: item.thumbnail,
+    });
+
+    tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
+      isYouTube: true,
+      videoId: item.id,
+      title: item.title,
+      artist: item.channel,
+      thumbnail: item.thumbnail,
+      guestName: guestName,
+    });
+
+    if (result.success) {
+      setFeedback({ type: 'success', message: `¡"${item.title}" enviada a la cola de YouTube! 🎬` });
     } else {
       setFeedback({
         type: 'error',
@@ -455,52 +528,254 @@ export const GuestRemoteView: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Custom Song Request Bar */}
-      <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/40 flex flex-col gap-2 shadow-lg">
-        <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
-          <span>🎤</span>
-          <span>¿No ves tu canción? Pídela directamente:</span>
-        </span>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Escribe el nombre de la canción o artista..."
-            value={customRequestTitle}
-            onChange={(e) => setCustomRequestTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && customRequestTitle.trim()) {
-                handleRequestCustomSong(customRequestTitle.trim());
-              }
-            }}
-            className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
-          />
-          <button
-            type="button"
-            onClick={() => customRequestTitle.trim() && handleRequestCustomSong(customRequestTitle.trim())}
-            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
-          >
-            <ListPlus className="w-3.5 h-3.5" />
-            <span>Pedir</span>
-          </button>
-        </div>
+      {/* Remote Navigation Tabs: Local Library vs YouTube Online Search */}
+      <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 shadow-xl">
+        <button
+          type="button"
+          onClick={() => setRemoteTab('library')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            remoteTab === 'library'
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_20px_rgba(0,240,255,0.3)] font-black'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Biblioteca ({savedSongs.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRemoteTab('youtube')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            remoteTab === 'youtube'
+              ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] font-black'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <Youtube className="w-4 h-4 text-red-400 fill-current" />
+          <span>YouTube Karaoke 🎬</span>
+        </button>
       </div>
 
-      {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management) */}
-      <SongLibrary
-        savedSongs={savedSongs}
-        queue={[]}
-        onFilesSelected={() => {}}
-        onSelectSong={handleRequestSong}
-        onDeleteSong={() => {}}
-        onAddToQueue={handleRequestSong}
-        profiles={profiles}
-        activeProfileId={activeProfileId}
-        onSelectProfile={handleSelectProfile}
-        onCreateProfile={handleCreateProfile}
-        onDeleteProfile={handleDeleteProfile}
-        onToggleFavoriteSong={handleToggleFavoriteSong}
-        isGuestMode={true}
-      />
+      {/* TAB 1: YOUTUBE KARAOKE SEARCH */}
+      {remoteTab === 'youtube' && (
+        <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+          {/* YouTube Search Bar */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-red-500/40 flex flex-col gap-2.5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-red-300 flex items-center gap-1.5 font-mono uppercase tracking-wider">
+                <Youtube className="w-3.5 h-3.5 text-red-500 fill-current" />
+                <span>Buscador YouTube en Vivo</span>
+              </span>
+              <span className="text-[10px] text-slate-400">Pide a la cola del host</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Busca por canción o artista (ej. Luis Miguel, Bad Bunny)..."
+                  value={ytQuery}
+                  onChange={(e) => setYtQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleYouTubeSearch();
+                  }}
+                  className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all"
+                />
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                {ytQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setYtQuery(''); setYtResults([]); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleYouTubeSearch()}
+                disabled={ytSearching || !ytQuery.trim()}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+              >
+                {ytSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                <span>Buscar</span>
+              </button>
+            </div>
+
+            {/* Popular Suggestions */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+              <span className="text-slate-500 font-mono font-bold shrink-0">Popular:</span>
+              {['Luis Miguel', 'Bad Bunny', 'Karol G', 'Queen', 'Rocío Dúrcal', 'RBD', 'Salsa', 'Cumbia'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    setYtQuery(tag);
+                    handleYouTubeSearch(tag);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-colors cursor-pointer shrink-0"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active Preview Embed Player */}
+          {ytActiveEmbedId && (
+            <div className="rounded-2xl overflow-hidden border border-red-500/40 bg-black shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+              <div className="p-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-bold text-red-400 font-mono flex items-center gap-1.5">
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  PREVIEW EN CELULAR
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setYtActiveEmbedId(null)}
+                  className="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+              <div className="relative aspect-video w-full">
+                <iframe
+                  src={`https://www.youtube.com/embed/${ytActiveEmbedId}?autoplay=1`}
+                  title="YouTube Player Preview"
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
+
+          {/* YouTube Results List */}
+          {ytSearching ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400 bg-slate-900/40 rounded-2xl border border-slate-800">
+              <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+              <p className="text-xs font-medium">Buscando pistas de Karaoke en YouTube...</p>
+            </div>
+          ) : ytResults.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ytResults.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-3"
+                >
+                  <div className="flex gap-3">
+                    <div className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800">
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
+                        }}
+                      />
+                      <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
+                        {item.duration}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
+                        {item.title}
+                      </h3>
+                      <p className="text-[10px] text-slate-400 mt-1 truncate">{item.channel}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => handleRequestYouTubeSong(item)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                      <span>Pedir a la Cola 🎤</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setYtActiveEmbedId(item.id === ytActiveEmbedId ? null : item.id)}
+                      className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all border border-slate-700 flex items-center gap-1 cursor-pointer"
+                      title="Ver preview del video"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Preview</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-center bg-slate-900/30 rounded-2xl border border-slate-800/80 p-6">
+              <div className="w-12 h-12 rounded-full bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-1">
+                <Youtube className="w-6 h-6" />
+              </div>
+              <p className="text-xs font-bold text-slate-300">Explora millones de canciones de YouTube</p>
+              <p className="text-[11px] text-slate-500 max-w-xs">
+                Busca cualquier tema en vivo y toca <b>"Pedir a la Cola"</b> para que se agregue a la pantalla principal.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: LOCAL LIBRARY VIEW */}
+      {remoteTab === 'library' && (
+        <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+          {/* Quick Custom Song Request Bar */}
+          <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/40 flex flex-col gap-2 shadow-lg">
+            <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+              <span>🎤</span>
+              <span>¿No ves tu canción? Pídela directamente:</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Escribe el nombre de la canción o artista..."
+                value={customRequestTitle}
+                onChange={(e) => setCustomRequestTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customRequestTitle.trim()) {
+                    handleRequestCustomSong(customRequestTitle.trim());
+                  }
+                }}
+                className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
+              />
+              <button
+                type="button"
+                onClick={() => customRequestTitle.trim() && handleRequestCustomSong(customRequestTitle.trim())}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
+              >
+                <ListPlus className="w-3.5 h-3.5" />
+                <span>Pedir</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management) */}
+          <SongLibrary
+            savedSongs={savedSongs}
+            queue={[]}
+            onFilesSelected={() => {}}
+            onSelectSong={handleRequestSong}
+            onDeleteSong={() => {}}
+            onAddToQueue={handleRequestSong}
+            profiles={profiles}
+            activeProfileId={activeProfileId}
+            onSelectProfile={handleSelectProfile}
+            onCreateProfile={handleCreateProfile}
+            onDeleteProfile={handleDeleteProfile}
+            onToggleFavoriteSong={handleToggleFavoriteSong}
+            isGuestMode={true}
+          />
+        </div>
+      )}
     </div>
   );
 };

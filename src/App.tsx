@@ -373,8 +373,43 @@ export default function App() {
         const who = guestName || 'Invitado';
 
         if (isYouTube && videoId) {
-          setYouTubeEmbedId(videoId);
-          setIsYouTubeModalOpen(true);
+          const ytTitle = title || 'Video de YouTube';
+          const ytArtist = artist || 'YouTube';
+
+          if (queue.some((q) => q.songData?.id === `yt_${videoId}` || q.songData?.videoBgId === videoId)) {
+            showAlertToast(`ℹ️ "${ytTitle}" ya está en la cola.`);
+            return;
+          }
+
+          const newItem: QueueItem = {
+            id: `queue_yt_${videoId}_${Date.now()}`,
+            fileName: `🎬 [YouTube] ${ytTitle}`,
+            status: 'ready',
+            progress: 100,
+            songData: {
+              id: `yt_${videoId}`,
+              title: ytTitle,
+              artist: ytArtist,
+              duration: 240,
+              bpm: 120,
+              key: 'C',
+              lyrics: [],
+              originalFileName: `${ytTitle}.mp4`,
+              videoBgId: videoId,
+              videoBgMode: 'custom',
+              videoBgCustomUrl: `https://www.youtube.com/watch?v=${videoId}`,
+              createdAt: Date.now(),
+            },
+          };
+
+          setQueue((prev) => [...prev, newItem]);
+          showAlertToast(`🎬 ${who} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
+
+          // If nothing is playing and queue is currently empty, play immediately!
+          if (!currentSong && queue.length === 0) {
+            setYouTubeEmbedId(videoId);
+            setIsYouTubeModalOpen(true);
+          }
           return;
         }
 
@@ -768,9 +803,16 @@ export default function App() {
         }
       }
 
-      // 1. Instant Audio Decode & Buffer Assignment
+      // 1. Instant Audio Decode & Buffer Assignment or YouTube Video
       let vocBuf: AudioBuffer | null = null;
-      if (song.stems?.instrumentalBlob) {
+      if (song.id?.startsWith('yt_') || (song.videoBgId && !song.audioBlob && !song.stems?.instrumentalBlob)) {
+        const vidId = song.videoBgId || song.id.replace('yt_', '');
+        setYouTubeEmbedId(vidId);
+        setIsYouTubeModalOpen(true);
+        setCurrentSong(song);
+        showAlertToast(`🎬 Reproduciendo video de YouTube: "${song.title}"`);
+        return;
+      } else if (song.stems?.instrumentalBlob) {
         const instArrayBuf = await song.stems.instrumentalBlob.arrayBuffer();
         const instBuf = await audioEngine.decodeAudio(instArrayBuf.slice(0));
         if (song.stems.vocalsBlob) {
