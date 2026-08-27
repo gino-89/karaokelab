@@ -33,69 +33,64 @@
     -->
     <script>
       (function() {
-        // true while we are waiting to suppress the browser ghost click
+        // pendingSuppression = true means we already fired a synthetic click
+        // and are waiting to suppress the browser's 300ms ghost click
         var pendingSuppression = false;
         var suppressTimer = null;
 
-        // SKIP: pure text inputs and range sliders (handled natively)
         function isSkipped(el) {
           if (!el) return true;
           var tag = el.tagName;
           if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
           if (tag === 'INPUT') {
             var t = el.type;
-            if (t === 'text' || t === 'search' || t === 'email' || t === 'password' || t === 'number' || t === 'range') return true;
+            // skip text-like inputs and range sliders
+            if (t === 'text' || t === 'search' || t === 'email' ||
+                t === 'password' || t === 'number' || t === 'range') return true;
           }
           return false;
         }
 
-        // Find nearest button/link ancestor
         function findBtn(el) {
           if (!el || typeof el.closest !== 'function') return null;
           return el.closest('button, [role="button"], a, label, summary');
         }
 
+        // TOUCHEND: fire click immediately (before browser's 300ms delayed click)
         document.addEventListener('touchend', function(e) {
-          // Only single-finger lifts (multi-touch = scroll/pinch, skip)
           if (e.changedTouches.length === 0 || e.touches.length > 0) return;
 
           var touch = e.changedTouches[0];
           var target = document.elementFromPoint(touch.clientX, touch.clientY);
           if (isSkipped(target)) return;
 
-          var btn = findBtn(target);
+          var btn = target ? findBtn(target) : null;
           if (!btn) return;
           if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
-          // Skip elements that handle their own touch (have data-touch-handled attr)
-          if (btn.getAttribute('data-touch-handled') || (target && target.getAttribute('data-touch-handled'))) return;
 
-          // Fire the click NOW (synthetic, isTrusted=false → React catches it)
+          // Arm suppressor BEFORE dispatching so the handler below can suppress the ghost
           pendingSuppression = true;
           clearTimeout(suppressTimer);
-          suppressTimer = setTimeout(function() { pendingSuppression = false; }, 700);
+          suppressTimer = setTimeout(function() { pendingSuppression = false; }, 800);
 
           btn.dispatchEvent(new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            detail: 1,
-            clientX: touch.clientX,
-            clientY: touch.clientY
+            bubbles: true, cancelable: true, view: window, detail: 1,
+            clientX: touch.clientX, clientY: touch.clientY
           }));
         }, { passive: true, capture: true });
 
-        // Suppress the browser's 300ms delayed ghost click (isTrusted=true)
+        // CLICK: only suppress the browser ghost click (isTrusted=true).
+        // Our synthetic click has isTrusted=false — let it pass through.
+        // IMPORTANT: do NOT clear pendingSuppression on isTrusted=false.
+        // The ghost click arrives ~300ms later and must still be suppressed.
         document.addEventListener('click', function(e) {
           if (pendingSuppression && e.isTrusted) {
-            // This is the browser ghost click — block it
-            pendingSuppression = false;
-            clearTimeout(suppressTimer);
+            // Ghost click from browser — block it
             e.stopImmediatePropagation();
-          } else {
-            // Our synthetic click (isTrusted=false) — clear flag but let it through
             pendingSuppression = false;
             clearTimeout(suppressTimer);
           }
+          // isTrusted=false (our synthetic click) → do nothing, let React handle it
         }, { capture: true });
 
         // MutationObserver: stamp touch-action on every React-added node
@@ -110,9 +105,9 @@
         }
         var obs = new MutationObserver(function(mutations) {
           for (var i = 0; i < mutations.length; i++) {
-            var added = mutations[i].addedNodes;
-            for (var j = 0; j < added.length; j++) {
-              var n = added[j];
+            var nodes = mutations[i].addedNodes;
+            for (var j = 0; j < nodes.length; j++) {
+              var n = nodes[j];
               applyTA(n);
               if (n.querySelectorAll) {
                 var all = n.querySelectorAll('*');
@@ -122,7 +117,8 @@
           }
         });
         document.addEventListener('DOMContentLoaded', function() {
-          obs.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+          obs.observe(document.getElementById('root') || document.body,
+                      { childList: true, subtree: true });
         });
       })();
     </script>
