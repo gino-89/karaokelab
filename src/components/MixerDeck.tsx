@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Sliders, Mic, MicOff, Volume2, VolumeX, RefreshCw, Sparkles, Music } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sliders, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { AudioStems } from '../types';
-import { transposeKey } from '../services/dspAnalysis';
 
 interface MixerDeckProps {
   vocalGain: number;
@@ -78,7 +77,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
   };
 
   /**
-   * Hardware Console Studio Fader Strip (Identical architecture to playback slider)
+   * Hardware Console Studio Fader Strip
    */
   const StudioFaderStrip = ({
     title,
@@ -137,7 +136,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           </div>
         </div>
 
-        {/* ── Exact Same Architecture as Playback Slider ── */}
+        {/* ── Fader Slider ── */}
         <div className="relative py-1.5 flex flex-col justify-center select-none my-1">
           {/* Reference Ticks */}
           <div className="flex justify-between text-[8px] font-mono text-slate-500 mb-1 px-0.5">
@@ -147,7 +146,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             <span>{max >= 2.0 ? '200%' : '150%'}</span>
           </div>
 
-          {/* Interactive Range Track (Exact same structure as playback slider) */}
+          {/* Interactive Range Track */}
           <div className="relative h-6 flex items-center">
             {/* Background Rail */}
             <div className="w-full h-2.5 bg-slate-950 border border-slate-700/80 rounded-full overflow-hidden relative shadow-inner">
@@ -169,7 +168,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
               style={{ left: `${pct}%` }}
             />
 
-            {/* Live Interactive Range Slider for Dragging & Clicking */}
+            {/* Live Interactive Range Slider — pan-x allows horizontal drag, manipulation removes 300ms tap delay */}
             <input
               type="range"
               min={min}
@@ -177,6 +176,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
               step={step}
               value={value}
               onChange={(e) => onChange(parseFloat(e.target.value))}
+              style={{ touchAction: 'pan-x' }}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
               title={`${title}: ${Math.round(value * 100)}% (${dbLabel(value)})`}
             />
@@ -187,7 +187,9 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
         <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800/80 mt-1">
           {/* Quick Unity 0 dB / 100% Reset */}
           <button
+            type="button"
             onClick={() => onChange(unityPoint)}
+            style={{ touchAction: 'manipulation' }}
             className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[10px] font-mono font-bold text-slate-300 hover:text-white border border-slate-700/60 cursor-pointer transition-all active:scale-95 shadow-sm"
             title="Restablecer volumen original a 100% (0.0 dB)"
           >
@@ -201,7 +203,9 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           {/* Mute Button */}
           {onMute && (
             <button
+              type="button"
               onClick={onMute}
+              style={{ touchAction: 'manipulation' }}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 border ${
                 isMuted
                   ? 'bg-rose-900/60 border-rose-500 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
@@ -252,6 +256,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             <button
               type="button"
               onClick={() => onVocalGainChange(0.0)}
+              style={{ touchAction: 'manipulation' }}
               className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer truncate ${
                 vocalGain === 0
                   ? 'bg-slate-800 border border-cyan-500/50 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
@@ -265,6 +270,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             <button
               type="button"
               onClick={() => onVocalGainChange(0.15)}
+              style={{ touchAction: 'manipulation' }}
               className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer truncate ${
                 Math.abs(vocalGain - 0.15) < 0.03
                   ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/60 text-pink-300 shadow-[0_0_10px_rgba(236,72,153,0.4)] font-black'
@@ -278,6 +284,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             <button
               type="button"
               onClick={() => onVocalGainChange(0.40)}
+              style={{ touchAction: 'manipulation' }}
               className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer truncate ${
                 Math.abs(vocalGain - 0.40) < 0.05
                   ? 'bg-indigo-500/20 border border-indigo-400 text-indigo-300 shadow-[0_0_8px_rgba(99,102,241,0.3)]'
@@ -291,6 +298,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             <button
               type="button"
               onClick={() => onVocalGainChange(1.0)}
+              style={{ touchAction: 'manipulation' }}
               className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer truncate ${
                 vocalGain >= 0.95
                   ? 'bg-slate-800 border border-slate-600 text-white font-bold'
@@ -346,7 +354,9 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
         <div className="pt-0.5 border-t border-slate-800/80">
           <div className="bg-[#0c0e17] border border-slate-700/70 rounded-xl p-2 flex items-center justify-between gap-3">
             <button
+              type="button"
               onClick={onToggleMic}
+              style={{ touchAction: 'manipulation' }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-mono font-bold cursor-pointer transition-all active:scale-95 ${
                 isMicActive
                   ? 'border-[#00ff9d] bg-[#00ff9d]/20 text-[#00ff9d] shadow-[0_0_10px_rgba(0,255,157,0.3)]'
@@ -367,6 +377,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
                   step={0.01}
                   value={micGain}
                   onChange={(e) => onMicGainChange(parseFloat(e.target.value))}
+                  style={{ touchAction: 'pan-x' }}
                   className="w-full accent-[#00ff9d] cursor-pointer h-1.5"
                   title={`Ganancia de micrófono: ${dbLabel(micGain)}`}
                 />
@@ -385,3 +396,4 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
     </div>
   );
 });
+
