@@ -735,96 +735,61 @@ export default function App() {
     };
   }, []);
 
-  // ── Global Universal 1-Tap FastClick Engine for iPad & iOS Safari ──
-  // How it works:
-  //   1. On touchend we immediately call btn.click() to avoid the 300ms Safari delay.
-  //   2. Safari will also fire a real 'click' event ~300ms later on the same element.
-  //   3. We track which element we fast-clicked and suppress that delayed browser click
-  //      so every button fires EXACTLY ONCE per tap, on ALL buttons in the app.
+  // ── Global 1-Tap FastClick: suppress Safari's delayed ghost click after our synthetic click ──
+  // CSS touch-action:manipulation (applied globally) eliminates the 300ms tap delay.
+  // But some elements can still emit a ghost click after we call btn.click() ourselves.
+  // This handler intercepts and drops those ghost clicks so actions fire EXACTLY ONCE.
   useEffect(() => {
-    let touchStartTime = 0;
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let activeTouchTarget: HTMLElement | null = null;
-    // Weak map so GC can clean up elements
     const suppressedElements = new WeakMap<HTMLElement, number>();
 
-    const handleGlobalTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) { activeTouchTarget = null; return; }
-      const touch = e.touches[0];
-      touchStartTime = Date.now();
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-
-      const target = e.target as HTMLElement | null;
-      if (!target) { activeTouchTarget = null; return; }
-
-      // Leave text inputs, textareas, selects, range sliders alone
-      if (
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        (target.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes((target as HTMLInputElement).type))
-      ) {
-        activeTouchTarget = null;
-        return;
-      }
-
-      activeTouchTarget = target.closest('button, [role="button"], a, input[type="checkbox"], input[type="radio"]') as HTMLElement | null;
-    };
-
-    const handleGlobalTouchEnd = (e: TouchEvent) => {
-      const btn = activeTouchTarget;
-      activeTouchTarget = null;
-      if (!btn || e.changedTouches.length === 0) return;
+    // On touchend: fire the click immediately and record this element so we can suppress the ghost
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length === 0 || e.touches.length > 0) return;
 
       const touch = e.changedTouches[0];
-      const dx = Math.abs(touch.clientX - touchStartX);
-      const dy = Math.abs(touch.clientY - touchStartY);
-      const dt = Date.now() - touchStartTime;
+      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+      if (!target) return;
 
-      // Genuine tap: finger didn't scroll, tap was short
-      if (dx < 14 && dy < 14 && dt < 400 && !btn.hasAttribute('disabled') && !(btn as any).disabled) {
-        // Mark element: suppress the next browser click on it (within 700ms)
-        suppressedElements.set(btn, Date.now());
+      // Skip text inputs and range sliders — browser handles those natively
+      if (
+        target.tagName === 'TEXTAREA' ||
+        (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'range') ||
+        (target.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset'].includes((target as HTMLInputElement).type))
+      ) return;
 
-        // Suppress Safari's hover/double-tap delay
-        try { if (e.cancelable) e.preventDefault(); } catch (_) {}
+      const btn = target.closest('button, [role="button"], a, label, input[type="checkbox"], input[type="radio"]') as HTMLElement | null;
+      if (!btn || btn.hasAttribute('disabled') || (btn as any).disabled) return;
 
-        // Fire the action NOW, first tap only
-        btn.click();
-      }
+      // Prevent the native 300ms-delayed click and fire ours now
+      try { if (e.cancelable) e.preventDefault(); } catch (_) {}
+      suppressedElements.set(btn, Date.now());
+      btn.click();
     };
 
-    // Intercept and swallow the delayed browser click that Safari fires after our fast click
-    const handleGlobalClick = (e: MouseEvent) => {
-      // Only suppress non-trusted browser-generated clicks (synthetic click() is trusted)
-      // We use a timestamp window: if we fast-clicked this element < 700ms ago, drop the browser click
+    // Swallow the browser ghost click that arrives ~300ms after our synthetic click
+    const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      const btn = target.closest('button, [role="button"], a') as HTMLElement | null;
+      const btn = target.closest('button, [role="button"], a, label') as HTMLElement | null;
       if (!btn) return;
       const suppressedAt = suppressedElements.get(btn);
       if (suppressedAt !== undefined) {
         const age = Date.now() - suppressedAt;
-        if (age > 20 && age < 700) {
-          // This is the delayed browser click — kill it
+        if (age > 10 && age < 800) {
+          // Ghost click from browser — drop it
           e.stopImmediatePropagation();
           e.preventDefault();
-          suppressedElements.delete(btn);
-        } else if (age >= 700) {
-          suppressedElements.delete(btn);
         }
+        if (age >= 10) suppressedElements.delete(btn);
       }
     };
 
-    window.addEventListener('touchstart', handleGlobalTouchStart, { passive: true, capture: true });
-    window.addEventListener('touchend', handleGlobalTouchEnd, { passive: false, capture: true });
-    window.addEventListener('click', handleGlobalClick, { capture: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    window.addEventListener('click', handleClick, { capture: true });
 
     return () => {
-      window.removeEventListener('touchstart', handleGlobalTouchStart, { capture: true });
-      window.removeEventListener('touchend', handleGlobalTouchEnd, { capture: true });
-      window.removeEventListener('click', handleGlobalClick, { capture: true });
+      window.removeEventListener('touchend', handleTouchEnd, { capture: true });
+      window.removeEventListener('click', handleClick, { capture: true });
     };
   }, []);
 

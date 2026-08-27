@@ -12,8 +12,16 @@
     --neon-yellow: #ffe600;
   }
 
+  /* ── Eliminate ALL 300ms tap delay on iOS Safari / iPad ──
+     touch-action: manipulation on EVERY element tells WebKit:
+     never wait for a possible double-tap gesture on any element. */
+  html, body {
+    touch-action: manipulation;
+  }
+
   *, *::before, *::after {
     -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation;
   }
 
   html, body {
@@ -24,13 +32,28 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Responsive & touch optimized interactive targets */
-  button, a, select, [role="button"], .cursor-pointer {
+  /* Scrollable containers need pan gestures – override manipulation for them */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto, .overflow-y-scroll, .overflow-x-scroll, [class*="overflow-y"], [class*="overflow-x"] {
+    touch-action: pan-y;
+  }
+
+  /* Inputs and range sliders need their own touch behaviour */
+  input[type="range"] {
+    touch-action: none;
+  }
+
+  textarea, input[type="text"], input[type="search"], input[type="email"], input[type="password"], select {
+    touch-action: auto;
+  }
+
+  /* All interactive elements */
+  button, a, [role="button"], label, .cursor-pointer {
     touch-action: manipulation !important;
     -webkit-user-select: none;
     user-select: none;
   }
 }
+
 
 .font-cyber {
   font-family: var(--font-cyber), sans-serif;
