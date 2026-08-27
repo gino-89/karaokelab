@@ -1,8 +1,8 @@
 import Peer, { DataConnection } from 'peerjs';
-import { SongItem, SingerProfile } from '../types';
+import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
   payload?: any;
 }
 
@@ -38,12 +38,14 @@ class PeerSyncService {
   private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
+  private onYtFavoritesReceivedCallback: ((favorites: YouTubeFavoriteTrack[]) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
   private onKickedCallback: ((kickedKey?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
   private currentProfiles: SingerProfile[] = [];
+  private currentYtFavorites: YouTubeFavoriteTrack[] = [];
 
   // Heartbeat & connection monitoring
   private hostHeartbeatTimer: any = null;
@@ -327,12 +329,26 @@ class PeerSyncService {
     });
   }
 
+  // Broadcast updated YouTube favorites to all connected guest phones
+  public broadcastYouTubeFavoritesToGuests(favorites: YouTubeFavoriteTrack[]) {
+    if (!this.isHost) return;
+    this.currentYtFavorites = favorites;
+
+    this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'YT_FAVORITES_SYNC', payload: favorites });
+        } catch (_) {}
+      }
+    });
+  }
+
   // Initialize Guest session on mobile phone scanning QR
   public initGuest(
     targetHostId: string,
     onCatalogReceived: (songs: SongItem[]) => void,
     onProfilesReceived?: (profiles: SingerProfile[]) => void,
-    isFallback: boolean = false
+    onYtFavoritesReceived?: (favorites: YouTubeFavoriteTrack[]) => void
   ) {
     this.targetHostId = targetHostId;
 
@@ -345,15 +361,16 @@ class PeerSyncService {
     this.isHost = false;
     this.onCatalogReceivedCallback = onCatalogReceived;
     this.onProfilesReceivedCallback = onProfilesReceived || null;
+    this.onYtFavoritesReceivedCallback = onYtFavoritesReceived || null;
     this._setConnectionStatus('reconnecting');
 
     try {
-      this.peer = new Peer(isFallback ? PEER_CONFIG_RELAY_ONLY : PEER_CONFIG);
+      this.peer = new Peer(PEER_CONFIG);
 
       this.peer.on('open', () => {
         if (!this.peer || !targetHostId) return;
 
-        console.log(`Connecting to Host: ${targetHostId} (Fallback: ${isFallback})`);
+        console.log(`Connecting to Host: ${targetHostId}`);
         const conn = this.peer.connect(targetHostId);
         this.hostConnection = conn;
 
@@ -399,6 +416,11 @@ class PeerSyncService {
             console.log('✓ Received profiles sync from Host:', data.payload.length, 'profiles');
             if (this.onProfilesReceivedCallback) {
               this.onProfilesReceivedCallback(data.payload);
+            }
+          } else if (data.type === 'YT_FAVORITES_SYNC' && Array.isArray(data.payload)) {
+            console.log('✓ Received YouTube favorites sync from Host:', data.payload.length, 'favorites');
+            if (this.onYtFavoritesReceivedCallback) {
+              this.onYtFavoritesReceivedCallback(data.payload);
             }
           } else if (data.type === 'KICK') {
             const kickedKey = data.payload?.kickedKey || '';
@@ -539,6 +561,20 @@ class PeerSyncService {
         });
       } catch (e) {
         console.warn('Error sending toggle favorite to host:', e);
+      }
+    }
+  }
+
+  // Send toggle YouTube favorite from guest to host
+  public sendToggleYouTubeFavoriteFromGuest(track: any, profileId?: string) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'TOGGLE_YT_FAVORITE',
+          payload: { track, profileId },
+        });
+      } catch (e) {
+        console.warn('Error sending toggle YouTube favorite to host:', e);
       }
     }
   }

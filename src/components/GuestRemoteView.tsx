@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { SongItem, SingerProfile } from '../types';
-import { getSongsFromDB } from '../services/db';
+import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
+import { getSongsFromDB, getYouTubeFavoritesFromStorage, saveYouTubeFavoritesToStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
@@ -23,6 +23,7 @@ import {
   Loader2,
   BookOpen,
   X,
+  Star,
 } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
@@ -39,6 +40,7 @@ export const GuestRemoteView: React.FC = () => {
   const [ytSearching, setYtSearching] = useState(false);
   const [ytResults, setYtResults] = useState<YouTubeSearchResult[]>([]);
   const [ytActiveEmbedId, setYtActiveEmbedId] = useState<string | null>(null);
+  const [youtubeFavorites, setYoutubeFavorites] = useState<YouTubeFavoriteTrack[]>(() => getYouTubeFavoritesFromStorage());
 
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [profiles, setProfiles] = useState<SingerProfile[]>([
@@ -155,6 +157,12 @@ export const GuestRemoteView: React.FC = () => {
             (syncedProfiles) => {
               if (syncedProfiles && Array.isArray(syncedProfiles) && syncedProfiles.length > 0) {
                 saveGuestProfiles(syncedProfiles);
+              }
+            },
+            (syncedYtFavorites) => {
+              if (syncedYtFavorites && Array.isArray(syncedYtFavorites)) {
+                setYoutubeFavorites(syncedYtFavorites);
+                saveYouTubeFavoritesToStorage(syncedYtFavorites);
               }
             }
           );
@@ -277,6 +285,39 @@ export const GuestRemoteView: React.FC = () => {
     }
 
     setTimeout(() => setFeedback(null), 4000);
+  };
+
+  const handleToggleYouTubeFavorite = (
+    track: { id: string; title: string; channel: string; duration: string; thumbnail: string; url: string },
+    singerProfileId?: string
+  ) => {
+    const profId = singerProfileId || activeProfileId;
+    setYoutubeFavorites((prev) => {
+      const exists = prev.some((fav) => fav.id === track.id && (fav.singerProfileId === profId || profId === 'profile_all'));
+      let updated: YouTubeFavoriteTrack[];
+      if (exists) {
+        updated = prev.filter((fav) => !(fav.id === track.id && (fav.singerProfileId === profId || profId === 'profile_all')));
+        setFeedback({ type: 'success', message: `¡"${track.title}" quitada de favoritos! ⭐` });
+      } else {
+        const newItem: YouTubeFavoriteTrack = {
+          id: track.id,
+          title: track.title,
+          channel: track.channel,
+          duration: track.duration,
+          thumbnail: track.thumbnail,
+          url: track.url,
+          singerProfileId: profId,
+          createdAt: Date.now(),
+        };
+        updated = [newItem, ...prev];
+        const profName = profiles.find((p) => p.id === profId)?.name || 'cantante';
+        setFeedback({ type: 'success', message: `¡"${track.title}" guardada en favoritos de ${profName}! ⭐` });
+      }
+      saveYouTubeFavoritesToStorage(updated);
+      peerSync.sendToggleYouTubeFavoriteFromGuest(track, profId);
+      return updated;
+    });
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   // ── Guest-side profile management synced with main host library ──
@@ -622,6 +663,25 @@ export const GuestRemoteView: React.FC = () => {
                 </button>
               ))}
             </div>
+            {/* Singer Profile Active Indicator in YouTube Tab */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs border-t border-slate-800/80">
+              <span className="text-[10px] text-slate-400 font-mono shrink-0">Cantante activo:</span>
+              {profiles.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectProfile(p.id)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                    activeProfileId === p.id
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
+                  }`}
+                >
+                  <span>{p.avatar}</span>
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Active Preview Embed Player */}
@@ -660,56 +720,74 @@ export const GuestRemoteView: React.FC = () => {
             </div>
           ) : ytResults.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {ytResults.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-3"
-                >
-                  <div className="flex gap-3">
-                    <div className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800">
-                      <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
-                        }}
-                      />
-                      <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
-                        {item.duration}
-                      </span>
+              {ytResults.map((item) => {
+                const isFav = youtubeFavorites.some(
+                  (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
+                );
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-3"
+                  >
+                    <div className="flex gap-3">
+                      <div className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800">
+                        <img
+                          src={item.thumbnail}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
+                          }}
+                        />
+                        <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
+                          {item.duration}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
+                          {item.title}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 mt-1 truncate">{item.channel}</p>
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
-                        {item.title}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 mt-1 truncate">{item.channel}</p>
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => handleRequestYouTubeSong(item)}
+                        className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <ListPlus className="w-3.5 h-3.5" />
+                        <span>Pedir a la Cola 🎤</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleYouTubeFavorite(item, activeProfileId)}
+                        className={`p-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
+                          isFav
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                            : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+                        }`}
+                        title={isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-slate-950 text-slate-950' : 'fill-amber-300 text-amber-300'}`} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setYtActiveEmbedId(item.id === ytActiveEmbedId ? null : item.id)}
+                        className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all border border-slate-700 flex items-center gap-1 cursor-pointer"
+                        title="Ver preview del video"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Preview</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => handleRequestYouTubeSong(item)}
-                      className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-                    >
-                      <ListPlus className="w-3.5 h-3.5" />
-                      <span>Pedir a la Cola 🎤</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setYtActiveEmbedId(item.id === ytActiveEmbedId ? null : item.id)}
-                      className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all border border-slate-700 flex items-center gap-1 cursor-pointer"
-                      title="Ver preview del video"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Preview</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-center bg-slate-900/30 rounded-2xl border border-slate-800/80 p-6">
@@ -718,7 +796,7 @@ export const GuestRemoteView: React.FC = () => {
               </div>
               <p className="text-xs font-bold text-slate-300">Explora millones de canciones de YouTube</p>
               <p className="text-[11px] text-slate-500 max-w-xs">
-                Busca cualquier tema en vivo y toca <b>"Pedir a la Cola"</b> para que se agregue a la pantalla principal.
+                Busca cualquier tema en vivo, guárdalo en favoritos o toca <b>"Pedir a la Cola"</b> para que se agregue a la pantalla principal.
               </p>
             </div>
           )}
@@ -758,7 +836,7 @@ export const GuestRemoteView: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management) */}
+          {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management and YouTube favorites) */}
           <SongLibrary
             savedSongs={savedSongs}
             queue={[]}
@@ -772,6 +850,8 @@ export const GuestRemoteView: React.FC = () => {
             onCreateProfile={handleCreateProfile}
             onDeleteProfile={handleDeleteProfile}
             onToggleFavoriteSong={handleToggleFavoriteSong}
+            youtubeFavorites={youtubeFavorites}
+            onToggleYouTubeFavorite={handleToggleYouTubeFavorite}
             isGuestMode={true}
           />
         </div>

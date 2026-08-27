@@ -188,11 +188,12 @@ export default function App() {
     track: { id: string; title: string; channel: string; duration: string; thumbnail: string; url: string },
     singerProfileId?: string
   ) => {
+    const profId = singerProfileId || activeProfileId;
     setYoutubeFavorites((prev) => {
-      const exists = prev.some((item) => item.id === track.id);
+      const exists = prev.some((item) => item.id === track.id && (item.singerProfileId === profId || profId === 'profile_all'));
       let updated: YouTubeFavoriteTrack[];
       if (exists) {
-        updated = prev.filter((item) => item.id !== track.id);
+        updated = prev.filter((item) => !(item.id === track.id && (item.singerProfileId === profId || profId === 'profile_all')));
       } else {
         const newItem: YouTubeFavoriteTrack = {
           id: track.id,
@@ -201,12 +202,13 @@ export default function App() {
           duration: track.duration,
           thumbnail: track.thumbnail,
           url: track.url,
-          singerProfileId: singerProfileId || activeProfileId,
+          singerProfileId: profId,
           createdAt: Date.now(),
         };
         updated = [newItem, ...prev];
       }
       saveYouTubeFavoritesToStorage(updated);
+      peerSync.broadcastYouTubeFavoritesToGuests(updated);
       return updated;
     });
   };
@@ -402,14 +404,9 @@ export default function App() {
             },
           };
 
+          // Strictly add to queue and wait for its turn without autoplaying immediately
           setQueue((prev) => [...prev, newItem]);
           showAlertToast(`🎬 ${who} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
-
-          // If nothing is playing and queue is currently empty, play immediately!
-          if (!currentSong && queue.length === 0) {
-            setYouTubeEmbedId(videoId);
-            setIsYouTubeModalOpen(true);
-          }
           return;
         }
 
@@ -475,6 +472,10 @@ export default function App() {
             if (data?.profileId && data?.songId) {
               handleToggleFavoriteSong(data.profileId, data.songId);
             }
+          } else if (cmd === 'TOGGLE_YT_FAVORITE') {
+            if (data?.track) {
+              handleToggleYouTubeFavorite(data.track, data.profileId);
+            }
           }
         },
         (id) => setHostPeerId(id)
@@ -487,7 +488,7 @@ export default function App() {
     }
   }, [isTvDisplayMode, isGuestMode]);
 
-  // Sync catalog & profiles over WebRTC to connected guest mobile phones
+  // Sync catalog, profiles & YouTube favorites over WebRTC to connected guest mobile phones
   useEffect(() => {
     if (savedSongs.length > 0) {
       peerSync.broadcastCatalogToGuests(savedSongs);
@@ -499,6 +500,12 @@ export default function App() {
       peerSync.broadcastProfilesToGuests(profiles);
     }
   }, [profiles]);
+
+  useEffect(() => {
+    if (youtubeFavorites.length > 0) {
+      peerSync.broadcastYouTubeFavoritesToGuests(youtubeFavorites);
+    }
+  }, [youtubeFavorites]);
 
   // ── Global Dynamic Video Background state ──
   const [videoBgConfig, setVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
