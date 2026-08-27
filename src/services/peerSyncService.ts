@@ -365,7 +365,7 @@ class PeerSyncService {
         if (!this.peer || !targetHostId) return;
 
         console.log('Connecting to Host:', targetHostId);
-        const conn = this.peer.connect(targetHostId, { reliable: true });
+        const conn = this.peer.connect(targetHostId);
         this.hostConnection = conn;
 
         conn.on('open', () => {
