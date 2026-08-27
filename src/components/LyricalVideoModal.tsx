@@ -3,23 +3,12 @@ import { SongItem, LyricLine } from '../types';
 import { audioEngine } from '../services/audioEngine';
 import { videoRecorder } from '../services/videoRecorder';
 import {
-  Video,
-  Download,
   X,
-  Play,
   Square,
   Sparkles,
   Sliders,
   CheckCircle2,
-  AlertCircle,
-  Film,
-  Music,
-  User,
   Wand2,
-  Flame,
-  Globe,
-  Sun,
-  Zap,
 } from 'lucide-react';
 
 interface LyricalVideoModalProps {

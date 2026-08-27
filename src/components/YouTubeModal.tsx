@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Play, Youtube, Loader2, Star, ExternalLink, Trash2, Heart, User } from 'lucide-react';
+import { Search, X, Play, Youtube, Loader2, Star, ExternalLink, Trash2, User } from 'lucide-react';
 import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
 import { YouTubeFavoriteTrack, SingerProfile } from '../types';
 

@@ -8,7 +8,7 @@
  */
 
 import { LyricLine, ArtistRole } from '../types';
-import { isGeniusFormat, parseGeniusLyrics, mergeGeniusRolesWithSyncedLrc, GeniusParseResult } from './lrcParser';
+import { parseGeniusLyrics, mergeGeniusRolesWithSyncedLrc, GeniusParseResult } from './lrcParser';
 import { searchLrclib } from './lrcApi';
 
 export interface GeniusHitSuggestion {

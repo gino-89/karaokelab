@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Tv, Upload, FileAudio, FolderUp, ChevronDown, Radio, QrCode } from 'lucide-react';
+import { Tv, FolderUp, Radio, QrCode } from 'lucide-react';
 
 interface HeaderProps {
   onOpenAboutModal?: () => void;

@@ -10,7 +10,6 @@ import {
   Star, 
   Mic2, 
   Music, 
-  Volume2, 
   CheckCircle2, 
   Zap 
 } from 'lucide-react';

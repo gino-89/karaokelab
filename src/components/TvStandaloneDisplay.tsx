@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { tvBroadcast, TvStatePayload } from '../services/tvBroadcastService';
 import { getDuetSinger } from './KaraokeDisplay';
-import { cleanLyricText, titleCaseArtist, resolveArtistInfo } from '../services/lrcParser';
+import { cleanLyricText, resolveArtistInfo } from '../services/lrcParser';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { Music, Users, Sparkles, Tv, Maximize2 } from 'lucide-react';
+import { Music, Tv, Maximize2 } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';

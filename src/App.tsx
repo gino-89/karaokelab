@@ -1744,19 +1744,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#080811] text-slate-100 flex flex-col bg-grid-cyber selection:bg-[#ff007f] selection:text-white relative overflow-x-hidden">
-      {/* Persistent Dynamic Video Background - Stays mounted across Normal & TV Mode without reloading */}
-      {currentSong && videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId && (
+      {/* Persistent Dynamic Video Background for Fullscreen Party Mode */}
+      {isPartyMode && isPlaying && currentSong && videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId && (
         <DynamicVideoBackground
           config={videoBgConfig}
           isPlaying={isPlaying}
           songKey={`${currentSong?.title}___${currentSong?.artist || ''}`}
           currentTime={currentTime}
           duration={duration}
-          className={`fixed inset-0 pointer-events-none transition-all duration-700 ${
-            isPartyMode
-              ? 'z-[48] opacity-100 visible'
-              : 'z-0 opacity-30 visible'
-          }`}
+          className="fixed inset-0 pointer-events-none transition-opacity duration-500 z-[48] opacity-100 visible"
         />
       )}
 

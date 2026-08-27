@@ -1,4 +1,4 @@
-import { LyricLine, LyricWord, ArtistRole } from '../types';
+import { LyricLine, ArtistRole } from '../types';
 
 /**
  * Detects if a song or lyrics represent a multi-singer duet (Hombre/Mujer/Ambos).

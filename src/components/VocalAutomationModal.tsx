@@ -16,7 +16,6 @@ import {
   ZoomIn,
   ZoomOut,
   Mic,
-  HelpCircle,
   SkipBack,
   SkipForward,
   ChevronLeft,

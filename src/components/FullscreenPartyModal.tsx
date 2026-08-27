@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { getDuetSinger } from './KaraokeDisplay';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
 import { cleanLyricText, titleCaseArtist, resolveArtistInfo } from '../services/lrcParser';
+import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundSelectorModal } from './VideoBackgroundSelectorModal';
 import { loadVideoBackgroundConfig, saveVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
 

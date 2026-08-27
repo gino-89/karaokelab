@@ -166,6 +166,11 @@ class PeerSyncService {
                 conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
               } catch (_) {}
             }
+            if (this.currentYtFavorites.length > 0) {
+              try {
+                conn.send({ type: 'YT_FAVORITES_SYNC', payload: this.currentYtFavorites });
+              } catch (_) {}
+            }
           } else if (data.type === 'ADD_TO_QUEUE') {
             console.log('✓ Host received ADD_TO_QUEUE from guest:', data.payload);
             // Ensure guest is recognized in list if not already
@@ -457,13 +462,7 @@ class PeerSyncService {
 
       this.peer.on('error', (err) => {
         console.warn('Guest PeerJS error:', err);
-        // If there's an immediate error (like signaling failure) before timeout
-        if (!isFallback) {
-          console.warn('⚠️ PeerJS error on initial connection. Trying TURN fallback...');
-          this.initGuest(targetHostId, onCatalogReceived, onProfilesReceived, true);
-        } else {
-          this._setConnectionStatus('disconnected');
-        }
+        this._setConnectionStatus('disconnected');
       });
     } catch (e) {
       console.warn('Guest PeerJS init exception:', e);

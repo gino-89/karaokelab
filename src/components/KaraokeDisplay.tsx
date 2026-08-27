@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LyricLine, AudioStems, ArtistRole, VideoBackgroundConfig } from '../types';
-import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Download, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Zap, Globe, ExternalLink, Music2, Layers, CheckSquare, Plus, Trash2, Palette, Film, Sliders } from 'lucide-react';
-import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractDuetArtistsFromMetadata, extractAllArtistsFromMetadata, titleCaseArtist, ARTIST_PALETTE, FEMALE_PALETTE, MALE_PALETTE, isFemaleName, isMaleName, resolveArtistColor, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo } from '../services/lrcParser';
+import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders } from 'lucide-react';
+import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractAllArtistsFromMetadata, titleCaseArtist, FEMALE_PALETTE, MALE_PALETTE, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo } from '../services/lrcParser';
 import { searchLrclib, searchLrclibSuggestions, LrcSuggestion } from '../services/lrcApi';
 import { searchGeniusSuggestions, fetchGeniusLyricsByUrl, searchGeniusLyricsOnline, GeniusHitSuggestion } from '../services/geniusLyricsApi';
-import { transcribeVocalsWithWhisper, forceAlignLyricsWithAI } from '../services/whisperApi';
+import { transcribeVocalsWithWhisper } from '../services/whisperApi';
 import { detectFirstVocalOnset, transposeKey } from '../services/dspAnalysis';
 import { calibrateLyricsWithVocalStem } from '../services/vocalSyncCalibrator';
-import { classifyVocalGenderForLine, classifyAllLyricsVocalGender, analyzeSongVocalProfile, invalidateVocalProfileCache, SingerGender } from '../services/vocalGenderClassifier';
+import { classifyVocalGenderForLine, classifyAllLyricsVocalGender, analyzeSongVocalProfile, invalidateVocalProfileCache } from '../services/vocalGenderClassifier';
 import { audioEngine, audioBufferToWavBlob } from '../services/audioEngine';
+import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
+import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundSelectorModal } from './VideoBackgroundSelectorModal';
 import { loadVideoBackgroundConfig, saveVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
 
@@ -1282,8 +1284,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           </div>
         )}
 
-        {/* ── TELEPROMPTER LYRICS STAGE (Singer Names, Smooth Typography & Dynamic Backing) ── */}
-        <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e]/85 backdrop-blur-md overflow-hidden">
+        {/* ── TELEPROMPTER LYRICS STAGE (With Dynamic Video Background, Singer Names & Smooth Typography) ── */}
+        <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e] overflow-hidden">
+          {/* Dynamic Video Background Layer */}
+          <DynamicVideoBackground
+            config={videoBgConfig}
+            isPlaying={isPlaying}
+            songKey={`${songTitle}___${songArtist || ''}`}
+            currentTime={currentTime}
+            duration={duration}
+          />
 
           {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
           <div className="h-7 w-full flex items-center justify-center shrink-0">

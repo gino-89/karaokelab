@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gauge, KeyRound, Clock, Zap, Volume2, Mic, Activity } from 'lucide-react';
+import { Gauge, KeyRound, Clock, Zap, Mic } from 'lucide-react';
 
 interface TelemetryHUDProps {
   bpm: number;

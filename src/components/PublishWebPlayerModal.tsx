@@ -6,7 +6,7 @@ import {
   generateStandaloneHTMLPlayer,
   WebPlayerPublishOptions,
 } from '../services/webPlayerSyncService';
-import { Globe, Package, Code, CheckCircle, Download, Copy, X, Sparkles, Loader2, Music2, Mic2 } from 'lucide-react';
+import { Globe, Package, Code, CheckCircle, Copy, X, Sparkles, Loader2, Music2, Mic2 } from 'lucide-react';
 
 interface PublishWebPlayerModalProps {
   song: SongItem | null;

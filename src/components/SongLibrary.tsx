@@ -3,8 +3,8 @@ import { SongItem, QueueItem, SingerProfile, YouTubeFavoriteTrack } from '../typ
 import {
   UploadCloud, Database, Trash2, Music2, Loader2, ListPlus, Check,
   AlertTriangle, Search, Filter, X, Tag, User, Play, Maximize2, Minimize2,
-  Download, Edit3, ArrowUpDown, Sparkles, Layers, FileText, Clock, List, LayoutGrid, RotateCcw,
-  Star, UserPlus, Users, Heart, Save, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Copy, Share2
+  Download, Edit3, ArrowUpDown, Sparkles, Layers, FileText, Clock, List, LayoutGrid,
+  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2
 } from 'lucide-react';
 import { formatLRC } from '../services/lrcParser';
 import {
