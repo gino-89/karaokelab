@@ -1,6 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Sliders, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { AudioStems } from '../types';
+
+/**
+ * useTap: returns touch event props for a button that fires `action` on 1-tap.
+ * - Tracks touchstart position to distinguish tap from scroll.
+ * - Calls e.preventDefault() in touchend to kill the browser 300ms ghost click.
+ * - Works correctly even during audio playback re-renders on iOS/iPadOS.
+ */
+function useTap(action: () => void) {
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  return {
+    onTouchStart: (e: React.TouchEvent) => {
+      startRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      if (!startRef.current) return;
+      const dx = Math.abs(e.changedTouches[0].clientX - startRef.current.x);
+      const dy = Math.abs(e.changedTouches[0].clientY - startRef.current.y);
+      startRef.current = null;
+      if (dx < 12 && dy < 12) {
+        e.preventDefault(); // ← kills the ghost click so onClick doesn't double-fire
+        action();
+      }
+    },
+  };
+}
 
 interface MixerDeckProps {
   vocalGain: number;
@@ -49,32 +74,42 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
   };
 
   // Toggle Mute helpers
-  const toggleMuteVocal = () => {
+  const toggleMuteVocal = useCallback(() => {
     if (vocalGain > 0) {
       setPreviousVocalGain(vocalGain);
       onVocalGainChange(0);
     } else {
       onVocalGainChange(previousVocalGain || 1.0);
     }
-  };
+  }, [vocalGain, previousVocalGain, onVocalGainChange]);
 
-  const toggleMuteMusic = () => {
+  const toggleMuteMusic = useCallback(() => {
     if (musicGain > 0) {
       setPreviousMusicGain(musicGain);
       onMusicGainChange(0);
     } else {
       onMusicGainChange(previousMusicGain || 1.0);
     }
-  };
+  }, [musicGain, previousMusicGain, onMusicGainChange]);
 
-  const toggleMuteMaster = () => {
+  const toggleMuteMaster = useCallback(() => {
     if (masterGain > 0) {
       setPreviousMasterGain(masterGain);
       onMasterGainChange(0);
     } else {
       onMasterGainChange(previousMasterGain || 1.0);
     }
-  };
+  }, [masterGain, previousMasterGain, onMasterGainChange]);
+
+  // useTap: 1-tap handlers with e.preventDefault() to kill ghost clicks on iOS during playback
+  const tapMuteVocal   = useTap(toggleMuteVocal);
+  const tapResetVocal  = useTap(useCallback(() => onVocalGainChange(1.0), [onVocalGainChange]));
+  const tapMuteMusic   = useTap(toggleMuteMusic);
+  const tapResetMusic  = useTap(useCallback(() => onMusicGainChange(1.0), [onMusicGainChange]));
+  const tapMuteMaster  = useTap(toggleMuteMaster);
+  const tapResetMaster = useTap(useCallback(() => onMasterGainChange(1.0), [onMasterGainChange]));
+
+
 
   /**
    * Hardware Console Studio Fader Strip (Identical architecture to playback slider)
@@ -91,6 +126,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
     themeColor,
     accentGlow,
     unityPoint = 1.0,
+    tapMute,
+    tapReset,
   }: {
     title: string;
     subtitle: string;
@@ -103,6 +140,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
     themeColor: string;
     accentGlow: string;
     unityPoint?: number;
+    tapMute?: ReturnType<typeof useTap>;
+    tapReset?: ReturnType<typeof useTap>;
   }) => {
     const isMuted = value <= 0.001;
     const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
@@ -194,8 +233,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           {/* Quick Unity 0 dB / 100% Reset */}
           <button
             onClick={() => onChange(unityPoint)}
-            onTouchEnd={(e) => { e.stopPropagation(); onChange(unityPoint); }}
-            data-touch-handled="true"
+            {...(tapReset ?? {})}
             className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[10px] font-mono font-bold text-slate-300 hover:text-white border border-slate-700/60 cursor-pointer transition-all active:scale-95 shadow-sm"
             title="Restablecer volumen original a 100% (0.0 dB)"
           >
@@ -210,8 +248,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           {onMute && (
             <button
               onClick={onMute}
-              onTouchEnd={(e) => { e.stopPropagation(); onMute(); }}
-              data-touch-handled="true"
+              {...(tapMute ?? {})}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 border ${
                 isMuted
                   ? 'bg-rose-900/60 border-rose-500 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
@@ -322,6 +359,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             value={vocalGain}
             onChange={onVocalGainChange}
             onMute={toggleMuteVocal}
+            tapMute={tapMuteVocal}
+            tapReset={tapResetVocal}
             themeColor="#ff007f"
             accentGlow="rgba(255,0,127,0.4)"
           />
@@ -333,6 +372,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             value={musicGain}
             onChange={onMusicGainChange}
             onMute={toggleMuteMusic}
+            tapMute={tapMuteMusic}
+            tapReset={tapResetMusic}
             themeColor="#00f0ff"
             accentGlow="rgba(0,240,255,0.4)"
           />
@@ -347,6 +388,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
             unityPoint={1.0}
             onChange={onMasterGainChange}
             onMute={toggleMuteMaster}
+            tapMute={tapMuteMaster}
+            tapReset={tapResetMaster}
             themeColor="#ffffff"
             accentGlow="rgba(255,255,255,0.3)"
           />
