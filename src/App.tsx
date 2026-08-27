@@ -594,6 +594,18 @@ export default function App() {
     return () => { isMounted = false; };
   }, [currentSong?.id, currentSong?.title, currentSong?.artist, currentSong?.videoBgId, videoBgConfig.enabled]);
 
+  // Memoize catalogSummary so it only recomputes when savedSongs changes, NOT every 100ms or 33ms!
+  const catalogSummary = useMemo(() => {
+    return savedSongs.map((s) => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist,
+      genre: s.genre,
+      bpm: s.bpm,
+      duration: s.duration,
+    }));
+  }, [savedSongs]);
+
   // Broadcast state in real-time to external TV window / Chromecast (Throttled to max 10 FPS for fluid UI performance)
   const lastBroadcastRef = useRef<number>(0);
   useEffect(() => {
@@ -621,14 +633,7 @@ export default function App() {
           isDuetMode,
           youTubeEmbedId,
           videoBgConfig,
-          catalog: savedSongs.map((s) => ({
-            id: s.id,
-            title: s.title,
-            artist: s.artist,
-            genre: s.genre,
-            bpm: s.bpm,
-            duration: s.duration,
-          })),
+          catalog: catalogSummary,
         });
       }
     }
@@ -643,6 +648,7 @@ export default function App() {
     currentIndex,
     activeProfileId,
     profiles,
+    catalogSummary,
     queue,
     isDuetMode,
     youTubeEmbedId,
@@ -740,32 +746,38 @@ export default function App() {
     initDB();
   }, []);
 
-  // 2. High-precision audio playback position tracker with Smart Vocal Cues
+  // 2. High-precision audio playback position tracker with Smart Vocal Cues (Optimized 30 FPS state update)
   useEffect(() => {
     let animId: number;
+    let lastFlushTime = 0;
 
-    const updateTime = () => {
+    const updateTime = (timestamp: number) => {
       if (audioEngine.getIsPlaying()) {
         const t = audioEngine.getCurrentTime();
-        setCurrentTime(t);
 
-        // Find active lyric line index
-        if (lyrics.length > 0) {
-          let activeIdx = -1;
-          for (let i = 0; i < lyrics.length; i++) {
-            if (t >= lyrics[i].time) {
-              activeIdx = i;
-            } else {
-              break;
+        // Throttle React root state re-renders to ~30 FPS (~33ms) so WebKit touch events are never dropped or starved
+        if (timestamp - lastFlushTime >= 33) {
+          lastFlushTime = timestamp;
+          setCurrentTime(t);
+
+          // Find active lyric line index
+          if (lyrics.length > 0) {
+            let activeIdx = -1;
+            for (let i = 0; i < lyrics.length; i++) {
+              if (t >= lyrics[i].time) {
+                activeIdx = i;
+              } else {
+                break;
+              }
             }
-          }
-          if (activeIdx !== currentIndexRef.current) {
-            currentIndexRef.current = activeIdx;
-            setCurrentIndex(activeIdx);
+            if (activeIdx !== currentIndexRef.current) {
+              currentIndexRef.current = activeIdx;
+              setCurrentIndex(activeIdx);
+            }
           }
         }
 
-        // Evaluate Vocal Playback Modes:
+        // Evaluate Vocal Playback Modes in real-time Web Audio graph (60 FPS):
         // 1. If Guía Coros is ON -> uses dynamic smart cue detector (verses/choruses)
         // 2. If Voz Guía (40%) is ON -> uses manual constant volume
         // 3. If BOTH ARE OFF -> Plays EXACTLY as the acapella / vocal automation was custom edited!
@@ -1638,6 +1650,37 @@ export default function App() {
     }
   };
 
+  const handleSelectSongForPlayback = useCallback((song: SongItem) => {
+    loadSongIntoEngine(song, true);
+  }, []);
+
+  const handleOpenYouTubeModalCallback = useCallback(() => {
+    setYouTubeEmbedId(null);
+    setIsYouTubeModalOpen(true);
+  }, []);
+
+  const handleOpenYouTubeEmbedCallback = useCallback((videoId: string) => {
+    setYouTubeEmbedId(videoId);
+    setIsYouTubeModalOpen(true);
+  }, []);
+
+  const handleRestoreLibraryCallback = useCallback((newSongs: SongItem[], newProfiles: SingerProfile[]) => {
+    setSavedSongs(newSongs);
+    setProfiles(newProfiles);
+    setCurrentSong((prev) => {
+      if (!prev) return null;
+      const updatedCurrent = newSongs.find((s) => s.id === prev.id);
+      if (updatedCurrent) {
+        setLyrics(updatedCurrent.lyrics || []);
+        if (updatedCurrent.isDuet !== undefined) {
+          setIsDuetMode(updatedCurrent.isDuet);
+        }
+        return updatedCurrent;
+      }
+      return prev;
+    });
+  }, []);
+
   const currentLyric = currentIndex >= 0 && currentIndex < lyrics.length ? lyrics[currentIndex] : null;
   const nextLyric = currentIndex >= 0 && currentIndex < lyrics.length - 1 ? lyrics[currentIndex + 1] : null;
 
@@ -1725,7 +1768,7 @@ export default function App() {
               currentSong={currentSong}
               currentSongId={currentSong?.id}
               isPlaying={isPlaying}
-              onSelectSong={(song) => loadSongIntoEngine(song, true)}
+              onSelectSong={handleSelectSongForPlayback}
               onTogglePlay={() => (isPlaying ? handlePause() : handlePlay())}
               onStop={handleStop}
               onRemoveFromQueue={handleRemoveFromQueue}
@@ -1912,13 +1955,13 @@ export default function App() {
               currentSongId={currentSong?.id}
               queue={queue}
               onFilesSelected={handleFilesSelected}
-              onSelectSong={(song) => loadSongIntoEngine(song, true)}
+              onSelectSong={handleSelectSongForPlayback}
               onDeleteSong={handleDeleteSong}
               onAddToQueue={handleAddToQueue}
               onDownloadStem={handleDownloadStem}
               onUpdateSong={handleUpdateSong}
               onReanalyzeSong={handleReanalyzeSong}
-              onOpenPublishModal={(song) => handleOpenShareModal(song)}
+              onOpenPublishModal={handleOpenShareModal}
               isProcessingUpload={directUploadProgress.isProcessing}
               uploadProgress={directUploadProgress.progress}
               uploadStep={directUploadProgress.step}
@@ -1931,30 +1974,11 @@ export default function App() {
               onCreateProfile={handleCreateProfile}
               onDeleteProfile={handleDeleteProfile}
               onToggleFavoriteSong={handleToggleFavoriteSong}
-              onOpenYouTubeModal={() => {
-                setYouTubeEmbedId(null);
-                setIsYouTubeModalOpen(true);
-              }}
+              onOpenYouTubeModal={handleOpenYouTubeModalCallback}
               youtubeFavorites={youtubeFavorites}
               onToggleYouTubeFavorite={handleToggleYouTubeFavorite}
-              onOpenYouTubeEmbed={(videoId) => {
-                setYouTubeEmbedId(videoId);
-                setIsYouTubeModalOpen(true);
-              }}
-              onRestoreLibrary={(newSongs, newProfiles) => {
-                setSavedSongs(newSongs);
-                setProfiles(newProfiles);
-                if (currentSong) {
-                  const updatedCurrent = newSongs.find((s) => s.id === currentSong.id);
-                  if (updatedCurrent) {
-                    setCurrentSong(updatedCurrent);
-                    setLyrics(updatedCurrent.lyrics || []);
-                    if (updatedCurrent.isDuet !== undefined) {
-                      setIsDuetMode(updatedCurrent.isDuet);
-                    }
-                  }
-                }
-              }}
+              onOpenYouTubeEmbed={handleOpenYouTubeEmbedCallback}
+              onRestoreLibrary={handleRestoreLibraryCallback}
             />
           </div>
         </div>
