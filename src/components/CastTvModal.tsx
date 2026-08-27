@@ -18,6 +18,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
+import { peerSync } from '../services/peerSyncService';
+
 interface CastTvModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,6 +28,7 @@ interface CastTvModalProps {
   isPlaying: boolean;
   isCastingActive: boolean;
   onToggleCasting: (active: boolean) => void;
+  hostPeerId?: string | null;
 }
 
 export const CastTvModal: React.FC<CastTvModalProps> = ({
@@ -36,6 +39,7 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
   isPlaying,
   isCastingActive,
   onToggleCasting,
+  hostPeerId,
 }) => {
   const [activeTab, setActiveTab] = useState<'screen' | 'chromecast' | 'airplay' | 'smarttv'>('chromecast');
   const [copiedLink, setCopiedLink] = useState(false);
@@ -55,11 +59,12 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
 
   if (!isOpen) return null;
 
+  const currentHost = hostPeerId || peerSync.getHostId();
   const tvUrl = typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.host}?mode=tv_display`
-    : 'http://localhost:3000/?mode=tv_display';
+    ? `${window.location.protocol}//${window.location.host}?mode=tv_display${currentHost ? `&join=${currentHost}` : ''}`
+    : `http://localhost:3000/?mode=tv_display${currentHost ? `&join=${currentHost}` : ''}`;
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tvUrl)}&color=00f0ff&bgcolor=080811`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tvUrl)}&color=00f0ff&bgcolor=080811`;
 
   const handleOpenTvWindow = async () => {
     try {
@@ -363,19 +368,26 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
             <div className="p-4 rounded-2xl bg-amber-950/20 border border-amber-500/30 space-y-3 flex flex-col items-center text-center animate-in fade-in">
               <div className="flex items-center gap-2 text-white font-bold text-sm">
                 <QrCode className="w-4 h-4 text-amber-400" />
-                <span>Abrir en el Navegador de tu Smart TV</span>
+                <span>Abrir en el Navegador de tu Smart TV (P2P WebRTC)</span>
               </div>
               <p className="text-xs text-slate-300 max-w-sm">
-                Escanea este código con la cámara de tu teléfono o ingresa la dirección en el navegador web de tu televisión:
+                Apunta la cámara de tu Smart TV / teléfono al QR o abre la URL en el navegador de tu TV para transmitir la letra, fondos y video en tiempo real:
               </p>
 
               <div className="p-2.5 bg-[#080811] border border-amber-500/40 rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.25)]">
                 <img
                   src={qrImageUrl}
                   alt="Código QR para Smart TV"
-                  className="w-36 h-36 rounded-xl object-contain"
+                  className="w-40 h-40 rounded-xl object-contain bg-[#080811]"
                 />
               </div>
+
+              {currentHost && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-[11px] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                  <span>Sincronización P2P Lista · Sala: {currentHost.replace('klab_host_', '').toUpperCase()}</span>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 w-full max-w-md">
                 <input

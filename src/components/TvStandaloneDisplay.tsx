@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { tvBroadcast, TvStatePayload } from '../services/tvBroadcastService';
+import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
 import { cleanLyricText, resolveArtistInfo } from '../services/lrcParser';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { Music, Tv, Maximize2 } from 'lucide-react';
+import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
@@ -11,16 +12,43 @@ import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/vide
 export const TvStandaloneDisplay: React.FC = () => {
   const [tvState, setTvState] = useState<TvStatePayload | null>(() => tvBroadcast.getInitialState());
   const [videoBgConfig, setVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('reconnecting');
+
+  // Read target host ID from URL (?join=xxx or ?host=xxx)
+  const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const targetHostId = queryParams?.get('join') || queryParams?.get('host') || null;
 
   useEffect(() => {
+    // 1. Cross-Device WebRTC P2P Connection (Smart TV / Tablets / Apple TV)
+    if (targetHostId) {
+      peerSync.initTvDisplay(
+        targetHostId,
+        (newState: TvStatePayload) => {
+          setTvState(newState);
+          setConnectionStatus('connected');
+          if (newState?.videoBgConfig) {
+            setVideoBgConfig(newState.videoBgConfig);
+          }
+        },
+        (status) => {
+          setConnectionStatus(status);
+        }
+      );
+    }
+
+    // 2. Same-Device BroadcastChannel (Multi-monitor / Independent browser window)
     const unsub = tvBroadcast.onStateUpdate((newState) => {
       setTvState(newState);
-      if (newState.videoBgConfig) {
+      setConnectionStatus('connected');
+      if (newState?.videoBgConfig) {
         setVideoBgConfig(newState.videoBgConfig);
       }
     });
-    return () => unsub();
-  }, []);
+
+    return () => {
+      unsub();
+    };
+  }, [targetHostId]);
 
   useEffect(() => {
     if (tvState?.videoBgConfig) return;
@@ -36,19 +64,90 @@ export const TvStandaloneDisplay: React.FC = () => {
     return () => { isMounted = false; };
   }, [tvState?.songTitle, tvState?.songArtist, videoBgConfig.enabled, videoBgConfig.mode, tvState?.videoBgConfig]);
 
-  if (!tvState) {
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  if (!tvState || !tvState.songTitle) {
     return (
-      <div className="fixed inset-0 bg-[#05050c] text-white flex flex-col items-center justify-center p-8 gap-4 font-sans select-none">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00f0ff] to-[#ff007f] flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(0,240,255,0.4)]">
-          <Tv className="w-8 h-8 text-slate-950" />
+      <div
+        onClick={toggleFullscreen}
+        className="fixed inset-0 bg-[#05050c] text-white flex flex-col items-center justify-between p-8 sm:p-12 font-sans select-none overflow-hidden cursor-pointer"
+      >
+        {/* Ambient background glow */}
+        <div className="absolute w-[500px] h-[500px] bg-gradient-to-tr from-[#00f0ff]/15 to-[#ff007f]/15 rounded-full blur-[140px] pointer-events-none" />
+
+        {/* Top bar */}
+        <div className="relative z-10 w-full flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-cyan-400/60 shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+              <img src="/logo-highres.jpg" alt="Logo" className="w-full h-full object-cover" />
+            </div>
+            <span className="font-cyber font-black tracking-widest text-base sm:text-lg text-white">
+              KARAOKELAB <span className="text-[#00f0ff]">TV</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${
+              connectionStatus === 'connected'
+                ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse'
+            }`}>
+              {connectionStatus === 'connected' ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+              <span>{connectionStatus === 'connected' ? 'Sincronizado P2P' : targetHostId ? 'Conectando al anfitrión...' : 'Esperando Transmisión'}</span>
+            </span>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+              className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-colors"
+              title="Pantalla Completa (F11)"
+            >
+              <Maximize2 className="w-4 h-4 text-cyan-400" />
+            </button>
+          </div>
         </div>
-        <h1 className="text-2xl font-black italic tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-200 to-white uppercase">
-          KaraokeLab // Pantalla TV
-        </h1>
-        <p className="text-sm font-mono text-cyan-400">Esperando conexión del Control Remoto...</p>
-        <span className="text-xs text-slate-500 max-w-sm text-center">
-          Esta pantalla se actualizará automáticamente cuando reproduzcas una canción desde el control remoto.
-        </span>
+
+        {/* Center Welcome Card */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-lg space-y-5 my-auto">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-[#00f0ff] via-indigo-600 to-[#ff007f] p-0.5 shadow-[0_0_50px_rgba(0,240,255,0.4)] animate-pulse flex items-center justify-center">
+              <div className="w-full h-full bg-[#080814] rounded-3xl flex items-center justify-center">
+                <Tv className="w-12 h-12 text-cyan-300" />
+              </div>
+            </div>
+            <Sparkles className="w-6 h-6 text-pink-400 absolute -top-2 -right-2 animate-bounce" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-200 to-pink-300">
+              Pantalla Smart TV
+            </h1>
+            <p className="text-sm font-mono text-cyan-400 font-bold">
+              {targetHostId
+                ? `Conectado a la Sala: ${targetHostId.replace('klab_host_', '').toUpperCase()}`
+                : 'Modo Escenario Dual Activo'}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-1.5 shadow-xl">
+            <p className="text-slate-200 font-bold">✓ Pantalla lista y conectada en tiempo real</p>
+            <p>Selecciona y reproduce cualquier canción en tu control remoto (iPad / PC / Móvil) para que la letra y los fondos aparezcan aquí automáticamente.</p>
+          </div>
+
+          <span className="text-[11px] font-mono text-slate-500 hover:text-slate-400 transition-colors">
+            Haz clic o toca en cualquier lugar para Pantalla Completa
+          </span>
+        </div>
+
+        {/* Bottom footer */}
+        <div className="relative z-10 text-[10px] font-mono text-slate-600">
+          KaraokeLab Web Player · DSP Teleprompter Engine v2.0
+        </div>
       </div>
     );
   }

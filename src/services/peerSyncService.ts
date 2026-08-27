@@ -2,7 +2,7 @@ import Peer, { DataConnection } from 'peerjs';
 import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
   payload?: any;
 }
 
@@ -46,6 +46,7 @@ class PeerSyncService {
   private currentMiniCatalog: any[] = [];
   private currentProfiles: SingerProfile[] = [];
   private currentYtFavorites: YouTubeFavoriteTrack[] = [];
+  private currentTvState: any = null;
 
   // Heartbeat & connection monitoring
   private hostHeartbeatTimer: any = null;
@@ -197,6 +198,13 @@ class PeerSyncService {
             if (this.onCommandCallback) {
               this.onCommandCallback('TOGGLE_FAVORITE', data.payload);
             }
+          } else if (data.type === 'TV_DISPLAY_JOIN') {
+            console.log('✓ Smart TV display connected via WebRTC:', conn.peer);
+            if (this.currentTvState) {
+              try {
+                conn.send({ type: 'TV_STATE_SYNC', payload: this.currentTvState });
+              } catch (_) {}
+            }
           }
         });
 
@@ -346,6 +354,105 @@ class PeerSyncService {
         } catch (_) {}
       }
     });
+  }
+
+  // Broadcast live TV state (lyrics, song, playback, visualizer, video bg) to Smart TV displays
+  public broadcastTvState(state: any) {
+    if (!this.isHost) return;
+    this.currentTvState = state;
+
+    this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'TV_STATE_SYNC', payload: state });
+        } catch (_) {}
+      }
+    });
+  }
+
+  // Initialize Smart TV session on external Smart TV / Android TV / FireStick / Web TV
+  public initTvDisplay(
+    targetHostId: string,
+    onStateReceived: (state: any) => void,
+    onStatusChanged?: (status: ConnectionStatus) => void
+  ) {
+    this.targetHostId = targetHostId;
+
+    if (this.peer && !this.peer.destroyed) {
+      try {
+        this.peer.destroy();
+      } catch (_) {}
+    }
+
+    this.isHost = false;
+    this.onConnectionStatusCallback = onStatusChanged || null;
+    this._setConnectionStatus('reconnecting');
+
+    try {
+      this.peer = new Peer(PEER_CONFIG);
+
+      this.peer.on('open', () => {
+        if (!this.peer || !targetHostId) return;
+
+        console.log(`Smart TV connecting to Host: ${targetHostId}`);
+        const conn = this.peer.connect(targetHostId);
+        this.hostConnection = conn;
+
+        conn.on('open', () => {
+          console.log('✓ Smart TV WebRTC P2P connected to Host:', targetHostId);
+          this.lastHeartbeatReceived = Date.now();
+          this._setConnectionStatus('connected');
+
+          conn.send({
+            type: 'TV_DISPLAY_JOIN',
+            payload: { ts: Date.now() },
+          });
+
+          // Start Heartbeat monitor on TV: check every 2.5s
+          if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
+          this.guestHeartbeatMonitorTimer = setInterval(() => {
+            const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
+            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 8000) {
+              this._setConnectionStatus('disconnected');
+            } else {
+              this._setConnectionStatus('connected');
+            }
+          }, 2500);
+        });
+
+        conn.on('data', (data: any) => {
+          if (!data) return;
+
+          this.lastHeartbeatReceived = Date.now();
+          this._setConnectionStatus('connected');
+
+          if (data.type === 'HEARTBEAT') {
+            try {
+              conn.send({ type: 'HEARTBEAT_ACK', payload: { ts: Date.now() } });
+            } catch (_) {}
+          } else if (data.type === 'TV_STATE_SYNC' && data.payload) {
+            onStateReceived(data.payload);
+          }
+        });
+
+        conn.on('close', () => {
+          this._setConnectionStatus('disconnected');
+        });
+
+        conn.on('error', (err) => {
+          console.warn('Smart TV connection error:', err);
+          this._setConnectionStatus('disconnected');
+        });
+      });
+
+      this.peer.on('error', (err) => {
+        console.warn('Smart TV PeerJS error:', err);
+        this._setConnectionStatus('disconnected');
+      });
+    } catch (e) {
+      console.warn('Smart TV PeerJS init exception:', e);
+      this._setConnectionStatus('disconnected');
+    }
   }
 
   // Initialize Guest session on mobile phone scanning QR

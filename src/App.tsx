@@ -214,8 +214,13 @@ export default function App() {
   };
 
   // ── Dual Screen TV & Chromecast / AirPlay Remote Control States ──
-  const isTvDisplayMode = typeof window !== 'undefined' && window.location.search.includes('mode=tv_display');
-  const isGuestMode = typeof window !== 'undefined' && (
+  const isTvDisplayMode = typeof window !== 'undefined' && (
+    window.location.search.includes('mode=tv_display') ||
+    window.location.search.includes('mode=tv') ||
+    window.location.search.includes('tv_display') ||
+    window.location.hash.includes('tv')
+  );
+  const isGuestMode = typeof window !== 'undefined' && !isTvDisplayMode && (
     window.location.search.includes('mode=guest') ||
     window.location.search.includes('guest') ||
     window.location.search.includes('remote') ||
@@ -616,7 +621,7 @@ export default function App() {
         lastBroadcastRef.current = now;
         const activeProf = profiles.find((p) => p.id === activeProfileId);
         const nextQueueItem = queue[0];
-        tvBroadcast.broadcastState({
+        const statePayload = {
           songTitle: currentSong?.title || '',
           songArtist: currentSong?.artist,
           artistsList: currentSong?.artistsList,
@@ -634,7 +639,9 @@ export default function App() {
           youTubeEmbedId,
           videoBgConfig,
           catalog: catalogSummary,
-        });
+        };
+        tvBroadcast.broadcastState(statePayload);
+        peerSync.broadcastTvState(statePayload);
       }
     }
   }, [
@@ -2148,6 +2155,7 @@ export default function App() {
         isPlaying={isPlaying}
         isCastingActive={isCastingActive}
         onToggleCasting={(active) => setIsCastingActive(active)}
+        hostPeerId={hostPeerId}
       />
 
       {/* ── Party QR Code Guest Song Request Modal ── */}
