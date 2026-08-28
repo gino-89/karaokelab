@@ -104,7 +104,6 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const embedUrl = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${isPlaying ? 1 : 0}${startParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
 
   const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.82));
-  const blurPx = Math.max(1, Math.min(10, config.blurAmount ?? 3.5));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 ${className}`}>
@@ -115,16 +114,15 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }`}
         style={{
           backgroundImage: `url(https://i.ytimg.com/vi/${config.videoId}/hqdefault.jpg)`,
-          filter: `blur(${Math.max(4, blurPx)}px)`,
         }}
       />
 
-      {/* Scaled & Centered 16:9 Frame - Strictly bounded to container box */}
+      {/* Scaled & Centered 16:9 Frame - Hardware accelerated with 3D transform */}
       <div
         className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-700 ${
           isVideoVisible ? 'opacity-100' : 'opacity-0'
         }`}
-        style={{ pointerEvents: 'none', touchAction: 'none' }}
+        style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
       >
         <iframe
           ref={iframeRef}
@@ -140,18 +138,18 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             height: '120%',
             pointerEvents: 'none',
             touchAction: 'none',
-            filter: `blur(${blurPx}px)`,
+            transform: 'translate3d(0, 0, 0)',
+            willChange: 'transform',
           }}
         />
       </div>
 
-      {/* Dark Contrast Overlay */}
+      {/* Dark Contrast Overlay - Zero GPU-cost flat alpha layer */}
       <div
-        className="absolute inset-0 transition-all duration-300"
+        className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
         style={{
           backgroundColor: `rgba(4, 6, 12, ${overlayOpacity})`,
-          backdropFilter: blurPx > 0 ? `blur(${Math.min(6, blurPx)}px)` : 'none',
-          WebkitBackdropFilter: blurPx > 0 ? `blur(${Math.min(6, blurPx)}px)` : 'none',
+          transform: 'translateZ(0)',
         }}
       />
 

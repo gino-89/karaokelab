@@ -228,8 +228,8 @@ export const TvStandaloneDisplay: React.FC = () => {
         />
       )}
 
-      {/* Animated Visualizer Background */}
-      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black animate-pulse" />
+      {/* Ambient Visualizer Background */}
+      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
 
       {/* Top Header Bar for TV */}
       <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4">
