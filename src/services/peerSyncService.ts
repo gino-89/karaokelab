@@ -55,7 +55,6 @@ class PeerSyncService {
   private currentConnectionStatus: ConnectionStatus = 'disconnected';
   private targetHostId: string | null = null;
 
-  // Get or rotate dynamic QR session key
   public getQrKey(): string {
     return this.currentQrKey;
   }
@@ -83,6 +82,56 @@ class PeerSyncService {
     }
   }
 
+  public getOrCreateHostId(forceNew = false): string {
+    const STORAGE_KEY = 'karaokelab_p2p_host_id';
+    if (!forceNew && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved && saved.startsWith('klab_host_')) {
+          return saved;
+        }
+      } catch (_) {}
+    }
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const newId = `klab_host_${randomSuffix}`;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, newId);
+      } catch (_) {}
+    }
+    return newId;
+  }
+
+  // Regenerate fresh room code and reconnect host peer
+  public regenerateHost(
+    onPeerIdReady?: (peerId: string) => void,
+    onCommand?: (cmd: string, data?: any) => void
+  ) {
+    if (this.hostHeartbeatTimer) {
+      clearInterval(this.hostHeartbeatTimer);
+      this.hostHeartbeatTimer = null;
+    }
+    this.guestConnections.forEach((conn) => {
+      try {
+        conn.close();
+      } catch (_) {}
+    });
+    this.guestConnections.clear();
+    this.connectedGuests.clear();
+    this._notifyGuestsChanged();
+
+    if (this.peer) {
+      try {
+        this.peer.destroy();
+      } catch (_) {}
+      this.peer = null;
+    }
+    this.hostId = null;
+
+    this.getOrCreateHostId(true);
+    this.initHost(onCommand || this.onCommandCallback || (() => {}), onPeerIdReady);
+  }
+
   // Initialize Host session on Mac/PC player
   public initHost(
     onCommand: (cmd: string, data?: any) => void,
@@ -99,9 +148,8 @@ class PeerSyncService {
       return;
     }
 
-    // Create unique room ID
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const sessionPeerId = `klab_host_${randomSuffix}`;
+    // Use stored persistent room ID or create a new one
+    const sessionPeerId = this.getOrCreateHostId();
 
     try {
       this.peer = new Peer(sessionPeerId, PEER_CONFIG);

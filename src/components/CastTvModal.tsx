@@ -16,6 +16,7 @@ import {
   Search,
   CheckCircle2,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 import { peerSync } from '../services/peerSyncService';
@@ -45,8 +46,14 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [supportAirPlay, setSupportAirPlay] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [castStatus, setCastStatus] = useState<string | null>(null);
+  const [currentHost, setCurrentHost] = useState<string>(hostPeerId || peerSync.getHostId() || '');
   const airplayAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    setCurrentHost(hostPeerId || peerSync.getHostId() || '');
+  }, [hostPeerId, isOpen]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -59,13 +66,21 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentHost = hostPeerId || peerSync.getHostId();
   const roomCode = currentHost ? currentHost.replace('klab_host_', '') : '';
   const tvUrl = typeof window !== 'undefined'
     ? `${window.location.protocol}//${window.location.host}?tv=${roomCode || currentHost || ''}`
     : `http://localhost:3000/?tv=${roomCode || currentHost || ''}`;
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tvUrl)}&color=00f0ff&bgcolor=080811`;
+
+  const handleRegenerateHostCode = () => {
+    setIsRegenerating(true);
+    peerSync.regenerateHost((newId) => {
+      setCurrentHost(newId);
+      setIsRegenerating(false);
+      setCastStatus(`✓ Nuevo código de sala generado: ${newId.replace('klab_host_', '').toUpperCase()}`);
+    });
+  };
 
   const handleOpenTvWindow = async () => {
     try {
@@ -384,9 +399,21 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
               </div>
 
               {currentHost && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-[11px] font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-                  <span>Sincronización P2P Lista · Sala: {currentHost.replace('klab_host_', '').toUpperCase()}</span>
+                <div className="flex items-center justify-between gap-2 w-full max-w-md bg-slate-950/70 p-2 rounded-xl border border-slate-800">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-[11px] font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                    <span>Sala: {currentHost.replace('klab_host_', '').toUpperCase()}</span>
+                  </div>
+
+                  <button
+                    onClick={handleRegenerateHostCode}
+                    disabled={isRegenerating}
+                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-amber-400 text-slate-300 hover:text-amber-300 rounded-lg text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1.5 shrink-0"
+                    title="Generar un nuevo código fijo para esta sala"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isRegenerating ? 'animate-spin text-amber-400' : ''}`} />
+                    <span>{isRegenerating ? 'Generando...' : 'Cambiar Código'}</span>
+                  </button>
                 </div>
               )}
 
