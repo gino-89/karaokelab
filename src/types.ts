@@ -119,6 +119,7 @@ export interface QueueItem {
   progress: number; // 0 to 100
   errorMsg?: string;
   songData?: SongItem;
+  requestedBy?: string;
 }
 
 export interface AudioEngineTelemetry {

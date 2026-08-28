@@ -395,6 +395,7 @@ export default function App() {
             fileName: `🎬 [YouTube] ${ytTitle}`,
             status: 'ready',
             progress: 100,
+            requestedBy: who,
             songData: {
               id: `yt_${videoId}`,
               title: ytTitle,
@@ -437,6 +438,7 @@ export default function App() {
             fileName: `${matchedSong.title}${matchedSong.artist ? ' - ' + matchedSong.artist : ''}`,
             status: 'ready',
             progress: 100,
+            requestedBy: who,
             songData: matchedSong,
           };
           setQueue((prev) => [...prev, newItem]);
@@ -646,8 +648,9 @@ export default function App() {
             currentIndex,
             activeSingerName: activeProf && activeProf.id !== 'profile_all' ? activeProf.name : undefined,
             activeSingerAvatar: activeProf && activeProf.id !== 'profile_all' ? activeProf.avatar : undefined,
-            nextSongTitle: nextQueueItem?.song?.title,
-            nextSongArtist: nextQueueItem?.song?.artist,
+            nextSongTitle: nextQueueItem?.songData?.title || (nextQueueItem?.fileName ? nextQueueItem.fileName.replace(/^🎬\s*\[YouTube\]\s*/, '') : undefined),
+            nextSongArtist: nextQueueItem?.songData?.artist,
+            nextSongRequestedBy: nextQueueItem?.requestedBy,
             bpm: currentSong?.bpm || 120,
             isDuetMode,
             youTubeEmbedId,

@@ -188,6 +188,7 @@ export const TvStandaloneDisplay: React.FC = () => {
     activeSingerAvatar,
     nextSongTitle,
     nextSongArtist,
+    nextSongRequestedBy,
     isDuetMode,
     youTubeEmbedId,
   } = tvState;
@@ -262,7 +263,10 @@ export const TvStandaloneDisplay: React.FC = () => {
           {nextSongTitle && (
             <div className="hidden md:flex flex-col text-right font-mono text-[10px]">
               <span className="text-slate-400 font-bold">SIGUIENTE:</span>
-              <span className="text-amber-300 font-bold truncate max-w-[180px]">{nextSongTitle}</span>
+              <span className="text-amber-300 font-bold truncate max-w-[200px]">{nextSongTitle}</span>
+              {nextSongRequestedBy && (
+                <span className="text-cyan-400 font-bold truncate max-w-[200px]">🎤 {nextSongRequestedBy}</span>
+              )}
             </div>
           )}
 

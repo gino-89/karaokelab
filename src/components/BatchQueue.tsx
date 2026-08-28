@@ -166,7 +166,14 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
                       {isProcessing && <Loader2 className="w-4 h-4 text-[#00f0ff] animate-spin" />}
                     </div>
                     <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-                      <span className="text-[11px] font-semibold text-white truncate">{item.fileName}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-semibold text-white truncate">{item.fileName}</span>
+                        {item.requestedBy && (
+                          <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.2 rounded border border-cyan-500/40 shrink-0">
+                            🎤 {item.requestedBy}
+                          </span>
+                        )}
+                      </div>
                       {isProcessing && item.currentStep && (
                         <span className="text-[9px] font-mono-code text-[#00f0ff] truncate">{item.currentStep}</span>
                       )}

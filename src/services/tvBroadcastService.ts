@@ -14,6 +14,7 @@ export interface TvStatePayload {
   activeSingerAvatar?: string;
   nextSongTitle?: string;
   nextSongArtist?: string;
+  nextSongRequestedBy?: string;
   bpm?: number;
   isDuetMode?: boolean;
   youTubeEmbedId?: string | null;

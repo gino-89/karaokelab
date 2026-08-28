@@ -173,7 +173,7 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                 </div>
 
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={`text-[11px] font-semibold truncate ${isThisCurrentSong ? 'text-[#00ff9d] font-bold' : 'text-white'}`}>
                       {item.fileName}
                     </span>
@@ -182,14 +182,26 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                         {isPlaying ? '● SONANDO' : 'EN PAUSA'}
                       </span>
                     )}
+                    {item.requestedBy && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded-full border border-cyan-500/40 shrink-0 shadow-sm"
+                        title={`Canción pedida por ${item.requestedBy}`}
+                      >
+                        <span className="text-[10px]">🎤</span>
+                        <span>{item.requestedBy}</span>
+                      </span>
+                    )}
                   </div>
 
                   {isProcessing && item.currentStep && (
                     <span className="text-[9px] font-mono text-[#00f0ff] truncate">{item.currentStep}</span>
                   )}
                   {isReady && item.songData && (
-                    <span className="text-[9px] font-mono text-slate-400">
-                      {fmt(item.songData.duration)} · <span className="text-[#00f0ff]">{item.songData.bpm} BPM</span> · {item.songData.key}
+                    <span className="text-[9px] font-mono text-slate-400 flex items-center gap-1 flex-wrap">
+                      <span>{fmt(item.songData.duration)} · <span className="text-[#00f0ff]">{item.songData.bpm} BPM</span> · {item.songData.key}</span>
+                      {item.requestedBy && (
+                        <span className="text-cyan-400 font-bold">· Pedido por: {item.requestedBy}</span>
+                      )}
                     </span>
                   )}
                   {isError && (
