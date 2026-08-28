@@ -1044,39 +1044,45 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                     const isSelected = currentSongId === song.id;
                     const inQueue = isSongInQueue(song.id);
                     return (
-                      <div
-                        key={song.id}
-                        onClick={() => setSongActionTarget(song)}
-                        className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl"
-                      >
-                        <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
-                          <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                        </div>
+                        <div
+                          key={song.id}
+                          className="flex items-center gap-2.5 px-3 py-2.5 transition-all group hover:bg-slate-800/50 rounded-xl"
+                        >
+                          {/* Direct 1-Tap Play Area */}
+                          <div
+                            onClick={() => onSelectSong(song)}
+                            className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer select-none"
+                            title="Reproducir ahora"
+                          >
+                            <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center group-hover:border-emerald-500/50 group-hover:bg-emerald-500/10 transition-colors">
+                              <Play className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 fill-current transition-colors" />
+                            </div>
 
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
-                            {song.title}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
-                            <span>{song.artist || 'Desconocido'}</span>
-                            <span>·</span>
-                            <span>{fmt(song.duration)}</span>
-                            <span>·</span>
-                            <span className="text-[#00f0ff]">{song.bpm} BPM</span>
-                            {song.genre && (
-                              <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9px]">
-                                {song.genre}
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                                {song.title}
                               </span>
-                            )}
-                            {song.stems?.instrumentalBlob && (
-                              <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9px]">
-                                ✓ Stems
-                              </span>
-                            )}
+                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                                <span>{song.artist || 'Desconocido'}</span>
+                                <span>·</span>
+                                <span>{fmt(song.duration)}</span>
+                                <span>·</span>
+                                <span className="text-[#00f0ff]">{song.bpm} BPM</span>
+                                {song.genre && (
+                                  <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9px]">
+                                    {song.genre}
+                                  </span>
+                                )}
+                                {song.stems?.instrumentalBlob && (
+                                  <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9px]">
+                                    ✓ Stems
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                           {(() => {
                             const isFav = activeProfile && activeProfile.id !== 'profile_all'
                               ? activeProfile.favoriteSongIds.includes(song.id)
@@ -1181,23 +1187,29 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       return (
                         <div
                           key={song.id}
-                          onClick={() => setSongActionTarget(song)}
-                          className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl"
+                          className="flex items-center gap-2.5 px-3 py-2.5 transition-all group hover:bg-slate-800/50 rounded-xl"
                         >
-                          <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
-                            <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                          </div>
+                          {/* Direct 1-Tap Play Area */}
+                          <div
+                            onClick={() => onSelectSong(song)}
+                            className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer select-none"
+                            title="Reproducir ahora"
+                          >
+                            <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center group-hover:border-emerald-500/50 group-hover:bg-emerald-500/10 transition-colors">
+                              <Play className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 fill-current transition-colors" />
+                            </div>
 
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
-                              {song.title}
-                            </span>
-                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
-                              <span>{song.artist || 'Desconocido'}</span>
-                              <span>·</span>
-                              <span>{fmt(song.duration)}</span>
-                              <span>·</span>
-                              <span className="text-[#00f0ff]">{song.bpm} BPM</span>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                                {song.title}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                                <span>{song.artist || 'Desconocido'}</span>
+                                <span>·</span>
+                                <span>{fmt(song.duration)}</span>
+                                <span>·</span>
+                                <span className="text-[#00f0ff]">{song.bpm} BPM</span>
+                              </div>
                             </div>
                           </div>
 
