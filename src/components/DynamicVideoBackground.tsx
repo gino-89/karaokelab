@@ -103,7 +103,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const startParam = startSeconds > 0 ? `&start=${startSeconds}` : '';
   const embedUrl = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${isPlaying ? 1 : 0}${startParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
 
-  const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.82));
+  const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.88));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 ${className}`}>

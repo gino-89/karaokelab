@@ -218,8 +218,7 @@ export const TvStandaloneDisplay: React.FC = () => {
         <DynamicVideoBackground
           config={{
             ...videoBgConfig,
-            blurAmount: Math.max(2, videoBgConfig.blurAmount ?? 3.5),
-            overlayOpacity: Math.max(0.78, videoBgConfig.overlayOpacity ?? 0.82),
+            overlayOpacity: Math.max(0.85, videoBgConfig.overlayOpacity ?? 0.88),
           }}
           isPlaying={isPlaying}
           songKey={`${songTitle}___${songArtist || ''}`}
@@ -344,7 +343,7 @@ export const TvStandaloneDisplay: React.FC = () => {
                       : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black';
 
                   return (
-                    <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full`}>
+                    <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
                       {computeIntelligentWordFills(
                         { ...currentLyric, text: textClean },
                         currentTime,
@@ -353,18 +352,22 @@ export const TvStandaloneDisplay: React.FC = () => {
                       ).map((item, wIdx) => {
                         return (
                           <span key={wIdx} className="relative inline-block select-none">
-                            {/* Layer 1: Base Unsung Word (Clean, solid dim text without shadows) */}
-                            <span className="text-white/30 inline-block">
+                            {/* Layer 1: Base Unsung Word (Clear, high-contrast text with solid outline) */}
+                            <span
+                              className="text-white/65 inline-block"
+                              style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)' }}
+                            >
                               {item.word}
                             </span>
 
-                            {/* Layer 2: Active Sweeping Highlight Word (Solid, crisp glyph fill without glow) */}
+                            {/* Layer 2: Active Sweeping Highlight Word (Solid, vibrant glyph fill with outline) */}
                             {item.fillPercentage > 0 && (
                               <span
                                 className="absolute inset-0 inline-block pointer-events-none"
                                 style={{
                                   clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
                                   color: curArtist.color,
+                                  textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)',
                                 }}
                               >
                                 {item.word}
