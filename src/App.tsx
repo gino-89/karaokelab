@@ -760,12 +760,13 @@ export default function App() {
     initDB();
   }, []);
 
-  // 2. High-precision audio playback position tracker with Smart Vocal Cues (Optimized 30 FPS state update)
+  // 2. High-precision audio playback position tracker with Smart Vocal Cues (Hybrid rAF + Background Interval)
   useEffect(() => {
-    let animId: number;
+    let animId: number | null = null;
+    let intervalId: any = null;
     let lastFlushTime = 0;
 
-    const updateTime = (timestamp: number) => {
+    const tick = (timestamp = performance.now()) => {
       if (audioEngine.getIsPlaying()) {
         const t = audioEngine.getCurrentTime();
 
@@ -791,7 +792,7 @@ export default function App() {
           }
         }
 
-        // Evaluate Vocal Playback Modes in real-time Web Audio graph (60 FPS):
+        // Evaluate Vocal Playback Modes in real-time Web Audio graph:
         // 1. If Guía Coros is ON -> uses dynamic smart cue detector (verses/choruses)
         // 2. If Voz Guía (40%) is ON -> uses manual constant volume
         // 3. If BOTH ARE OFF -> Plays EXACTLY as the acapella / vocal automation was custom edited!
@@ -810,11 +811,26 @@ export default function App() {
           }
         }
       }
-      animId = requestAnimationFrame(updateTime);
     };
 
-    animId = requestAnimationFrame(updateTime);
-    return () => cancelAnimationFrame(animId);
+    // 1. Foreground smooth animation loop
+    const rAfLoop = (time: number) => {
+      tick(time);
+      animId = requestAnimationFrame(rAfLoop);
+    };
+    animId = requestAnimationFrame(rAfLoop);
+
+    // 2. Background resilient fallback interval (continues updating and broadcasting TV state when tab is hidden/switched)
+    intervalId = setInterval(() => {
+      if (document.hidden && audioEngine.getIsPlaying()) {
+        tick(performance.now());
+      }
+    }, 40);
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [lyrics, isSmartVocalCue, smartCues, vocalGain]);
 
   // 3. Load a song into Web Audio Engine (Instant Fast-Path Playback)
