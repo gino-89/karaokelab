@@ -535,7 +535,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const totalDurationMinutes = Math.round(savedSongs.reduce((acc, s) => acc + (s.duration || 0), 0) / 60);
 
   const renderLibraryToolbarBlock = () => (
-    <div className={`p-2.5 bg-slate-950/95 ${isGuestMode ? 'border-t border-slate-800 sticky bottom-0 z-20 shadow-[0_-10px_25px_rgba(0,0,0,0.6)] backdrop-blur-md' : 'border-b border-slate-800'} flex flex-col gap-2`}>
+    <div className={`p-2.5 bg-slate-950/95 ${isGuestMode ? 'border-t border-slate-800 shrink-0 shadow-[0_-10px_25px_rgba(0,0,0,0.6)] backdrop-blur-md z-20' : 'border-b border-slate-800'} flex flex-col gap-2`}>
       {/* Main Library Tabs: Locales vs YouTube */}
       <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-bold">
         <button
@@ -811,7 +811,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   );
 
   return (
-    <div className="flex flex-col gap-3 relative">
+    <div className={`flex flex-col relative ${isGuestMode ? 'flex-1 min-h-0 h-full overflow-hidden' : 'gap-3'}`}>
       {/* Hidden file input preserved for programmatic imports */}
       <input
         ref={fileInputRef}
@@ -823,10 +823,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
       />
 
 
-      {/* ── Library Card (Fixed Stable 800px Height) ─────────────────────────────── */}
+      {/* ── Library Card ─────────────────────────────── */}
       <div
-        style={{ height: '945px', minHeight: '800px' }}
-        className="bg-[#0c0e17] border border-slate-700/70 rounded-2xl flex flex-col shadow-lg relative overflow-hidden"
+        style={isGuestMode ? undefined : { height: '945px', minHeight: '800px' }}
+        className={`bg-[#0c0e17] border border-slate-700/70 rounded-2xl flex flex-col shadow-lg relative overflow-hidden ${isGuestMode ? 'flex-1 min-h-0 h-full' : ''}`}
       >
         {/* Header with Expand Button - Fixed boundary layout */}
         <div className="px-3 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-2 relative z-30 rounded-t-2xl">
@@ -969,7 +969,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         {!isGuestMode && renderLibraryToolbarBlock()}
 
         {/* Songs List */}
-        <div className="flex flex-col flex-1 overflow-y-auto divide-y divide-slate-850 h-full">
+        <div className="flex flex-col flex-1 overflow-y-auto divide-y divide-slate-850 min-h-0 h-full">
           {/* SEARCH ACTIVE: SHOW UNIFIED LIST (YOUTUBE + LOCAL) */}
           {searchQuery.trim().length > 0 ? (
             <>
