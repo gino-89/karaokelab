@@ -1,6 +1,6 @@
 {
-  "short_name": "KaraokeLab",
-  "name": "KaraokeLab Studio // DSP Engine",
+  "short_name": "KaraokeLab Player",
+  "name": "KaraokeLab Player",
   "description": "Plataforma de Karaoke Profesional On-Device con IA, Separación de Pistas y Modo TV Standalone.",
   "icons": [
     {
