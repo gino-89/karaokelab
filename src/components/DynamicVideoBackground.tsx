@@ -22,17 +22,22 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
 
-  // Soft fade-in curtain: Stays visible for 4.5s to 100% guarantee that YouTube's 5s HUD auto-hides before the video is shown
+  // Record the start time on initial mount so when TV mode or mini player opens, it starts right at current playback time
+  const initialStartTimeRef = useRef<number>(Math.max(0, Math.floor(currentTime || 0)));
+  const lastSeekTimeRef = useRef<number>(Date.now());
+  const prevTimeRef = useRef<number>(currentTime || 0);
+
+  // Quick fade-in curtain (1.2s instead of 4.5s) so the background transition is smooth and fast
   useEffect(() => {
     setIsVideoVisible(false);
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 4500); // 4.5s hides the entire YouTube startup overlay
+    }, 1200);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
 
-  // Sync Play / Pause command ONLY when playback state actually changes (prevents HUD animation flashes)
+  // Sync Play / Pause command when playback state changes
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
@@ -56,24 +61,56 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         '*'
       );
     } catch (_) {}
-  }, [isPlaying, config.enabled, config.mode, config.videoId]);
+  }, [isPlaying, config.enabled, config.mode, config.videoId, duration, currentTime]);
 
-  if (!config.enabled || config.mode === 'off' || !config.videoId || !isPlaying) {
+  // Sync Seek position when user jumps / seeks in the song
+  useEffect(() => {
+    if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
+
+    const delta = Math.abs(currentTime - prevTimeRef.current);
+    const now = Date.now();
+
+    // If time jumped by more than 2 seconds (manual seek)
+    if (delta > 2.0 && now - lastSeekTimeRef.current > 800) {
+      lastSeekTimeRef.current = now;
+      prevTimeRef.current = currentTime;
+      try {
+        const win = iframeRef.current?.contentWindow;
+        if (win) {
+          win.postMessage(
+            JSON.stringify({
+              event: 'command',
+              func: 'seekTo',
+              args: [currentTime, true],
+            }),
+            '*'
+          );
+        }
+      } catch (_) {}
+    } else {
+      prevTimeRef.current = currentTime;
+    }
+  }, [currentTime, config.enabled, config.mode, config.videoId]);
+
+  // Keep component mounted even when paused so video does NOT reload from 0s on resume
+  if (!config.enabled || config.mode === 'off' || !config.videoId) {
     return null;
   }
 
-  // Construct optimized, zero-controls, muted, loop URL with playlist param
+  // Construct optimized, zero-controls, muted, loop URL with exact start second
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${isPlaying ? 1 : 0}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
+  const startSeconds = initialStartTimeRef.current;
+  const startParam = startSeconds > 0 ? `&start=${startSeconds}` : '';
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${isPlaying ? 1 : 0}${startParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
 
   const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.70));
   const blurPx = Math.max(0, Math.min(10, config.blurAmount ?? 1));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 ${className}`}>
-      {/* High-def Cover Thumbnail Mask - Displayed seamlessly during startup so 0 HUD icons are visible */}
+      {/* High-def Cover Thumbnail Mask - Displayed seamlessly during startup */}
       <div
-        className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+        className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
           isVideoVisible ? 'opacity-0' : 'opacity-100'
         }`}
         style={{
@@ -83,9 +120,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       />
 
       {/* Scaled & Centered 16:9 Frame - Strictly bounded to container box */}
-      <div className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
-        isVideoVisible ? 'opacity-100' : 'opacity-0'
-      }`} style={{ pointerEvents: 'none', touchAction: 'none' }}>
+      <div
+        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-700 ${
+          isVideoVisible ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{ pointerEvents: 'none', touchAction: 'none' }}
+      >
         <iframe
           ref={iframeRef}
           key={`${config.videoId}_${songKey || 'default'}`}
