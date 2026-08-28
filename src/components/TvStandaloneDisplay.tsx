@@ -197,13 +197,13 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-[#040409] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer (Hardware-accelerated, zero-blur for 60fps TV rendering) */}
+      {/* Dynamic Video Background Layer */}
       {!youTubeEmbedId && (
         <DynamicVideoBackground
           config={{
             ...videoBgConfig,
-            blurAmount: 0,
-            overlayOpacity: Math.max(0.80, videoBgConfig.overlayOpacity ?? 0.84),
+            blurAmount: Math.max(2, videoBgConfig.blurAmount ?? 3.5),
+            overlayOpacity: Math.max(0.78, videoBgConfig.overlayOpacity ?? 0.82),
           }}
           isPlaying={isPlaying}
           songKey={`${songTitle}___${songArtist || ''}`}
@@ -212,8 +212,8 @@ export const TvStandaloneDisplay: React.FC = () => {
         />
       )}
 
-      {/* Ambient Visualizer Background Layer (No pulse animation to save TV CPU/GPU) */}
-      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
+      {/* Animated Visualizer Background */}
+      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black animate-pulse" />
 
       {/* Top Header Bar for TV */}
       <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4">
