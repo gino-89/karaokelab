@@ -18,7 +18,7 @@ export const TvStandaloneDisplay: React.FC = () => {
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const tvParam = queryParams?.get('tv');
   const joinParam = queryParams?.get('join') || queryParams?.get('host');
-  
+
   let rawHostId = joinParam || (tvParam && tvParam !== '1' && tvParam !== 'true' ? tvParam : null);
   let targetHostId = rawHostId;
   if (targetHostId && !targetHostId.startsWith('klab_host_')) {
@@ -66,16 +66,16 @@ export const TvStandaloneDisplay: React.FC = () => {
       if (isMounted && res && res.videoId) {
         setVideoBgConfig((prev) => (prev.mode === 'auto' ? { ...prev, videoId: res.videoId, videoTitle: res.title } : prev));
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => { isMounted = false; };
   }, [tvState?.songTitle, tvState?.songArtist, videoBgConfig.enabled, videoBgConfig.mode, tvState?.videoBgConfig]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
     }
   };
 
@@ -100,11 +100,10 @@ export const TvStandaloneDisplay: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${
-              connectionStatus === 'connected'
+            <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${connectionStatus === 'connected'
                 ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
                 : 'bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse'
-            }`}>
+              }`}>
               {connectionStatus === 'connected' ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
               <span>{connectionStatus === 'connected' ? 'Sincronizado P2P' : targetHostId ? 'Conectando al anfitrión...' : 'Esperando Transmisión'}</span>
             </span>
@@ -254,9 +253,9 @@ export const TvStandaloneDisplay: React.FC = () => {
           <button
             onClick={() => {
               if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
+                document.documentElement.requestFullscreen().catch(() => { });
               } else {
-                document.exitFullscreen().catch(() => {});
+                document.exitFullscreen().catch(() => { });
               }
             }}
             className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
