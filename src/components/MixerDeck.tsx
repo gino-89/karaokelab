@@ -50,20 +50,34 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
 
   // Toggle Mute helpers
   const toggleMuteVocal = () => {
-    if (vocalGain > 0) { setPreviousVocalGain(vocalGain); onVocalGainChange(0); }
-    else { onVocalGainChange(previousVocalGain || 1.0); }
+    if (vocalGain > 0) {
+      setPreviousVocalGain(vocalGain);
+      onVocalGainChange(0);
+    } else {
+      onVocalGainChange(previousVocalGain || 1.0);
+    }
   };
+
   const toggleMuteMusic = () => {
-    if (musicGain > 0) { setPreviousMusicGain(musicGain); onMusicGainChange(0); }
-    else { onMusicGainChange(previousMusicGain || 1.0); }
+    if (musicGain > 0) {
+      setPreviousMusicGain(musicGain);
+      onMusicGainChange(0);
+    } else {
+      onMusicGainChange(previousMusicGain || 1.0);
+    }
   };
+
   const toggleMuteMaster = () => {
-    if (masterGain > 0) { setPreviousMasterGain(masterGain); onMasterGainChange(0); }
-    else { onMasterGainChange(previousMasterGain || 1.0); }
+    if (masterGain > 0) {
+      setPreviousMasterGain(masterGain);
+      onMasterGainChange(0);
+    } else {
+      onMasterGainChange(previousMasterGain || 1.0);
+    }
   };
 
   /**
-   * Hardware Console Studio Fader Strip
+   * Hardware Console Studio Fader Strip (Identical architecture to playback slider)
    */
   const StudioFaderStrip = ({
     title,
@@ -162,14 +176,9 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
               step={step}
               value={value}
               onChange={(e) => onChange(parseFloat(e.target.value))}
-              onTouchEnd={(e) => {
-                // iOS: fire onChange immediately on touch lift so 1 tap sets value
-                const input = e.currentTarget;
-                onChange(parseFloat(input.value));
-              }}
+              onInput={(e) => onChange(parseFloat((e.target as HTMLInputElement).value))}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
               style={{ touchAction: 'pan-x' }}
-              data-touch-handled="true"
               title={`${title}: ${Math.round(value * 100)}% (${dbLabel(value)})`}
             />
           </div>
@@ -179,6 +188,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
         <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800/80 mt-1">
           {/* Quick Unity 0 dB / 100% Reset */}
           <button
+            type="button"
             onClick={() => onChange(unityPoint)}
             className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[10px] font-mono font-bold text-slate-300 hover:text-white border border-slate-700/60 cursor-pointer transition-all active:scale-95 shadow-sm"
             title="Restablecer volumen original a 100% (0.0 dB)"
@@ -193,6 +203,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           {/* Mute Button */}
           {onMute && (
             <button
+              type="button"
               onClick={onMute}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 border ${
                 isMuted

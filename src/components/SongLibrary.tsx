@@ -1046,10 +1046,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                     return (
                       <div
                         key={song.id}
-                        role="button"
-                        tabIndex={0}
                         onClick={() => setSongActionTarget(song)}
-                        className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
+                        className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl"
                       >
                         <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
                           <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
@@ -1183,10 +1181,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       return (
                         <div
                           key={song.id}
-                          role="button"
-                          tabIndex={0}
                           onClick={() => setSongActionTarget(song)}
-                          className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
+                          className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl"
                         >
                           <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
                             <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
@@ -1626,8 +1622,14 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         className={`flex items-center justify-between gap-3 px-3.5 py-2 hover:bg-slate-800/40 transition-colors group ${isSelected ? 'bg-indigo-950/30 border-l-2 border-[#00f0ff]' : ''
                           }`}
                       >
-                        {/* Left: Index + Title + Artist */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Left: Index + Title + Artist (Click to Play) */}
+                        <div
+                          onClick={() => {
+                            onSelectSong(song);
+                            setIsExpanded(false);
+                          }}
+                          className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer select-none"
+                        >
                           <span className="text-[10px] font-mono text-slate-500 w-5 text-right shrink-0">
                             {idx + 1}
                           </span>
@@ -1819,7 +1821,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800/80 hover:border-slate-700'
                           }`}
                       >
-                        <div className="flex items-start gap-2.5">
+                        <div
+                          onClick={() => {
+                            onSelectSong(song);
+                            setIsExpanded(false);
+                          }}
+                          className="flex items-start gap-2.5 cursor-pointer select-none"
+                        >
                           <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
                             <Music2 className="w-4 h-4 text-slate-400" />
                           </div>
