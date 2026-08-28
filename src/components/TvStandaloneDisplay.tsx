@@ -26,17 +26,40 @@ export const TvStandaloneDisplay: React.FC = () => {
   }
 
   useEffect(() => {
+    const handleStateUpdate = (newState: TvStatePayload) => {
+      setTvState((prev) => {
+        if (!prev) return newState;
+        if (newState.isTick) {
+          // Fast-path delta tick: update only time, duration, isPlaying, currentIndex, timestamp
+          return {
+            ...prev,
+            currentTime: newState.currentTime,
+            duration: newState.duration || prev.duration,
+            isPlaying: newState.isPlaying !== undefined ? newState.isPlaying : prev.isPlaying,
+            currentIndex: newState.currentIndex !== undefined ? newState.currentIndex : prev.currentIndex,
+            timestamp: newState.timestamp || Date.now(),
+          };
+        }
+        // Full update: update metadata, lyrics, and configuration
+        return {
+          ...prev,
+          ...newState,
+          lyrics: newState.lyrics || prev.lyrics,
+          songTitle: newState.songTitle || prev.songTitle,
+          songArtist: newState.songArtist !== undefined ? newState.songArtist : prev.songArtist,
+        };
+      });
+      setConnectionStatus('connected');
+      if (newState?.videoBgConfig) {
+        setVideoBgConfig(newState.videoBgConfig);
+      }
+    };
+
     // 1. Cross-Device WebRTC P2P Connection (Smart TV / Tablets / Apple TV)
     if (targetHostId) {
       peerSync.initTvDisplay(
         targetHostId,
-        (newState: TvStatePayload) => {
-          setTvState(newState);
-          setConnectionStatus('connected');
-          if (newState?.videoBgConfig) {
-            setVideoBgConfig(newState.videoBgConfig);
-          }
-        },
+        handleStateUpdate,
         (status) => {
           setConnectionStatus(status);
         }
@@ -44,13 +67,7 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
 
     // 2. Same-Device BroadcastChannel (Multi-monitor / Independent browser window)
-    const unsub = tvBroadcast.onStateUpdate((newState) => {
-      setTvState(newState);
-      setConnectionStatus('connected');
-      if (newState?.videoBgConfig) {
-        setVideoBgConfig(newState.videoBgConfig);
-      }
-    });
+    const unsub = tvBroadcast.onStateUpdate(handleStateUpdate);
 
     return () => {
       unsub();

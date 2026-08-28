@@ -613,37 +613,63 @@ export default function App() {
     }));
   }, [savedSongs]);
 
-  // Broadcast state in real-time to external TV window / Chromecast (Throttled to max 10 FPS for fluid UI performance)
+  // Broadcast state in real-time to external TV window / Chromecast (Ultra-lightweight Delta Sync)
   const lastBroadcastRef = useRef<number>(0);
+  const lastFullSyncRef = useRef<number>(0);
+  const lastSongIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
       const now = performance.now();
-      // Only broadcast if 100ms passed OR if play/pause, song change, or index change occurred
-      if (now - lastBroadcastRef.current >= 100 || !isPlaying || currentIndex === -1) {
+      const isNewSong = currentSong?.id !== lastSongIdRef.current;
+      const isFullSyncNeeded = isNewSong || (now - lastFullSyncRef.current >= 2500) || !isPlaying;
+
+      // Broadcast every 60ms-80ms for ultra-smooth lyric tracking
+      if (now - lastBroadcastRef.current >= 60 || isNewSong || !isPlaying) {
         lastBroadcastRef.current = now;
         const activeProf = profiles.find((p) => p.id === activeProfileId);
         const nextQueueItem = queue[0];
-        const statePayload = {
-          songTitle: currentSong?.title || '',
-          songArtist: currentSong?.artist,
-          artistsList: currentSong?.artistsList,
-          currentTime,
-          duration,
-          isPlaying,
-          lyrics,
-          currentIndex,
-          activeSingerName: activeProf && activeProf.id !== 'profile_all' ? activeProf.name : undefined,
-          activeSingerAvatar: activeProf && activeProf.id !== 'profile_all' ? activeProf.avatar : undefined,
-          nextSongTitle: nextQueueItem?.song?.title,
-          nextSongArtist: nextQueueItem?.song?.artist,
-          bpm: currentSong?.bpm || 120,
-          isDuetMode,
-          youTubeEmbedId,
-          videoBgConfig,
-          catalog: catalogSummary,
-        };
-        tvBroadcast.broadcastState(statePayload);
-        peerSync.broadcastTvState(statePayload);
+
+        if (isFullSyncNeeded) {
+          lastFullSyncRef.current = now;
+          lastSongIdRef.current = currentSong?.id || null;
+
+          // Full state payload (sent on song change, play/pause, or periodic 2.5s heartbeat)
+          const fullPayload = {
+            songTitle: currentSong?.title || '',
+            songArtist: currentSong?.artist,
+            artistsList: currentSong?.artistsList,
+            currentTime,
+            duration,
+            isPlaying,
+            lyrics,
+            currentIndex,
+            activeSingerName: activeProf && activeProf.id !== 'profile_all' ? activeProf.name : undefined,
+            activeSingerAvatar: activeProf && activeProf.id !== 'profile_all' ? activeProf.avatar : undefined,
+            nextSongTitle: nextQueueItem?.song?.title,
+            nextSongArtist: nextQueueItem?.song?.artist,
+            bpm: currentSong?.bpm || 120,
+            isDuetMode,
+            youTubeEmbedId,
+            videoBgConfig,
+            timestamp: Date.now(),
+            isTick: false,
+          };
+          tvBroadcast.broadcastState(fullPayload);
+          peerSync.broadcastTvState(fullPayload);
+        } else {
+          // Ultra-lightweight delta tick (only 4 small numbers, zero CPU/crypto/bandwidth overhead)
+          const tickPayload = {
+            currentTime,
+            duration,
+            isPlaying,
+            currentIndex,
+            timestamp: Date.now(),
+            isTick: true,
+          };
+          tvBroadcast.broadcastState(tickPayload);
+          peerSync.broadcastTvState(tickPayload);
+        }
       }
     }
   }, [
@@ -657,12 +683,10 @@ export default function App() {
     currentIndex,
     activeProfileId,
     profiles,
-    catalogSummary,
     queue,
     isDuetMode,
     youTubeEmbedId,
     videoBgConfig,
-    savedSongs,
   ]);
 
   if (isTvDisplayMode) {

@@ -2,24 +2,25 @@
 import { LyricLine, ArtistRole, VideoBackgroundConfig } from '../types';
 
 export interface TvStatePayload {
-  songTitle: string;
+  songTitle?: string;
   songArtist?: string;
   artistsList?: ArtistRole[];
   currentTime: number;
   duration: number;
   isPlaying: boolean;
-  lyrics: LyricLine[];
+  lyrics?: LyricLine[];
   currentIndex: number;
   activeSingerName?: string;
   activeSingerAvatar?: string;
   nextSongTitle?: string;
   nextSongArtist?: string;
-  bpm: number;
+  bpm?: number;
   isDuetMode?: boolean;
   youTubeEmbedId?: string | null;
   videoBgConfig?: VideoBackgroundConfig;
   catalog?: Array<{ id: string; title: string; artist?: string; genre?: string; bpm?: number; duration?: number }>;
   timestamp: number;
+  isTick?: boolean;
 }
 
 const CHANNEL_NAME = 'karaokelab_tv_sync';
