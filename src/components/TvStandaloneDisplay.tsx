@@ -268,10 +268,10 @@ export const TvStandaloneDisplay: React.FC = () => {
       </div>
 
       {/* Main Lyrics Center Display */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6 text-center max-w-5xl mx-auto w-full">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6 text-center max-w-7xl mx-auto w-full px-2 sm:px-4">
         {youTubeEmbedId ? (
           /* Embedded YouTube Video Mode for TV */
-          <div className="w-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-red-500/40 bg-black">
+          <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-red-500/40 bg-black">
             <iframe
               src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=0&modestbranding=1&rel=0`}
               title="YouTube Karaoke TV"
@@ -283,37 +283,37 @@ export const TvStandaloneDisplay: React.FC = () => {
           /* Standard Lyrical Teleprompter Display for TV */
           <div className="flex flex-col items-center justify-between gap-4 w-full flex-1 min-h-0 py-2 overflow-hidden">
             {/* Slot 1: Active Singer Badge / Countdown (Strictly Singer & Cues, No [Verso] tag) */}
-            <div className="h-8 flex items-center justify-center shrink-0">
+            <div className="h-9 flex items-center justify-center shrink-0">
               {isPlaying && (
                 showCountdown ? (
-                  <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs sm:text-sm font-bold animate-pulse">
+                  <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-black animate-pulse">
                     <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
                     {nextLyric && (
-                      <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-black/60 text-amber-200">
+                      <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
                         {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
                       </span>
                     )}
                   </div>
                 ) : currentLyric ? (
                   <div
-                    className="inline-flex items-center gap-2 font-mono text-xs sm:text-sm font-bold uppercase tracking-wider"
+                    className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
                     style={{ color: curArtist.color }}
                   >
-                    <span>{curArtist.isBoth ? '👥' : '🎤'}</span>
+                    <span className="text-base sm:text-lg">{curArtist.isBoth ? '👥' : '🎤'}</span>
                     <span>{curArtist.isBoth ? `DÚO · ${curArtist.name.toUpperCase()}` : `VOZ: ${curArtist.name.toUpperCase()}`}</span>
                   </div>
                 ) : null
               )}
             </div>
 
-            {/* Current Active Line (Dynamic Scaling to Prevent Overlap) */}
+            {/* Current Active Line (Large Grand Scale for Smart TV) */}
             <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center my-auto overflow-hidden">
               {!isPlaying ? (
                 <div className="flex flex-col items-center gap-3 text-slate-500 opacity-60">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
-                    <Music className="w-8 h-8 text-cyan-400/50" />
+                  <div className="w-20 h-20 rounded-3xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
+                    <Music className="w-10 h-10 text-cyan-400/50" />
                   </div>
-                  <p className="text-xl sm:text-2xl font-bold tracking-wider text-slate-400 font-mono">
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400 font-mono">
                     {songTitle ? `EN ESPERA · ${songTitle}` : 'ESCENARIO EN ESPERA'}
                   </p>
                 </div>
@@ -322,13 +322,13 @@ export const TvStandaloneDisplay: React.FC = () => {
                   const textClean = cleanLyricText(currentLyric.text);
                   const textLen = textClean.length;
                   const fontSizeClass = textLen <= 25
-                    ? 'text-3xl sm:text-5xl md:text-6xl font-extrabold'
-                    : textLen <= 50
-                      ? 'text-2xl sm:text-4xl md:text-5xl font-extrabold'
-                      : 'text-xl sm:text-3xl md:text-4xl font-extrabold';
+                    ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black'
+                    : textLen <= 45
+                      ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black'
+                      : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black';
 
                   return (
-                    <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
+                    <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full`}>
                       {computeIntelligentWordFills(
                         { ...currentLyric, text: textClean },
                         currentTime,
@@ -361,9 +361,9 @@ export const TvStandaloneDisplay: React.FC = () => {
                   );
                 })()
               ) : (
-                <div className="flex flex-col items-center gap-2 text-slate-500 animate-pulse">
-                  <Music className="w-10 h-10 text-slate-600" />
-                  <p className="text-xl sm:text-2xl font-bold tracking-wider text-slate-400">
+                <div className="flex flex-col items-center gap-3 text-slate-500 animate-pulse">
+                  <Music className="w-12 h-12 text-slate-600" />
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400">
                     ♫ [SOLO INSTRUMENTAL] ♫
                   </p>
                 </div>
@@ -372,11 +372,11 @@ export const TvStandaloneDisplay: React.FC = () => {
 
             {/* Next Upcoming Line Preview */}
             {isPlaying && nextLyric ? (
-              <div className="mt-4 p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 max-w-xl w-full flex flex-col items-center">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
+              <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 max-w-2xl w-full flex flex-col items-center">
+                <span className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
                   {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
                 </span>
-                <p className="text-lg sm:text-xl font-bold truncate max-w-lg" style={{ color: nextArtist.color }}>
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold truncate max-w-xl text-center" style={{ color: nextArtist.color }}>
                   {cleanLyricText(nextLyric.text)}
                 </p>
               </div>
