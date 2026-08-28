@@ -475,10 +475,10 @@ export const GuestRemoteView: React.FC = () => {
 
   // ── Main Remote View ──
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full bg-[#080811] text-white p-2 sm:p-3 flex flex-col overflow-hidden font-sans max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[#080811] text-white p-3 pb-40 flex flex-col gap-3 font-sans max-w-4xl mx-auto">
       {/* Disconnection Warning Banner */}
       {connStatus === 'disconnected' && (
-        <div className="shrink-0 p-3 rounded-2xl bg-rose-950/90 border border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in slide-in-from-top-2 mb-1.5">
+        <div className="p-3 rounded-2xl bg-rose-950/90 border border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-2 text-rose-200">
             <WifiOff className="w-5 h-5 text-rose-400 shrink-0 animate-pulse" />
             <div className="flex flex-col">
@@ -504,7 +504,7 @@ export const GuestRemoteView: React.FC = () => {
       )}
 
       {/* Sticky Header & Navigation for Mobile Phones */}
-      <div className="shrink-0 bg-[#080811] pb-2 pt-0.5 space-y-2 z-30">
+      <div className="sticky top-0 z-30 bg-[#080811]/95 backdrop-blur-md pb-2 pt-1 space-y-2">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-2">
           <div className="flex items-center gap-2">
@@ -585,11 +585,106 @@ export const GuestRemoteView: React.FC = () => {
 
       {/* TAB 1: YOUTUBE KARAOKE SEARCH */}
       {remoteTab === 'youtube' && (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200 justify-between">
+        <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+          {/* YouTube Search Bar */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-red-500/40 flex flex-col gap-2.5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-red-300 flex items-center gap-1.5 font-mono uppercase tracking-wider">
+                <Youtube className="w-3.5 h-3.5 text-red-500 fill-current" />
+                <span>Buscador YouTube en Vivo</span>
+              </span>
+              <span className="text-[10px] text-slate-400">Pide a la cola del host</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="search"
+                  enterKeyHint="search"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="Busca por canción o artista (ej. Luis Miguel, Bad Bunny)..."
+                  value={ytQuery}
+                  onChange={(e) => setYtQuery(e.target.value)}
+                  onFocus={(e) => {
+                    setTimeout(() => {
+                      e.target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 300);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                      handleYouTubeSearch();
+                    }
+                  }}
+                  className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all"
+                />
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                {ytQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setYtQuery(''); setYtResults([]); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleYouTubeSearch()}
+                disabled={ytSearching || !ytQuery.trim()}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+              >
+                {ytSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                <span>Buscar</span>
+              </button>
+            </div>
+
+            {/* Popular Suggestions */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+              <span className="text-slate-500 font-mono font-bold shrink-0">Popular:</span>
+              {['Luis Miguel', 'Bad Bunny', 'Karol G', 'Queen', 'Rocío Dúrcal', 'RBD', 'Salsa', 'Cumbia'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    setYtQuery(tag);
+                    handleYouTubeSearch(tag);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-colors cursor-pointer shrink-0"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            {/* Singer Profile Active Indicator in YouTube Tab */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs border-t border-slate-800/80">
+              <span className="text-[10px] text-slate-400 font-mono shrink-0">Cantante activo:</span>
+              {profiles.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectProfile(p.id)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                    activeProfileId === p.id
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
+                  }`}
+                >
+                  <span>{p.avatar}</span>
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Active Preview Embed Player */}
           {ytActiveEmbedId && (
-            <div className="shrink-0 rounded-2xl overflow-hidden border border-red-500/40 bg-black shadow-[0_0_30px_rgba(239,68,68,0.2)] mb-2">
-              <div className="p-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+            <div className="rounded-2xl overflow-hidden border border-red-500/40 bg-black shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+              <div className="p-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
                 <span className="text-xs font-bold text-red-400 font-mono flex items-center gap-1.5">
                   <Play className="w-3.5 h-3.5 fill-current" />
                   PREVIEW EN CELULAR
@@ -614,191 +709,136 @@ export const GuestRemoteView: React.FC = () => {
             </div>
           )}
 
-          {/* YouTube Results List or Placeholder (Scrolls independently inside the viewport above search bar) */}
-          <div className="flex-1 min-h-0 flex flex-col justify-start overflow-y-auto pr-0.5">
-            {ytSearching ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400 bg-slate-900/40 rounded-2xl border border-slate-800 my-auto">
-                <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
-                <p className="text-xs font-medium">Buscando pistas de Karaoke en YouTube...</p>
-              </div>
-            ) : ytResults.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pb-2">
-                {ytResults.map((item) => {
-                  const isFav = youtubeFavorites.some(
-                    (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
-                  );
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex flex-col justify-between p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-2.5"
-                    >
-                      <div className="flex gap-2.5">
-                        <div className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800">
-                          <img
-                            src={item.thumbnail}
-                            alt={item.title}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
-                            }}
-                          />
-                          <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
-                            {item.duration}
-                          </span>
-                        </div>
-
-                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                          <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
-                            {item.title}
-                          </h3>
-                          <p className="text-[10px] text-slate-400 mt-0.5 truncate">{item.channel}</p>
-                        </div>
+          {/* YouTube Results List */}
+          {ytSearching ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400 bg-slate-900/40 rounded-2xl border border-slate-800">
+              <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+              <p className="text-xs font-medium">Buscando pistas de Karaoke en YouTube...</p>
+            </div>
+          ) : ytResults.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ytResults.map((item) => {
+                const isFav = youtubeFavorites.some(
+                  (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
+                );
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-3"
+                  >
+                    <div className="flex gap-3">
+                      <div className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800">
+                        <img
+                          src={item.thumbnail}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
+                          }}
+                        />
+                        <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
+                          {item.duration}
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1.5 border-t border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => handleRequestYouTubeSong(item)}
-                          disabled={requestingYtId === item.id}
-                          className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white text-xs font-black transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          {requestingYtId === item.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Send className="w-3.5 h-3.5" />
-                          )}
-                          <span>Pedir a la Cola</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleToggleYouTubeFavorite(item)}
-                          className={`p-1.5 px-2 rounded-xl border transition-all cursor-pointer ${
-                            isFav
-                              ? 'bg-red-950/60 border-red-500/60 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
-                              : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-white'
-                          }`}
-                          title={isFav ? 'Quitar de Favoritos' : 'Guardar en Favoritos'}
-                        >
-                          <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setYtActiveEmbedId(item.id === ytActiveEmbedId ? null : item.id)}
-                          className="py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all border border-slate-700 flex items-center gap-1 cursor-pointer"
-                          title="Ver preview del video"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Preview</span>
-                        </button>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
+                          {item.title}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 mt-1 truncate">{item.channel}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-500 text-center bg-slate-900/30 rounded-2xl border border-slate-800/80 p-6 my-auto">
-                <div className="w-12 h-12 rounded-full bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-1">
-                  <Youtube className="w-6 h-6" />
-                </div>
-                <p className="text-xs font-bold text-slate-300">Explora millones de canciones de YouTube</p>
-                <p className="text-[11px] text-slate-500 max-w-xs">
-                  Escribe en el buscador abajo o toca una sugerencia rápida para pedir en vivo a la pantalla principal.
-                </p>
-              </div>
-            )}
-          </div>
 
-          {/* YouTube Search Bar (PERMANENTLY FIXED AT THE BOTTOM OF THE SCREEN) */}
-          <div className="shrink-0 p-2.5 sm:p-3 rounded-2xl bg-slate-900/95 border border-red-500/40 flex flex-col gap-2 shadow-[0_-10px_25px_rgba(0,0,0,0.6)] backdrop-blur-md mt-1.5 z-30">
-            {/* Popular Suggestions above search input */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-[11px] scrollbar-none">
-              <span className="text-slate-500 font-mono font-bold shrink-0">Popular:</span>
-              {['Luis Miguel', 'Bad Bunny', 'Karol G', 'Queen', 'Rocío Dúrcal', 'RBD', 'Salsa', 'Cumbia'].map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => {
-                    setYtQuery(tag);
-                    handleYouTubeSearch(tag);
-                  }}
-                  className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-colors cursor-pointer shrink-0 text-[10px] font-medium"
-                >
-                  {tag}
-                </button>
-              ))}
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => handleRequestYouTubeSong(item)}
+                        className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <ListPlus className="w-3.5 h-3.5" />
+                        <span>Pedir a la Cola 🎤</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleYouTubeFavorite(item, activeProfileId)}
+                        className={`p-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
+                          isFav
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                            : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+                        }`}
+                        title={isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-slate-950 text-slate-950' : 'fill-amber-300 text-amber-300'}`} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setYtActiveEmbedId(item.id === ytActiveEmbedId ? null : item.id)}
+                        className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all border border-slate-700 flex items-center gap-1 cursor-pointer"
+                        title="Ver preview del video"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Preview</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="search"
-                  enterKeyHint="search"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  placeholder="Busca por canción o artista..."
-                  value={ytQuery}
-                  onChange={(e) => setYtQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      (e.target as HTMLInputElement).blur();
-                      handleYouTubeSearch();
-                    }
-                  }}
-                  className="w-full pl-8 pr-7 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all"
-                />
-                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                {ytQuery && (
-                  <button
-                    type="button"
-                    onClick={() => { setYtQuery(''); setYtResults([]); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-center bg-slate-900/30 rounded-2xl border border-slate-800/80 p-6">
+              <div className="w-12 h-12 rounded-full bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-1">
+                <Youtube className="w-6 h-6" />
               </div>
-
-              <button
-                type="button"
-                onClick={() => handleYouTubeSearch()}
-                disabled={ytSearching || !ytQuery.trim()}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
-              >
-                {ytSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-                <span>Buscar</span>
-              </button>
+              <p className="text-xs font-bold text-slate-300">Explora millones de canciones de YouTube</p>
+              <p className="text-[11px] text-slate-500 max-w-xs">
+                Busca cualquier tema en vivo, guárdalo en favoritos o toca <b>"Pedir a la Cola"</b> para que se agregue a la pantalla principal.
+              </p>
             </div>
-
-            {/* Singer Profile Active Indicator in YouTube Tab */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-1 text-xs border-t border-slate-800/80 scrollbar-none">
-              <span className="text-[10px] text-slate-400 font-mono shrink-0">Cantante activo:</span>
-              {profiles.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleSelectProfile(p.id)}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
-                    activeProfileId === p.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
-                  }`}
-                >
-                  <span>{p.avatar}</span>
-                  <span>{p.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* TAB 2: LOCAL LIBRARY VIEW (PERFECT VIEWPORT HEIGHT) */}
+      {/* TAB 2: LOCAL LIBRARY VIEW */}
       {remoteTab === 'library' && (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
-          {/* Main Song Library Component (Guest Mode: list scrolls, search is locked at bottom) */}
+        <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+          {/* Quick Custom Song Request Bar */}
+          <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/40 flex flex-col gap-2 shadow-lg">
+            <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+              <span>🎤</span>
+              <span>¿No ves tu canción? Pídela directamente:</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="search"
+                enterKeyHint="send"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Escribe el nombre de la canción o artista..."
+                value={customRequestTitle}
+                onChange={(e) => setCustomRequestTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customRequestTitle.trim()) {
+                    (e.target as HTMLInputElement).blur();
+                    handleRequestCustomSong(customRequestTitle.trim());
+                  }
+                }}
+                className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
+              />
+              <button
+                type="button"
+                onClick={() => customRequestTitle.trim() && handleRequestCustomSong(customRequestTitle.trim())}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
+              >
+                <ListPlus className="w-3.5 h-3.5" />
+                <span>Pedir</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management and YouTube favorites) */}
           <SongLibrary
             savedSongs={savedSongs}
             queue={[]}

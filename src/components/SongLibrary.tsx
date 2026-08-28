@@ -534,284 +534,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   // Total library duration in minutes
   const totalDurationMinutes = Math.round(savedSongs.reduce((acc, s) => acc + (s.duration || 0), 0) / 60);
 
-  const renderLibraryToolbarBlock = () => (
-    <div className={`p-2.5 bg-slate-950/95 ${isGuestMode ? 'border-t border-slate-800 shrink-0 shadow-[0_-10px_25px_rgba(0,0,0,0.6)] backdrop-blur-md z-20' : 'border-b border-slate-800'} flex flex-col gap-2`}>
-      {/* Main Library Tabs: Locales vs YouTube */}
-      <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-bold">
-        <button
-          type="button"
-          onClick={() => setLibraryTab('local')}
-          className={`flex-1 py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${libraryTab === 'local'
-            ? 'bg-indigo-600 text-white shadow-md'
-            : 'text-slate-400 hover:text-white'
-            }`}
-        >
-          <Music2 className="w-3.5 h-3.5" />
-          <span>Locales</span>
-          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${libraryTab === 'local' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
-            }`}>
-            {filteredSongs.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setLibraryTab('youtube')}
-          className={`flex-1 py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${libraryTab === 'youtube'
-            ? 'bg-red-600 text-white shadow-md'
-            : 'text-slate-400 hover:text-white'
-            }`}
-        >
-          <Youtube className="w-3.5 h-3.5 fill-current" />
-          <span>YouTube</span>
-          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${libraryTab === 'youtube' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
-            }`}>
-            {filteredYouTubeFavorites.length}
-          </span>
-        </button>
-      </div>
-
-      {/* Row 1: Search Input + Filter Toggle Button */}
-      <div className="flex items-center gap-1.5">
-        <div className="relative flex items-center flex-1">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
-          <input
-            type="search"
-            enterKeyHint="search"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="Buscar canción, artista o género..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] transition-colors"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
-              title="Limpiar búsqueda"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Filter Toggle Button */}
-        {(() => {
-          const activeCount = (selectedArtist !== 'ALL' ? 1 : 0) + (selectedGenre !== 'ALL' ? 1 : 0) + (activeProfileId !== 'profile_all' ? 1 : 0);
-          return (
-            <button
-              onClick={() => setShowFilters((prev) => !prev)}
-              className={`p-1.5 px-2 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shrink-0 ${showFilters || activeCount > 0
-                ? 'bg-slate-800 border-cyan-500/50 text-cyan-300'
-                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                }`}
-              title={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              <span className="text-[10px] hidden sm:inline">Filtros</span>
-              {activeCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#00f0ff] text-slate-950 font-bold text-[9px] flex items-center justify-center font-mono">
-                  {activeCount}
-                </span>
-              )}
-            </button>
-          );
-        })()}
-      </div>
-
-      {/* Row 1.5: Organizador de Ordenamiento Rápido */}
-      <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1.5 bg-slate-900/90 rounded-xl border border-slate-800 scrollbar-none">
-        <span className="text-[10px] font-mono text-cyan-400 font-extrabold uppercase tracking-wider shrink-0 flex items-center gap-1 mr-0.5">
-          <ArrowUpDown className="w-3 h-3 text-[#00f0ff]" />
-          <span>Ordenar:</span>
-        </span>
-
-        {/* Abecedario Título A-Z */}
-        <button
-          type="button"
-          onClick={() => setSortBy('title')}
-          className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'title'
-            ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_10px_rgba(0,240,255,0.4)] border border-cyan-400/60 scale-105'
-            : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
-            }`}
-          title="Ordenar por Abecedario (Título A-Z)"
-        >
-          <span>🔤 Abecedario</span>
-        </button>
-
-        {/* Artista A-Z */}
-        <button
-          type="button"
-          onClick={() => setSortBy('artist')}
-          className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'artist'
-            ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)] border border-purple-400/60 scale-105'
-            : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
-            }`}
-          title="Ordenar por Artista (A-Z)"
-        >
-          <User className="w-3 h-3 text-purple-300" />
-          <span>Artista</span>
-        </button>
-
-        {/* Añadidos Recientes */}
-        <button
-          type="button"
-          onClick={() => setSortBy('recent')}
-          className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'recent'
-            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)] border border-emerald-400/60 scale-105'
-            : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
-            }`}
-          title="Ordenar por Añadidos Recientemente"
-        >
-          <Clock className="w-3 h-3 text-emerald-300" />
-          <span>Recientes</span>
-        </button>
-
-        {/* Duración */}
-        <button
-          type="button"
-          onClick={() => setSortBy('duration')}
-          className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'duration'
-            ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.4)] border border-pink-400/60 scale-105'
-            : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
-            }`}
-          title="Ordenar por Duración"
-        >
-          <span>⏱️ Duración</span>
-        </button>
-      </div>
-
-      {/* Row 2: Slim Inline Filter Pills (When open) */}
-      {showFilters && (
-        <div className="flex flex-wrap items-center gap-1.5 animate-in fade-in duration-100">
-          {/* 1. Singer Profile Pill */}
-          <div className={`flex items-center bg-slate-900 border rounded-lg px-2 py-1 flex-1 min-w-[130px] transition-colors ${activeProfileId !== 'profile_all' ? 'border-cyan-400/60 bg-indigo-950/40 text-cyan-300' : 'border-slate-700/80 text-slate-300'
-            }`}>
-            <span className="text-xs shrink-0 mr-1">{activeProfile?.avatar || '🎤'}</span>
-            <select
-              value={activeProfileId}
-              onChange={(e) => {
-                if (e.target.value === '__new_profile__') {
-                  setIsCreateProfileOpen(true);
-                } else {
-                  onSelectProfile?.(e.target.value);
-                }
-              }}
-              className="bg-transparent text-xs font-semibold w-full focus:outline-none cursor-pointer truncate"
-            >
-              <option value="profile_all" className="bg-slate-900 text-slate-300 font-medium">
-                Cantante: Todos ({savedSongs.length})
-              </option>
-              {profiles
-                .filter((p) => p.id !== 'profile_all')
-                .map((p) => (
-                  <option key={p.id} value={p.id} className="bg-slate-900 text-white font-semibold">
-                    {p.avatar} {p.name} ({p.favoriteSongIds.length} favs)
-                  </option>
-                ))}
-              <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
-                ➕ + Crear Perfil...
-              </option>
-            </select>
-          </div>
-
-          {/* 2. Artist Pill */}
-          <div className={`flex items-center bg-slate-900 border rounded-lg px-2 py-1 flex-1 min-w-[110px] transition-colors ${selectedArtist !== 'ALL' ? 'border-cyan-400/60 bg-cyan-950/30 text-cyan-300' : 'border-slate-700/80 text-slate-300'
-            }`}>
-            <User className="w-3 h-3 text-[#00f0ff] shrink-0 mr-1" />
-            <select
-              value={selectedArtist}
-              onChange={(e) => setSelectedArtist(e.target.value)}
-              className="bg-transparent text-xs font-medium w-full focus:outline-none cursor-pointer truncate text-slate-300"
-            >
-              <option value="ALL" className="bg-slate-900 text-slate-300">Artista: Todos</option>
-              {uniqueArtists.map((art) => (
-                <option key={art} value={art} className="bg-slate-900 text-white">
-                  {art}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. Genre Pill */}
-          <div className={`flex items-center bg-slate-900 border rounded-lg px-2 py-1 flex-1 min-w-[100px] transition-colors ${selectedGenre !== 'ALL' ? 'border-[#ff007f]/60 bg-pink-950/30 text-pink-300' : 'border-slate-700/80 text-slate-300'
-            }`}>
-            <Tag className="w-3 h-3 text-[#ff007f] shrink-0 mr-1" />
-            <select
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-              className="bg-transparent text-xs font-medium w-full focus:outline-none cursor-pointer truncate text-slate-300"
-            >
-              <option value="ALL" className="bg-slate-900 text-slate-300">Género: Todos</option>
-              {uniqueGenres.map((g) => (
-                <option key={g} value={g} className="bg-slate-900 text-white">
-                  {g}
-                </option>
-              ))}
-              <option value="Cyberpunk" className="bg-slate-900 text-white">Cyberpunk</option>
-              <option value="Pop" className="bg-slate-900 text-white">Pop</option>
-              <option value="Rock" className="bg-slate-900 text-white">Rock</option>
-              <option value="Urbano / Reggaeton" className="bg-slate-900 text-white">Urbano / Reggaeton</option>
-              <option value="Electrónica" className="bg-slate-900 text-white">Electrónica</option>
-              <option value="Balada" className="bg-slate-900 text-white">Balada</option>
-              <option value="General" className="bg-slate-900 text-white">General</option>
-            </select>
-          </div>
-
-          {/* Reset Filters shortcut if active */}
-          {hasActiveFilters && (
-            <button
-              onClick={handleResetFilters}
-              className="p-1 px-1.5 rounded-lg text-[10px] text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700 cursor-pointer flex items-center gap-0.5 shrink-0 font-medium"
-              title="Limpiar filtros"
-            >
-              <X className="w-2.5 h-2.5" />
-              <span>Limpiar</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Active Singer Action Pill (when a singer like John is selected) */}
-      {activeProfile && activeProfile.id !== 'profile_all' && (
-        <div className="px-2.5 py-1 bg-indigo-950/60 border border-indigo-500/40 rounded-lg flex items-center justify-between text-xs animate-in fade-in duration-100">
-          <div className="flex items-center gap-1.5 text-indigo-200">
-            <span className="text-sm">{activeProfile.avatar}</span>
-            <span className="font-bold text-white text-[11px] truncate">{activeProfile.name}</span>
-            <span className="text-[10px] font-mono text-cyan-400">({activeProfile.favoriteSongIds.length} favs)</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {activeProfile.favoriteSongIds.length > 0 && (
-              <button
-                onClick={handleAddProfileFavoritesToQueue}
-                className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer transition-colors shadow-sm"
-                title={`Encolar repertorio completo de ${activeProfile.name}`}
-              >
-                ⚡ Encolar
-              </button>
-            )}
-            <button
-              onClick={() => onDeleteProfile?.(activeProfile.id)}
-              className="p-0.5 text-slate-400 hover:text-rose-400 cursor-pointer transition-colors"
-              title={`Eliminar perfil de ${activeProfile.name}`}
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   return (
-    <div className={`flex flex-col relative ${isGuestMode ? 'flex-1 min-h-0 h-full overflow-hidden' : 'gap-3'}`}>
+    <div className="flex flex-col gap-3 relative">
       {/* Hidden file input preserved for programmatic imports */}
       <input
         ref={fileInputRef}
@@ -823,10 +547,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
       />
 
 
-      {/* ── Library Card ─────────────────────────────── */}
+      {/* ── Library Card (Fixed Stable 800px Height) ─────────────────────────────── */}
       <div
-        style={isGuestMode ? undefined : { height: '945px', minHeight: '800px' }}
-        className={`bg-[#0c0e17] border border-slate-700/70 rounded-2xl flex flex-col shadow-lg relative overflow-hidden ${isGuestMode ? 'flex-1 min-h-0 h-full' : ''}`}
+        style={{ height: '945px', minHeight: '800px' }}
+        className="bg-[#0c0e17] border border-slate-700/70 rounded-2xl flex flex-col shadow-lg relative overflow-hidden"
       >
         {/* Header with Expand Button - Fixed boundary layout */}
         <div className="px-3 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-2 relative z-30 rounded-t-2xl">
@@ -965,11 +689,288 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
           </div>
         )}
 
-        {/* ── Search & Filter Toolbar (Top for host/desktop) ── */}
-        {!isGuestMode && renderLibraryToolbarBlock()}
+        {/* ── Ultra-Compact Search & Filter Toolbar ─────────────────── */}
+        <div className="p-2.5 bg-slate-950/90 border-b border-slate-800 flex flex-col gap-2">
+          {/* Main Library Tabs: Locales vs YouTube */}
+          <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setLibraryTab('local')}
+              className={`flex-1 py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${libraryTab === 'local'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+                }`}
+            >
+              <Music2 className="w-3.5 h-3.5" />
+              <span>Locales</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${libraryTab === 'local' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                }`}>
+                {filteredSongs.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLibraryTab('youtube')}
+              className={`flex-1 py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${libraryTab === 'youtube'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+                }`}
+            >
+              <Youtube className="w-3.5 h-3.5 fill-current" />
+              <span>YouTube</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${libraryTab === 'youtube' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                }`}>
+                {filteredYouTubeFavorites.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Row 1: Search Input + Filter Toggle Button */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex items-center flex-1">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+              <input
+                type="search"
+                enterKeyHint="search"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Buscar canción, artista o género..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={(e) => {
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 300);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Toggle Button */}
+            {(() => {
+              const activeCount = (selectedArtist !== 'ALL' ? 1 : 0) + (selectedGenre !== 'ALL' ? 1 : 0) + (activeProfileId !== 'profile_all' ? 1 : 0);
+              return (
+                <button
+                  onClick={() => setShowFilters((prev) => !prev)}
+                  className={`p-1.5 px-2 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shrink-0 ${showFilters || activeCount > 0
+                    ? 'bg-slate-800 border-cyan-500/50 text-cyan-300'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  title={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  <span className="text-[10px] hidden sm:inline">Filtros</span>
+                  {activeCount > 0 && (
+                    <span className="w-4 h-4 rounded-full bg-[#00f0ff] text-slate-950 font-bold text-[9px] flex items-center justify-center font-mono">
+                      {activeCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
+          </div>
+
+          {/* Row 1.5: Organizador de Ordenamiento Rápido */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1.5 bg-slate-900/90 rounded-xl border border-slate-800 scrollbar-none">
+            <span className="text-[10px] font-mono text-cyan-400 font-extrabold uppercase tracking-wider shrink-0 flex items-center gap-1 mr-0.5">
+              <ArrowUpDown className="w-3 h-3 text-[#00f0ff]" />
+              <span>Ordenar:</span>
+            </span>
+
+            {/* Abecedario Título A-Z */}
+            <button
+              type="button"
+              onClick={() => setSortBy('title')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'title'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_10px_rgba(0,240,255,0.4)] border border-cyan-400/60 scale-105'
+                : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              title="Ordenar por Abecedario (Título A-Z)"
+            >
+              <span>🔤 Abecedario</span>
+            </button>
+
+            {/* Artista A-Z */}
+            <button
+              type="button"
+              onClick={() => setSortBy('artist')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'artist'
+                ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)] border border-purple-400/60 scale-105'
+                : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              title="Ordenar por Artista (A-Z)"
+            >
+              <User className="w-3 h-3 text-purple-300" />
+              <span>Artista</span>
+            </button>
+
+            {/* Añadidos Recientes */}
+            <button
+              type="button"
+              onClick={() => setSortBy('recent')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'recent'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)] border border-emerald-400/60 scale-105'
+                : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              title="Ordenar por Añadidos Recientemente"
+            >
+              <Clock className="w-3 h-3 text-emerald-300" />
+              <span>Recientes</span>
+            </button>
+
+            {/* Duración */}
+            <button
+              type="button"
+              onClick={() => setSortBy('duration')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer flex items-center gap-1 shrink-0 ${sortBy === 'duration'
+                ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.4)] border border-pink-400/60 scale-105'
+                : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              title="Ordenar por Duración"
+            >
+              <span>⏱️ Duración</span>
+            </button>
+          </div>
+
+          {/* Row 2: Slim Inline Filter Pills (When open) */}
+          {showFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 animate-in fade-in duration-100">
+              {/* 1. Singer Profile Pill */}
+              <div className={`flex items-center bg-slate-900 border rounded-lg px-2 py-1 flex-1 min-w-[130px] transition-colors ${activeProfileId !== 'profile_all' ? 'border-cyan-400/60 bg-indigo-950/40 text-cyan-300' : 'border-slate-700/80 text-slate-300'
+                }`}>
+                <span className="text-xs shrink-0 mr-1">{activeProfile?.avatar || '🎤'}</span>
+                <select
+                  value={activeProfileId}
+                  onChange={(e) => {
+                    if (e.target.value === '__new_profile__') {
+                      setIsCreateProfileOpen(true);
+                    } else {
+                      onSelectProfile?.(e.target.value);
+                    }
+                  }}
+                  className="bg-transparent text-xs font-semibold w-full focus:outline-none cursor-pointer truncate"
+                >
+                  <option value="profile_all" className="bg-slate-900 text-slate-300 font-medium">
+                    Cantante: Todos ({savedSongs.length})
+                  </option>
+                  {profiles
+                    .filter((p) => p.id !== 'profile_all')
+                    .map((p) => (
+                      <option key={p.id} value={p.id} className="bg-slate-900 text-white font-semibold">
+                        {p.avatar} {p.name} ({p.favoriteSongIds.length} favs)
+                      </option>
+                    ))}
+                  <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
+                    ➕ + Crear Perfil...
+                  </option>
+                </select>
+              </div>
+
+              {/* 2. Artist Pill */}
+              <div className={`flex items-center bg-slate-900 border rounded-lg px-2 py-1 flex-1 min-w-[110px] transition-colors ${selectedArtist !== 'ALL' ? 'border-cyan-400/60 bg-cyan-950/30 text-cyan-300' : 'border-slate-700/80 text-slate-300'
+                }`}>
+                <User className="w-3 h-3 text-[#00f0ff] shrink-0 mr-1" />
+                <select
+                  value={selectedArtist}
+                  onChange={(e) => setSelectedArtist(e.target.value)}
+                  className="bg-transparent text-xs font-medium w-full focus:outline-none cursor-pointer truncate text-slate-300"
+                >
+                  <option value="ALL" className="bg-slate-900 text-slate-300">Artista: Todos</option>
+                  {uniqueArtists.map((art) => (
+                    <option key={art} value={art} className="bg-slate-900 text-white">
+                      {art}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Genre Pill */}
+              <div className={`flex items-center bg-slate-900 border rounded-lg px-2 py-1 flex-1 min-w-[100px] transition-colors ${selectedGenre !== 'ALL' ? 'border-[#ff007f]/60 bg-pink-950/30 text-pink-300' : 'border-slate-700/80 text-slate-300'
+                }`}>
+                <Tag className="w-3 h-3 text-[#ff007f] shrink-0 mr-1" />
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => setSelectedGenre(e.target.value)}
+                  className="bg-transparent text-xs font-medium w-full focus:outline-none cursor-pointer truncate text-slate-300"
+                >
+                  <option value="ALL" className="bg-slate-900 text-slate-300">Género: Todos</option>
+                  {uniqueGenres.map((g) => (
+                    <option key={g} value={g} className="bg-slate-900 text-white">
+                      {g}
+                    </option>
+                  ))}
+                  <option value="Cyberpunk" className="bg-slate-900 text-white">Cyberpunk</option>
+                  <option value="Pop" className="bg-slate-900 text-white">Pop</option>
+                  <option value="Rock" className="bg-slate-900 text-white">Rock</option>
+                  <option value="Urbano / Reggaeton" className="bg-slate-900 text-white">Urbano / Reggaeton</option>
+                  <option value="Electrónica" className="bg-slate-900 text-white">Electrónica</option>
+                  <option value="Balada" className="bg-slate-900 text-white">Balada</option>
+                  <option value="General" className="bg-slate-900 text-white">General</option>
+                </select>
+              </div>
+
+              {/* Reset Filters shortcut if active */}
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetFilters}
+                  className="p-1 px-1.5 rounded-lg text-[10px] text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700 cursor-pointer flex items-center gap-0.5 shrink-0 font-medium"
+                  title="Limpiar filtros"
+                >
+                  <X className="w-2.5 h-2.5" />
+                  <span>Limpiar</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Active Singer Action Pill (when a singer like John is selected) */}
+          {activeProfile && activeProfile.id !== 'profile_all' && (
+            <div className="px-2.5 py-1 bg-indigo-950/60 border border-indigo-500/40 rounded-lg flex items-center justify-between text-xs animate-in fade-in duration-100">
+              <div className="flex items-center gap-1.5 text-indigo-200">
+                <span className="text-sm">{activeProfile.avatar}</span>
+                <span className="font-bold text-white text-[11px] truncate">{activeProfile.name}</span>
+                <span className="text-[10px] font-mono text-cyan-400">({activeProfile.favoriteSongIds.length} favs)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {activeProfile.favoriteSongIds.length > 0 && (
+                  <button
+                    onClick={handleAddProfileFavoritesToQueue}
+                    className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer transition-colors shadow-sm"
+                    title={`Encolar repertorio completo de ${activeProfile.name}`}
+                  >
+                    ⚡ Encolar
+                  </button>
+                )}
+                <button
+                  onClick={() => onDeleteProfile?.(activeProfile.id)}
+                  className="p-0.5 text-slate-400 hover:text-rose-400 cursor-pointer transition-colors"
+                  title={`Eliminar perfil de ${activeProfile.name}`}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Songs List */}
-        <div className="flex flex-col flex-1 overflow-y-auto divide-y divide-slate-850 min-h-0 h-full">
+        <div className="flex flex-col flex-1 overflow-y-auto divide-y divide-slate-850 h-full">
           {/* SEARCH ACTIVE: SHOW UNIFIED LIST (YOUTUBE + LOCAL) */}
           {searchQuery.trim().length > 0 ? (
             <>
@@ -1394,9 +1395,6 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
             </>
           )}
         </div>
-
-        {/* ── Search & Filter Toolbar (Bottom for mobile guest remote) ── */}
-        {isGuestMode && renderLibraryToolbarBlock()}
       </div>
 
       {/* ── EXPANDED FULL LIBRARY STUDIO MODAL (100% PANTALLA COMPLETA REAL) ─────────────────── */}
