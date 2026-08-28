@@ -503,99 +503,84 @@ export const GuestRemoteView: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#00f0ff] to-[#ff007f] flex items-center justify-center font-black text-slate-950 text-xs shadow-md">
-            🎤
+      {/* Sticky Header & Navigation for Mobile Phones */}
+      <div className="sticky top-0 z-30 bg-[#080811]/95 backdrop-blur-md pb-2 pt-1 space-y-2">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#00f0ff] to-[#ff007f] flex items-center justify-center font-black text-slate-950 text-xs shadow-md">
+              🎤
+            </div>
+            <div>
+              <h1 className="text-sm font-black italic uppercase tracking-wider text-white">
+                KaraokeLab Remote
+              </h1>
+              <p className="text-[9px] text-cyan-400 font-mono">
+                Conectado: <span className="text-white font-bold">{guestName}</span>
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-black italic uppercase tracking-wider text-white">
-              KaraokeLab Remote
-            </h1>
-            <p className="text-[10px] text-cyan-400 font-mono">
-              Conectado como <span className="text-white font-bold">{guestName}</span>
-            </p>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setNameConfirmed(false);
+                localStorage.removeItem('karaokelab_guest_name');
+              }}
+              className="px-2 py-1 rounded-lg bg-slate-850 border border-slate-700 text-slate-400 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
+            >
+              Nombre
+            </button>
+
+            {/* Real-time Heartbeat Connection Pill */}
+            {connStatus === 'connected' ? (
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold font-mono flex items-center gap-1">
+                <Wifi className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
+                <span>En Vivo</span>
+              </span>
+            ) : connStatus === 'reconnecting' ? (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold font-mono flex items-center gap-1 animate-pulse">
+                <RefreshCw className="w-2.5 h-2.5 text-amber-400 animate-spin" />
+                <span>Reconectando</span>
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-bold font-mono flex items-center gap-1">
+                <WifiOff className="w-2.5 h-2.5 text-rose-400" />
+                <span>Desconectado</span>
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Remote Navigation Tabs: Local Library vs YouTube Online Search */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-xl border border-slate-800 shadow-xl">
           <button
             type="button"
-            onClick={() => {
-              setNameConfirmed(false);
-              localStorage.removeItem('karaokelab_guest_name');
-            }}
-            className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
+            onClick={() => setRemoteTab('library')}
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              remoteTab === 'library'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_20px_rgba(0,240,255,0.3)] font-black'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
           >
-            Cambiar Nombre
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Biblioteca ({savedSongs.length})</span>
           </button>
 
-          {/* Real-time Heartbeat Connection Pill */}
-          {connStatus === 'connected' ? (
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold font-mono flex items-center gap-1">
-              <Wifi className="w-3 h-3 text-emerald-400 animate-pulse" />
-              <span>En Vivo</span>
-            </span>
-          ) : connStatus === 'reconnecting' ? (
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold font-mono flex items-center gap-1 animate-pulse">
-              <RefreshCw className="w-3 h-3 text-amber-400 animate-spin" />
-              <span>Reconectando</span>
-            </span>
-          ) : (
-            <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold font-mono flex items-center gap-1">
-              <WifiOff className="w-3 h-3 text-rose-400" />
-              <span>Desconectado</span>
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setRemoteTab('youtube')}
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              remoteTab === 'youtube'
+                ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] font-black'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <Youtube className="w-3.5 h-3.5 text-red-400 fill-current" />
+            <span>YouTube Karaoke 🎬</span>
+          </button>
         </div>
-      </div>
-
-      {/* Toast Feedback Notification */}
-      {feedback && (
-        <div
-          className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 animate-in fade-in shadow-lg ${
-            feedback.type === 'success'
-              ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-200'
-              : 'bg-rose-950/95 border-rose-500/80 text-rose-200'
-          }`}
-        >
-          {feedback.type === 'success' ? (
-            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
-
-      {/* Remote Navigation Tabs: Local Library vs YouTube Online Search */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 shadow-xl">
-        <button
-          type="button"
-          onClick={() => setRemoteTab('library')}
-          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            remoteTab === 'library'
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_20px_rgba(0,240,255,0.3)] font-black'
-              : 'text-slate-400 hover:text-white hover:bg-slate-900'
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span>Biblioteca ({savedSongs.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setRemoteTab('youtube')}
-          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            remoteTab === 'youtube'
-              ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] font-black'
-              : 'text-slate-400 hover:text-white hover:bg-slate-900'
-          }`}
-        >
-          <Youtube className="w-4 h-4 text-red-400 fill-current" />
-          <span>YouTube Karaoke 🎬</span>
-        </button>
       </div>
 
       {/* TAB 1: YOUTUBE KARAOKE SEARCH */}
@@ -614,12 +599,19 @@ export const GuestRemoteView: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <input
-                  type="text"
+                  type="search"
+                  enterKeyHint="search"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Busca por canción o artista (ej. Luis Miguel, Bad Bunny)..."
                   value={ytQuery}
                   onChange={(e) => setYtQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleYouTubeSearch();
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                      handleYouTubeSearch();
+                    }
                   }}
                   className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all"
                 />
@@ -814,12 +806,17 @@ export const GuestRemoteView: React.FC = () => {
             </span>
             <div className="flex items-center gap-2">
               <input
-                type="text"
+                type="search"
+                enterKeyHint="send"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Escribe el nombre de la canción o artista..."
                 value={customRequestTitle}
                 onChange={(e) => setCustomRequestTitle(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && customRequestTitle.trim()) {
+                    (e.target as HTMLInputElement).blur();
                     handleRequestCustomSong(customRequestTitle.trim());
                   }
                 }}
