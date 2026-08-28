@@ -38,18 +38,19 @@
     touch-action: pan-x !important;
   }
 
-  /* Text inputs: restore auto so keyboard and selection work normally */
+  /* Text inputs only: restore auto so text selection works normally */
   textarea,
   input[type="text"],
   input[type="search"],
   input[type="email"],
-  input[type="password"],
-  select {
+  input[type="password"] {
     touch-action: auto !important;
   }
 
-  /* Interactive elements */
-  button, a, [role="button"], label, .cursor-pointer {
+  /* Interactive elements (including select dropdowns, buttons, links, controls) */
+  button, a, [role="button"], label, select, .cursor-pointer {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
     -webkit-user-select: none;
     user-select: none;
   }

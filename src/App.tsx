@@ -769,8 +769,8 @@ export default function App() {
       if (audioEngine.getIsPlaying()) {
         const t = audioEngine.getCurrentTime();
 
-        // Throttle React root state re-renders to ~30 FPS (~33ms) so WebKit touch events are never dropped or starved
-        if (timestamp - lastFlushTime >= 33) {
+        // Throttle React root state re-renders to ~25 FPS (~40ms) so WebKit touch events are never dropped or starved
+        if (timestamp - lastFlushTime >= 40) {
           lastFlushTime = timestamp;
           setCurrentTime(t);
 
@@ -1548,7 +1548,16 @@ export default function App() {
     setCurrentTime(seconds);
   };
 
-  const handleVocalGainChange = (val: number) => {
+  const handleOpenAboutModal = useCallback(() => setIsAboutModalOpen(true), []);
+  const handleOpenPartyMode = useCallback(() => setIsPartyMode(true), []);
+  const handleOpenVideoStudio = useCallback(() => setIsVideoStudioOpen(true), []);
+  const handleOpenCastModal = useCallback(() => setIsCastModalOpen(true), []);
+  const handleOpenQrModal = useCallback(() => setIsQrModalOpen(true), []);
+  const handleOpenDspSettings = useCallback(() => setIsDspModalOpen(true), []);
+  const handleOpenShareModalCallback = useCallback(() => handleOpenShareModal(), [handleOpenShareModal]);
+  const handleClearCacheCallback = useCallback(() => setIsClearCacheModalOpen(true), []);
+
+  const handleVocalGainChange = useCallback((val: number) => {
     if (val > 0.05) {
       setIsSmartVocalCue(false);
       setActiveCueType(null);
@@ -1559,47 +1568,54 @@ export default function App() {
     }
     setVocalGain(val);
     audioEngine.setVocalGain(val);
-  };
+  }, [currentSong]);
 
-  const handleMusicGainChange = (val: number) => {
+  const handleMusicGainChange = useCallback((val: number) => {
     setMusicGain(val);
     audioEngine.setMusicGain(val);
-  };
+  }, []);
 
-  const handleMasterGainChange = (val: number) => {
+  const handleMasterGainChange = useCallback((val: number) => {
     setMasterGain(val);
     audioEngine.setMasterGain(val);
-  };
+  }, []);
 
-  const handlePitchShiftChange = (semitones: number) => {
+  const handlePitchShiftChange = useCallback((semitones: number) => {
     setPitchShift(semitones);
     audioEngine.setPitchShift(semitones);
-  };
+  }, []);
 
-  const handleToggleLoop = () => {
-    const next = !isLooping;
-    setIsLooping(next);
-    audioEngine.setLoop(next, 0, duration);
-  };
+  const handleToggleLoop = useCallback(() => {
+    setIsLooping((prev) => {
+      const next = !prev;
+      audioEngine.setLoop(next, 0, duration);
+      return next;
+    });
+  }, [duration]);
 
-  const handleToggleMic = async () => {
-    const active = await audioEngine.enableMicrophone(!isMicActive);
-    setIsMicActive(active);
-    if (active) {
-      const ctx = audioEngine.getAudioContext();
-      const micGain = audioEngine.getMicGainNode();
-      if (micGain) {
-        karaokeScoringTracker.init(ctx, micGain);
-      }
-    }
-  };
+  const handleToggleMic = useCallback(async () => {
+    setIsMicActive((prev) => {
+      const next = !prev;
+      audioEngine.enableMicrophone(next).then((active) => {
+        setIsMicActive(active);
+        if (active) {
+          const ctx = audioEngine.getAudioContext();
+          const micGainNode = audioEngine.getMicGainNode();
+          if (micGainNode) {
+            karaokeScoringTracker.init(ctx, micGainNode);
+          }
+        }
+      });
+      return prev;
+    });
+  }, []);
 
-  const handleMicGainChange = (val: number) => {
+  const handleMicGainChange = useCallback((val: number) => {
     setMicGain(val);
     audioEngine.setMicGain(val);
-  };
+  }, []);
 
-  const handleDeleteSong = async (id: string) => {
+  const handleDeleteSong = useCallback(async (id: string) => {
     await deleteSongFromDB(id);
     invalidateVocalProfileCache();
     setSavedSongs((prev) => prev.filter((s) => s.id !== id));
@@ -1608,7 +1624,7 @@ export default function App() {
       handleStop();
       setCurrentSong(null);
     }
-  };
+  }, [currentSong?.id, handleStop]);
 
   // 8. Video Export Engine
   const handleStartVideoExport = () => {
@@ -1714,20 +1730,20 @@ export default function App() {
 
       {/* Header */}
       <Header
-        onOpenAboutModal={() => setIsAboutModalOpen(true)}
-        onOpenPartyMode={() => setIsPartyMode(true)}
-        onOpenVideoStudio={() => setIsVideoStudioOpen(true)}
-        onOpenCastModal={() => setIsCastModalOpen(true)}
-        onOpenQrModal={() => setIsQrModalOpen(true)}
-        onOpenDspSettings={() => setIsDspModalOpen(true)}
-        onOpenShareModal={() => handleOpenShareModal()}
-        onOpenPublishModal={() => handleOpenShareModal()}
+        onOpenAboutModal={handleOpenAboutModal}
+        onOpenPartyMode={handleOpenPartyMode}
+        onOpenVideoStudio={handleOpenVideoStudio}
+        onOpenCastModal={handleOpenCastModal}
+        onOpenQrModal={handleOpenQrModal}
+        onOpenDspSettings={handleOpenDspSettings}
+        onOpenShareModal={handleOpenShareModalCallback}
+        onOpenPublishModal={handleOpenShareModalCallback}
         onSyncToFolder={handle1ClickSync}
         onChangeSyncFolder={handleChangeSyncFolder}
         onImportSyncedFolder={handleImportSyncedFolder}
         isFolderSyncing={isFolderSyncing}
         syncTargetFolder={syncTargetFolder}
-        onClearCache={() => setIsClearCacheModalOpen(true)}
+        onClearCache={handleClearCacheCallback}
         isCastingActive={isCastingActive}
         onFilesSelected={handleFilesSelected}
         isPlaying={isPlaying}
