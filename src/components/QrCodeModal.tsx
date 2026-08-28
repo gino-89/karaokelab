@@ -67,7 +67,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
         <div className="px-5 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs">
             <QrCode className="w-4 h-4 text-[#00f0ff]" />
-            <span className="uppercase tracking-wider">QR Pedir Canciones</span>
+            <span className="uppercase tracking-wider">QR Biblioteca</span>
             {connectedGuests.length > 0 && (
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold font-mono">
                 {connectedGuests.length} online

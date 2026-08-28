@@ -156,16 +156,16 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </button>
           )}
 
-          {/* QR Pedir Canciones desde Celular */}
+          {/* QR Biblioteca desde Celular */}
           {onOpenQrModal && (
             <button
               id="btn-qr-modal"
               onClick={onOpenQrModal}
               className="px-2.5 py-1 rounded-xl border border-indigo-500/60 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5"
-              title="Mostrar Código QR para pedir canciones desde celulares"
+              title="Mostrar Código QR de la biblioteca para celulares"
             >
               <QrCode className="w-3.5 h-3.5 text-indigo-400" />
-              <span>QR Pedir</span>
+              <span>QR Biblioteca</span>
             </button>
           )}
 
