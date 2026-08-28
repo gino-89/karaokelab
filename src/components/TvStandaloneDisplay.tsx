@@ -197,13 +197,13 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-[#040409] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer with cinematic blur & dark contrast for Smart TV */}
+      {/* Dynamic Video Background Layer */}
       {!youTubeEmbedId && (
         <DynamicVideoBackground
           config={{
             ...videoBgConfig,
-            blurAmount: Math.max(8, videoBgConfig.blurAmount ?? 8),
-            overlayOpacity: Math.max(0.68, videoBgConfig.overlayOpacity ?? 0.74),
+            blurAmount: Math.max(2, videoBgConfig.blurAmount ?? 3.5),
+            overlayOpacity: Math.max(0.78, videoBgConfig.overlayOpacity ?? 0.82),
           }}
           isPlaying={isPlaying}
           songKey={`${songTitle}___${songArtist || ''}`}
@@ -328,7 +328,7 @@ export const TvStandaloneDisplay: React.FC = () => {
                       : 'text-xl sm:text-3xl md:text-4xl font-extrabold';
 
                   return (
-                    <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)]`}>
+                    <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
                       {computeIntelligentWordFills(
                         { ...currentLyric, text: textClean },
                         currentTime,
@@ -337,19 +337,18 @@ export const TvStandaloneDisplay: React.FC = () => {
                       ).map((item, wIdx) => {
                         return (
                           <span key={wIdx} className="relative inline-block select-none">
-                            {/* Layer 1: Base Unsung Word (Clean, crisp dim text with shadow) */}
-                            <span className="text-white/45 inline-block drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                            {/* Layer 1: Base Unsung Word (Clean, solid dim text without shadows) */}
+                            <span className="text-white/30 inline-block">
                               {item.word}
                             </span>
 
-                            {/* Layer 2: Active Sweeping Highlight Word (Glowing neon with high-contrast outline) */}
+                            {/* Layer 2: Active Sweeping Highlight Word (Solid, crisp glyph fill without glow) */}
                             {item.fillPercentage > 0 && (
                               <span
                                 className="absolute inset-0 inline-block pointer-events-none"
                                 style={{
                                   clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
                                   color: curArtist.color,
-                                  textShadow: `0 0 24px ${curArtist.color}aa, 0 0 12px ${curArtist.color}88, 0 2px 8px rgba(0,0,0,0.95)`,
                                 }}
                               >
                                 {item.word}
