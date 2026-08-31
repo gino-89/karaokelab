@@ -88,8 +88,9 @@ export const TvStandaloneDisplay: React.FC = () => {
     return () => { isMounted = false; };
   }, [tvState?.songTitle, tvState?.songArtist, videoBgConfig.enabled, videoBgConfig.mode, tvState?.videoBgConfig, tvState?.youTubeEmbedId]);
 
-  // Synchronize Host isPlaying directly to the TV's YouTube player
+  // Synchronize Host isPlaying and Seeking directly to the TV's YouTube player
   const ytTvIframeRef = useRef<HTMLIFrameElement>(null);
+  const lastSyncTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!tvState?.youTubeEmbedId) return;
@@ -105,6 +106,23 @@ export const TvStandaloneDisplay: React.FC = () => {
       }
     } catch (_) {}
   }, [tvState?.isPlaying, tvState?.youTubeEmbedId]);
+
+  useEffect(() => {
+    if (!tvState?.youTubeEmbedId || tvState.currentTime === undefined) return;
+    const diff = Math.abs(tvState.currentTime - lastSyncTimeRef.current);
+    // If time jumps by more than 3 seconds (host user scrubbed the timeline), seek TV player to match
+    if (diff > 3) {
+      lastSyncTimeRef.current = tvState.currentTime;
+      try {
+        const win = ytTvIframeRef.current?.contentWindow;
+        if (win) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [tvState.currentTime, true] }), '*');
+        }
+      } catch (_) {}
+    } else {
+      lastSyncTimeRef.current = tvState.currentTime;
+    }
+  }, [tvState?.currentTime, tvState?.youTubeEmbedId]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -232,12 +250,14 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV (Zero Buttons / Pure Screen) ──
   if (youTubeEmbedId) {
+    const startSec = Math.max(0, Math.floor(currentTime || 0));
+
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${youTubeEmbedId}`}
-          src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+          src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&start=${startSec}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
           title="YouTube Karaoke TV"
           className="w-full h-full border-0 pointer-events-none scale-[1.02]"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -247,6 +267,9 @@ export const TvStandaloneDisplay: React.FC = () => {
               const win = ytTvIframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
+                if (startSec > 0) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
+                }
                 if (tvState.isPlaying) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 } else {
