@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import QRCode from 'qrcode';
 import { QrCode, Smartphone, X, Copy, Check, Users, Wifi, UserX, RefreshCw } from 'lucide-react';
 import { peerSync, ConnectedGuest } from '../services/peerSyncService';
 
@@ -12,50 +11,18 @@ interface QrCodeModalProps {
 export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [connectedGuests, setConnectedGuests] = useState<ConnectedGuest[]>([]);
-  const [qrKey, setQrKey] = useState<string>(() => peerSync.getQrKey());
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [qrKey, setQrKey] = useState<string>(peerSync.getQrKey());
 
-  const effectiveHostId = hostPeerId || peerSync.getHostId();
-
-  const guestUrl = typeof window !== 'undefined' && effectiveHostId
-    ? `${window.location.origin}/?mode=guest&host=${effectiveHostId}&k=${qrKey}`
-    : typeof window !== 'undefined'
-      ? `${window.location.origin}/?mode=guest`
-      : 'https://karaokelab.vercel.app/?mode=guest';
-
-  // Generate local high-contrast QR code Data URL
+  // Subscribe to guest connection changes & refresh QR key
   useEffect(() => {
     if (!isOpen) return;
 
-    let isMounted = true;
-    QRCode.toDataURL(guestUrl, {
-      width: 300,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#ffffff',
-      },
-      errorCorrectionLevel: 'M',
-    })
-      .then((url) => {
-        if (isMounted) setQrDataUrl(url);
-      })
-      .catch((err) => {
-        console.error('QR creation error:', err);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, guestUrl]);
-
-  // Guest list subscriptions
-  useEffect(() => {
-    if (!isOpen) return;
+    setQrKey(peerSync.getQrKey());
     setConnectedGuests(peerSync.getConnectedGuests());
 
     const unsub = peerSync.onGuestsChanged((guests) => {
       setConnectedGuests([...guests]);
+      setQrKey(peerSync.getQrKey());
     });
 
     return () => unsub();
@@ -63,11 +30,20 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
 
   if (!isOpen) return null;
 
+  const effectiveHostId = hostPeerId || peerSync.getHostId();
+
+  // WebRTC QR URL with dynamic session key &k=
+  const guestUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.host}?mode=guest${effectiveHostId ? `&host=${effectiveHostId}` : ''}&k=${qrKey}`
+    : 'http://localhost:3005/?mode=guest';
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(guestUrl)}&color=00f0ff&bgcolor=080811`;
+
   const handleCopyLink = () => {
     try {
       navigator.clipboard.writeText(guestUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     } catch (_) {}
   };
 
@@ -84,21 +60,16 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm bg-slate-900 border border-cyan-500/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-center"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-[#0b0d17] border border-cyan-500/40 rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.25)] overflow-hidden flex flex-col text-center relative z-50">
+        
         {/* Header */}
-        <div className="px-5 py-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
-            <QrCode className="w-4 h-4 text-cyan-400" />
+        <div className="px-5 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs">
+            <QrCode className="w-4 h-4 text-[#00f0ff]" />
             <span className="uppercase tracking-wider">QR Biblioteca</span>
             {connectedGuests.length > 0 && (
-              <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold font-mono">
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold font-mono">
                 {connectedGuests.length} online
               </span>
             )}
@@ -108,9 +79,9 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
               type="button"
               onClick={handleRegenerateQr}
               className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-cyan-200 cursor-pointer transition-colors"
-              title="Regenerar Código QR"
+              title="Regenerar Código QR nuevo"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
@@ -170,19 +141,21 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
         )}
 
         {/* QR Code Container */}
-        <div className="p-6 flex flex-col items-center gap-4 bg-slate-900">
-          <div className="p-3 bg-white rounded-2xl shadow-xl w-60 h-60 flex items-center justify-center">
-            {qrDataUrl ? (
-              <img
-                src={qrDataUrl}
-                alt="Código QR Biblioteca"
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-slate-600 gap-2">
-                <RefreshCw className="w-8 h-8 animate-spin text-cyan-600" />
-                <span className="text-xs font-bold text-slate-700">Generando QR...</span>
+        <div className="p-6 flex flex-col items-center gap-4">
+          <div className="p-3 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.3)] min-h-[240px] min-w-[240px] flex items-center justify-center">
+            {!effectiveHostId ? (
+              <div className="flex flex-col items-center justify-center text-cyan-400">
+                <RefreshCw className="w-8 h-8 animate-spin mb-3" />
+                <span className="text-xs font-bold uppercase tracking-wider">Iniciando...</span>
               </div>
+            ) : (
+              <img
+                key={qrImageUrl}
+                src={qrImageUrl}
+                alt="Código QR para pedir canción"
+                className="w-56 h-56 rounded-xl object-contain bg-slate-950"
+                loading="eager"
+              />
             )}
           </div>
 
@@ -191,13 +164,13 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
               <Smartphone className="w-4 h-4 text-emerald-400" />
               <span>Escanea desde tu Celular</span>
             </h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs">
-              Tus invitados pueden explorar la biblioteca y pedir canciones a la cola desde su móvil.
+            <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+              Los invitados pueden buscar canciones y agregarlas a la cola desde su móvil.
             </p>
           </div>
 
           {/* Copy Link Input */}
-          <div className="w-full flex items-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs">
+          <div className="w-full flex items-center gap-2 p-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
             <input
               type="text"
               readOnly
@@ -207,7 +180,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
             <button
               type="button"
               onClick={handleCopyLink}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shrink-0 flex items-center gap-1 cursor-pointer transition-all"
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] shrink-0 flex items-center gap-1 cursor-pointer transition-all"
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Copiado' : 'Copiar'}</span>

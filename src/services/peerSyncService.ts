@@ -97,6 +97,26 @@ class PeerSyncService {
     }
   }
 
+  public getOrCreateHostId(forceNew = false): string {
+    const STORAGE_KEY = 'karaokelab_p2p_host_id';
+    if (!forceNew && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved && saved.startsWith('klab_host_')) {
+          return saved;
+        }
+      } catch (_) {}
+    }
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const newId = `klab_host_${randomSuffix}`;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, newId);
+      } catch (_) {}
+    }
+    return newId;
+  }
+
   // Regenerate fresh room code and reconnect host peer
   public regenerateHost(
     onPeerIdReady?: (peerId: string) => void,
@@ -123,6 +143,7 @@ class PeerSyncService {
     }
     this.hostId = null;
 
+    this.getOrCreateHostId(true);
     this.initHost(onCommand || this.onCommandCallback || (() => {}), onPeerIdReady);
   }
 
@@ -142,9 +163,8 @@ class PeerSyncService {
       return;
     }
 
-    // Create fresh unique room ID
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const sessionPeerId = `klab_host_${randomSuffix}`;
+    // Use stored persistent room ID or create a new one
+    const sessionPeerId = this.getOrCreateHostId();
 
     try {
       this.peer = new Peer(sessionPeerId, PEER_CONFIG);
@@ -509,11 +529,7 @@ class PeerSyncService {
     onProfilesReceived?: (profiles: SingerProfile[]) => void,
     onYtFavoritesReceived?: (favorites: YouTubeFavoriteTrack[]) => void
   ) {
-    let cleanHostId = targetHostId;
-    if (cleanHostId && !cleanHostId.startsWith('klab_host_')) {
-      cleanHostId = `klab_host_${cleanHostId}`;
-    }
-    this.targetHostId = cleanHostId;
+    this.targetHostId = targetHostId;
 
     if (this.peer && !this.peer.destroyed) {
       try {
@@ -531,14 +547,14 @@ class PeerSyncService {
       this.peer = new Peer(PEER_CONFIG);
 
       this.peer.on('open', () => {
-        if (!this.peer || !cleanHostId) return;
+        if (!this.peer || !targetHostId) return;
 
-        console.log(`Connecting to Host: ${cleanHostId}`);
-        const conn = this.peer.connect(cleanHostId);
+        console.log(`Connecting to Host: ${targetHostId}`);
+        const conn = this.peer.connect(targetHostId);
         this.hostConnection = conn;
 
         conn.on('open', () => {
-          console.log('✓ WebRTC P2P connected to Host:', cleanHostId);
+          console.log('✓ WebRTC P2P connected to Host:', targetHostId);
           this.lastHeartbeatReceived = Date.now();
           this._setConnectionStatus('connected');
 
@@ -548,16 +564,16 @@ class PeerSyncService {
             payload: { name: savedName },
           });
 
-          // Start Heartbeat monitor on Guest: check every 4s
+          // Start Heartbeat monitor on Guest: check every 3s
           if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
           this.guestHeartbeatMonitorTimer = setInterval(() => {
             const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 20000) {
+            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 8000) {
               this._setConnectionStatus('disconnected');
             } else {
               this._setConnectionStatus('connected');
             }
-          }, 4000);
+          }, 2500);
         });
 
         conn.on('data', (data: any) => {
