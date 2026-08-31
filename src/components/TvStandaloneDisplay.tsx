@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { tvBroadcast, TvStatePayload } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
@@ -87,6 +87,32 @@ export const TvStandaloneDisplay: React.FC = () => {
 
     return () => { isMounted = false; };
   }, [tvState?.songTitle, tvState?.songArtist, videoBgConfig.enabled, videoBgConfig.mode, tvState?.videoBgConfig]);
+
+  // Keep YouTube video playing on TV when refocusing or changing screens
+  const ytTvIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    if (!tvState?.youTubeEmbedId) return;
+
+    const ensureTvPlayback = () => {
+      if (tvState?.isPlaying && tvState.youTubeEmbedId) {
+        try {
+          const win = ytTvIframeRef.current?.contentWindow;
+          if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+          }
+        } catch (_) {}
+      }
+    };
+
+    window.addEventListener('focus', ensureTvPlayback);
+    document.addEventListener('visibilitychange', ensureTvPlayback);
+
+    return () => {
+      window.removeEventListener('focus', ensureTvPlayback);
+      document.removeEventListener('visibilitychange', ensureTvPlayback);
+    };
+  }, [tvState?.youTubeEmbedId, tvState?.isPlaying]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -292,7 +318,9 @@ export const TvStandaloneDisplay: React.FC = () => {
           /* Embedded YouTube Video Mode for TV */
           <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-red-500/40 bg-black">
             <iframe
-              src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=0&modestbranding=1&rel=0`}
+              ref={ytTvIframeRef}
+              key={`yt_tv_${youTubeEmbedId}`}
+              src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
               title="YouTube Karaoke TV"
               className="w-full h-full border-0"
               allow="autoplay; encrypted-media"

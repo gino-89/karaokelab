@@ -268,6 +268,65 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       }
     }
   }, [songTitle, songArtist, artists, currentSongKey, isDuetMode, onToggleDuetMode, isEditorOpen]);
+
+  // ── YouTube Embedded Playback Handler (Auto-Advance on Video End & Tab-Switch Resilience) ──
+  const ytIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    if (!youTubeEmbedId) return;
+
+    let hasHandledEnd = false;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch (_) {
+            return;
+          }
+        }
+
+        // YouTube PlayerState: -1 = unstarted, 0 = ended, 1 = playing, 2 = paused, 3 = buffering, 5 = cued
+        const isEnded =
+          (data?.event === 'onStateChange' && (data?.info === 0 || data?.info === '0')) ||
+          (data?.event === 'infoDelivery' && (data?.info?.playerState === 0 || data?.info?.playerState === '0'));
+
+        if (isEnded && !hasHandledEnd) {
+          hasHandledEnd = true;
+          console.log('✓ YouTube video ended naturally, auto-advancing to next song in queue...');
+          onNextInQueue?.();
+        }
+      } catch (_) {}
+    };
+
+    // Ensure playback keeps running when switching windows or tabs
+    const ensurePlayback = () => {
+      if (isPlaying && youTubeEmbedId) {
+        try {
+          const win = ytIframeRef.current?.contentWindow;
+          if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+          }
+        } catch (_) {}
+      }
+    };
+
+    const handleVisibilityOrFocus = () => {
+      ensurePlayback();
+    };
+
+    window.addEventListener('message', handleMessage);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, [youTubeEmbedId, isPlaying, onNextInQueue]);
   const [visualLines, setVisualLines] = useState<LyricLine[]>([]);
   const [isLiveTapSync, setIsLiveTapSync] = useState(false);
   const [liveTapIdx, setLiveTapIdx] = useState(0);
@@ -1291,7 +1350,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           {youTubeEmbedId ? (
             <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20">
               <iframe
-                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
+                ref={ytIframeRef}
+                key={`yt_stage_${youTubeEmbedId}`}
+                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                 title={songTitle || 'YouTube Karaoke Player'}
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
