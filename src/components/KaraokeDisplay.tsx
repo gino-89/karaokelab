@@ -269,7 +269,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     }
   }, [songTitle, songArtist, artists, currentSongKey, isDuetMode, onToggleDuetMode, isEditorOpen]);
 
-  // ── YouTube Embedded Playback Handler (Auto-Advance on Video End) ──
+  // ── YouTube Embedded Playback Handler (Auto-Advance on Video End & Instant Autoplay) ──
   const ytIframeRef = useRef<HTMLIFrameElement>(null);
   const onNextInQueueRef = useRef(onNextInQueue);
   useEffect(() => {
@@ -280,6 +280,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     if (!youTubeEmbedId) return;
 
     let hasHandledEnd = false;
+
+    // Send playVideo immediately upon switching from MP3 or queue item
+    const playTimer = setTimeout(() => {
+      try {
+        const win = ytIframeRef.current?.contentWindow;
+        if (win) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+        }
+      } catch (_) {}
+    }, 400);
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -311,6 +321,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     window.addEventListener('message', handleMessage);
 
     return () => {
+      clearTimeout(playTimer);
       window.removeEventListener('message', handleMessage);
     };
   }, [youTubeEmbedId]);
@@ -1347,10 +1358,17 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 allowFullScreen
                 onLoad={() => {
                   try {
-                    ytIframeRef.current?.contentWindow?.postMessage(
-                      JSON.stringify({ event: 'listening', id: youTubeEmbedId }),
-                      '*'
-                    );
+                    const win = ytIframeRef.current?.contentWindow;
+                    if (win) {
+                      win.postMessage(
+                        JSON.stringify({ event: 'listening', id: youTubeEmbedId }),
+                        '*'
+                      );
+                      win.postMessage(
+                        JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+                        '*'
+                      );
+                    }
                   } catch (_) {}
                 }}
               />
