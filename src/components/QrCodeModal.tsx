@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { QrCode, Smartphone, X, Copy, Check, Users, Wifi, UserX, RefreshCw } from 'lucide-react';
 import { peerSync, ConnectedGuest } from '../services/peerSyncService';
 
@@ -12,13 +13,26 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   const [copied, setCopied] = useState(false);
   const [connectedGuests, setConnectedGuests] = useState<ConnectedGuest[]>([]);
   const [qrKey, setQrKey] = useState<string>(peerSync.getQrKey());
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [currentHostId, setCurrentHostId] = useState<string>(
+    hostPeerId || peerSync.getHostId() || peerSync.getOrCreateHostId()
+  );
 
   // Subscribe to guest connection changes & refresh QR key
   useEffect(() => {
     if (!isOpen) return;
 
+    const effId = hostPeerId || peerSync.getHostId() || peerSync.getOrCreateHostId();
+    setCurrentHostId(effId);
     setQrKey(peerSync.getQrKey());
     setConnectedGuests(peerSync.getConnectedGuests());
+
+    if (!peerSync.getHostId()) {
+      peerSync.initHost(
+        () => {},
+        (id) => setCurrentHostId(id)
+      );
+    }
 
     const unsub = peerSync.onGuestsChanged((guests) => {
       setConnectedGuests([...guests]);
@@ -26,18 +40,37 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
     });
 
     return () => unsub();
-  }, [isOpen]);
+  }, [isOpen, hostPeerId]);
 
   if (!isOpen) return null;
 
-  const effectiveHostId = hostPeerId || peerSync.getHostId();
+  const effectiveHostId = currentHostId || hostPeerId || peerSync.getHostId() || peerSync.getOrCreateHostId();
 
   // WebRTC QR URL with dynamic session key &k=
   const guestUrl = typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.host}?mode=guest${effectiveHostId ? `&host=${effectiveHostId}` : ''}&k=${qrKey}`
-    : 'http://localhost:3005/?mode=guest';
+    ? `${window.location.origin}/?mode=guest&host=${effectiveHostId}&k=${qrKey}`
+    : 'https://karaokelab.vercel.app/?mode=guest';
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(guestUrl)}&color=00f0ff&bgcolor=080811`;
+  // Generate QR code 100% locally and instantaneously with zero external dependencies
+  useEffect(() => {
+    if (!isOpen || !guestUrl) return;
+
+    QRCode.toDataURL(guestUrl, {
+      width: 320,
+      margin: 2,
+      color: {
+        dark: '#00f0ff',
+        light: '#080811',
+      },
+      errorCorrectionLevel: 'M',
+    })
+      .then((dataUrl) => {
+        setQrDataUrl(dataUrl);
+      })
+      .catch((err) => {
+        console.error('Local QR generation error:', err);
+      });
+  }, [isOpen, guestUrl]);
 
   const handleCopyLink = () => {
     try {
@@ -143,18 +176,16 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
         {/* QR Code Container */}
         <div className="p-6 flex flex-col items-center gap-4">
           <div className="p-3 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.3)] min-h-[240px] min-w-[240px] flex items-center justify-center">
-            {!effectiveHostId ? (
+            {!qrDataUrl ? (
               <div className="flex flex-col items-center justify-center text-cyan-400">
                 <RefreshCw className="w-8 h-8 animate-spin mb-3" />
-                <span className="text-xs font-bold uppercase tracking-wider">Iniciando...</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Generando QR...</span>
               </div>
             ) : (
               <img
-                key={qrImageUrl}
-                src={qrImageUrl}
+                src={qrDataUrl}
                 alt="Código QR para pedir canción"
-                className="w-56 h-56 rounded-xl object-contain bg-slate-950"
-                loading="eager"
+                className="w-56 h-56 rounded-xl object-contain bg-[#080811]"
               />
             )}
           </div>

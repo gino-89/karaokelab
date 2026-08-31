@@ -270,8 +270,12 @@ class PeerSyncService {
         });
       });
 
-      this.peer.on('error', (err) => {
+      this.peer.on('error', (err: any) => {
         console.warn('Host PeerJS warning:', err);
+        if (err?.type === 'unavailable-id') {
+          console.log('Host ID unavailable, regenerating fresh session...');
+          this.regenerateHost(onPeerIdReady, onCommand);
+        }
       });
     } catch (e) {
       console.warn('Host PeerJS init exception:', e);
@@ -510,7 +514,11 @@ class PeerSyncService {
     onProfilesReceived?: (profiles: SingerProfile[]) => void,
     onYtFavoritesReceived?: (favorites: YouTubeFavoriteTrack[]) => void
   ) {
-    this.targetHostId = targetHostId;
+    let cleanHostId = targetHostId;
+    if (cleanHostId && !cleanHostId.startsWith('klab_host_')) {
+      cleanHostId = `klab_host_${cleanHostId}`;
+    }
+    this.targetHostId = cleanHostId;
 
     if (this.peer && !this.peer.destroyed) {
       try {
@@ -528,14 +536,14 @@ class PeerSyncService {
       this.peer = new Peer(PEER_CONFIG);
 
       this.peer.on('open', () => {
-        if (!this.peer || !targetHostId) return;
+        if (!this.peer || !cleanHostId) return;
 
-        console.log(`Connecting to Host: ${targetHostId}`);
-        const conn = this.peer.connect(targetHostId);
+        console.log(`Connecting to Host: ${cleanHostId}`);
+        const conn = this.peer.connect(cleanHostId, { reliable: true });
         this.hostConnection = conn;
 
         conn.on('open', () => {
-          console.log('✓ WebRTC P2P connected to Host:', targetHostId);
+          console.log('✓ WebRTC P2P connected to Host:', cleanHostId);
           this.lastHeartbeatReceived = Date.now();
           this._setConnectionStatus('connected');
 
