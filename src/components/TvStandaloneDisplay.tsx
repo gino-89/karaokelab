@@ -274,9 +274,9 @@ export const TvStandaloneDisplay: React.FC = () => {
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${cleanYoutubeId}`}
-          src={`https://www.youtube-nocookie.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${cleanYoutubeId}${startSec > 0 ? `&start=${startSec}` : ''}`}
+          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0 pointer-events-none"
+          className="w-full h-full border-0"
           style={{ width: '100vw', height: '100vh' }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -285,24 +285,13 @@ export const TvStandaloneDisplay: React.FC = () => {
               const win = ytTvIframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
+                win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 if (startSec > 0) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [startSec, true] }), '*');
-                }
-                if (tvState.isPlaying) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
-                } else {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
                 }
               }
             } catch (_) {}
           }}
-        />
-
-        {/* Invisible shield to block any YouTube UI popups or hover buttons */}
-        <div
-          onClick={toggleFullscreen}
-          className="absolute inset-0 z-30 cursor-pointer"
-          title="Haz clic para Pantalla Completa"
         />
 
         {/* Clean Cinema Overlay for TV */}
@@ -310,7 +299,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white text-xs font-bold shadow-2xl">
             <span className="text-red-500 font-extrabold font-mono">● LIVE</span>
             <span>·</span>
-            <span className="truncate max-w-md">{songTitle}</span>
+            <span className="truncate max-w-md">{songTitle || 'Video de YouTube'}</span>
             {songArtist && <span className="text-cyan-400 truncate max-w-xs">({songArtist})</span>}
           </div>
 
