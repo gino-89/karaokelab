@@ -1,6 +1,6 @@
 import React from 'react';
 import { QueueItem, SongItem } from '../types';
-import { Layers, Play, Pause, Loader2, CheckCircle2, AlertCircle, Music2, X, Volume2, Square } from 'lucide-react';
+import { Layers, Play, Pause, Loader2, CheckCircle2, AlertCircle, Music2, X, Volume2, Square, Trash2 } from 'lucide-react';
 
 interface SongQueueProps {
   queue: QueueItem[];
@@ -114,56 +114,46 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
 
       {/* Queue Items List (Upcoming Tracks) */}
       <div className="flex flex-col max-h-72 overflow-y-auto divide-y divide-slate-850">
-        {queue.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 text-slate-500 font-mono text-[11px] gap-1 px-4 text-center">
-            <Music2 className="w-4 h-4 opacity-40" />
-            <span className="font-semibold text-slate-400">
-              {currentSong ? 'Sin más canciones en espera' : 'Sin pistas en la cola'}
-            </span>
-            <span className="text-[10px] text-slate-600">
-              Usa el botón "+ Cola" en cualquier canción para agregarla a la lista de espera
-            </span>
-          </div>
-        ) : (
-          queue.map((item) => {
+        {(() => {
+          const upcomingQueue = queue.filter(
+            (item) =>
+              !currentSong ||
+              (item.songData?.id !== currentSong.id &&
+                item.id !== currentSong.id &&
+                (!currentSong.id.startsWith('yt_') || item.songData?.id !== `yt_${currentSong.id.replace('yt_', '')}`))
+          );
+
+          if (upcomingQueue.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center py-6 text-slate-500 font-mono text-[11px] gap-1 px-4 text-center">
+                <Music2 className="w-4 h-4 opacity-40" />
+                <span className="font-semibold text-slate-400">
+                  {currentSong ? 'Sin más canciones en espera' : 'Sin pistas en la cola'}
+                </span>
+                <span className="text-[10px] text-slate-600">
+                  Usa el botón "+ Cola" en cualquier canción para agregarla a la lista de espera
+                </span>
+              </div>
+            );
+          }
+
+          return upcomingQueue.map((item) => {
             const isReady = item.status === 'ready';
             const isError = item.status === 'error';
             const isProcessing = !isReady && !isError;
-            const isThisCurrentSong = !!(item.songData && activeSongId === item.songData.id);
 
             return (
               <div
                 key={item.id}
                 onClick={() => {
-                  if (isThisCurrentSong && onTogglePlay) {
-                    onTogglePlay();
-                  } else if (item.songData && isReady) {
+                  if (item.songData && isReady) {
                     onSelectSong(item.songData);
                   }
                 }}
-                className={`flex items-center gap-2 px-3 py-2.5 transition-colors group cursor-pointer ${
-                  isThisCurrentSong
-                    ? 'bg-gradient-to-r from-emerald-950/40 to-slate-900/60 border-l-2 border-[#00ff9d]'
-                    : 'hover:bg-slate-800/40'
-                }`}
+                className="flex items-center gap-2 px-3 py-2.5 transition-colors group cursor-pointer hover:bg-slate-800/40"
               >
                 <div className="shrink-0">
-                  {isThisCurrentSong ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onTogglePlay && onTogglePlay();
-                      }}
-                      className="w-5 h-5 rounded-full bg-[#00ff9d]/20 border border-[#00ff9d] flex items-center justify-center text-[#00ff9d] cursor-pointer hover:scale-110 transition-transform"
-                      title={isPlaying ? 'Pausar canción' : 'Reanudar canción'}
-                    >
-                      {isPlaying ? (
-                        <Volume2 className="w-3 h-3 animate-pulse" />
-                      ) : (
-                        <Play className="w-3 h-3 fill-current ml-0.5" />
-                      )}
-                    </button>
-                  ) : isReady ? (
+                  {isReady ? (
                     <CheckCircle2 className="w-4 h-4 text-[#00ff9d]" />
                   ) : isError ? (
                     <AlertCircle className="w-4 h-4 text-[#ff007f]" />
@@ -174,14 +164,9 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
 
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`text-[11px] font-semibold truncate ${isThisCurrentSong ? 'text-[#00ff9d] font-bold' : 'text-white'}`}>
+                    <span className="text-[11px] font-semibold truncate text-white">
                       {item.fileName}
                     </span>
-                    {isThisCurrentSong && (
-                      <span className="flex items-center gap-1 text-[8px] font-mono font-bold text-[#00ff9d] bg-[#00ff9d]/15 px-1 py-0.2 rounded border border-[#00ff9d]/40 shrink-0">
-                        {isPlaying ? '● SONANDO' : 'EN PAUSA'}
-                      </span>
-                    )}
                     {item.requestedBy && (
                       <span
                         className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded-full border border-cyan-500/40 shrink-0 shadow-sm"
@@ -218,25 +203,14 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  {isThisCurrentSong && onTogglePlay ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onTogglePlay();
-                      }}
-                      className="p-1.5 rounded-lg bg-[#00ff9d]/20 text-[#00ff9d] hover:bg-[#00ff9d]/30 cursor-pointer transition-all"
-                      title={isPlaying ? 'Pausar canción' : 'Reanudar canción'}
-                    >
-                      {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                    </button>
-                  ) : isReady && item.songData ? (
+                  {isReady && item.songData ? (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectSong(item.songData!);
                       }}
-                      className="p-1.5 rounded-lg bg-[#00ff9d]/20 text-[#00ff9d] hover:bg-[#00ff9d]/30 cursor-pointer transition-all"
-                      title="Cargar y reproducir"
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-[#00ff9d]/20 text-slate-400 hover:text-[#00ff9d] border border-slate-700 hover:border-[#00ff9d]/40 cursor-pointer transition-all"
+                      title="Reproducir ahora"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
                     </button>
@@ -248,17 +222,17 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                         e.stopPropagation();
                         onRemoveFromQueue(item.id);
                       }}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-[#ff007f] hover:bg-[#ff007f]/10 opacity-0 group-hover:opacity-100 cursor-pointer transition-all"
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-slate-700 hover:border-rose-800/40 cursor-pointer transition-colors"
                       title="Quitar de la cola"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               </div>
             );
-          })
-        )}
+          });
+        })()}
       </div>
     </div>
   );

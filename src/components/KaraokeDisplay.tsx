@@ -291,12 +291,24 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         // YouTube PlayerState: -1 = unstarted, 0 = ended, 1 = playing, 2 = paused, 3 = buffering, 5 = cued
         const isEnded =
           (data?.event === 'onStateChange' && (data?.info === 0 || data?.info === '0')) ||
-          (data?.event === 'infoDelivery' && (data?.info?.playerState === 0 || data?.info?.playerState === '0'));
+          (data?.event === 'infoDelivery' && (data?.info?.playerState === 0 || data?.info?.playerState === '0')) ||
+          (data?.infoDelivery?.playerState === 0 || data?.infoDelivery?.playerState === '0');
 
         if (isEnded && !hasHandledEnd) {
           hasHandledEnd = true;
           console.log('✓ YouTube video ended naturally, auto-advancing to next song in queue...');
           onNextInQueue?.();
+        }
+      } catch (_) {}
+    };
+
+    // Keep YouTube player API listening and responsive
+    const initIframeEvents = () => {
+      try {
+        const win = ytIframeRef.current?.contentWindow;
+        if (win) {
+          win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
+          win.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }), '*');
         }
       } catch (_) {}
     };
@@ -317,11 +329,14 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       ensurePlayback();
     };
 
+    const timer = setInterval(initIframeEvents, 1500);
+
     window.addEventListener('message', handleMessage);
     window.addEventListener('focus', handleVisibilityOrFocus);
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
 
     return () => {
+      clearInterval(timer);
       window.removeEventListener('message', handleMessage);
       window.removeEventListener('focus', handleVisibilityOrFocus);
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
@@ -1350,6 +1365,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           {youTubeEmbedId ? (
             <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20">
               <iframe
+                id="karaokelab-yt-stage-iframe"
                 ref={ytIframeRef}
                 key={`yt_stage_${youTubeEmbedId}`}
                 src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
@@ -1357,6 +1373,14 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                onLoad={() => {
+                  try {
+                    ytIframeRef.current?.contentWindow?.postMessage(
+                      JSON.stringify({ event: 'listening', id: youTubeEmbedId }),
+                      '*'
+                    );
+                  } catch (_) {}
+                }}
               />
             </div>
           ) : (

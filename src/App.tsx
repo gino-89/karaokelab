@@ -1450,21 +1450,40 @@ export default function App() {
   };
 
   // Play next song in queue (skip current song and load next ready track)
-  const handleNextInQueue = () => {
-    const nextItem = queue.find((q) => q.status === 'ready' && q.songData && q.songData.id !== currentSong?.id);
-    if (!nextItem || !nextItem.songData) return;
+  const handleNextInQueue = useCallback(() => {
+    setQueue((prevQueue) => {
+      const nextItem = prevQueue.find((q) => {
+        if (q.status !== 'ready' || !q.songData) return false;
+        if (!currentSong) return true;
+        const curId = currentSong.id;
+        const cleanCurId = curId.replace('yt_', '');
+        const qId = q.songData.id;
+        const cleanQId = qId.replace('yt_', '');
+        return cleanQId !== cleanCurId && q.id !== curId;
+      });
 
-    setQueue((prevQueue) =>
-      prevQueue.filter(
+      if (!nextItem || !nextItem.songData) {
+        console.log('No next item in queue');
+        return prevQueue;
+      }
+
+      const nextSongData = nextItem.songData;
+
+      // Filter out next item and current song from queue
+      const updatedQueue = prevQueue.filter(
         (q) =>
           q.id !== nextItem.id &&
-          (!currentSong || (q.songData?.id !== currentSong.id && q.id !== currentSong.id))
-      )
-    );
+          (!currentSong ||
+            (q.songData?.id !== currentSong.id &&
+              q.id !== currentSong.id &&
+              (!currentSong.id.startsWith('yt_') || q.songData?.id !== `yt_${currentSong.id.replace('yt_', '')}`)))
+      );
 
-    audioEngine.stop();
-    loadSongIntoEngine(nextItem.songData, true);
-  };
+      audioEngine.stop();
+      loadSongIntoEngine(nextSongData, true);
+      return updatedQueue;
+    });
+  }, [currentSong]);
 
   // Auto-play next song in queue with Score & Countdown Intermission when track ends
   useEffect(() => {
@@ -1733,6 +1752,14 @@ export default function App() {
   };
 
   const handleSelectSongForPlayback = useCallback((song: SongItem) => {
+    setQueue((prevQueue) =>
+      prevQueue.filter(
+        (q) =>
+          q.songData?.id !== song.id &&
+          q.id !== song.id &&
+          (!song.id.startsWith('yt_') || q.songData?.id !== `yt_${song.id.replace('yt_', '')}`)
+      )
+    );
     loadSongIntoEngine(song, true);
   }, []);
 
