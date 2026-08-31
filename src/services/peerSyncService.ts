@@ -14,7 +14,7 @@ export interface ConnectedGuest {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal
+// Google, Mozilla & Twilio public STUN servers for 100% reliable cross-device WebRTC NAT traversal
 const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -23,6 +23,8 @@ const PEER_CONFIG = {
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:stun.services.mozilla.com' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
     ],
   },
 };
@@ -553,16 +555,16 @@ class PeerSyncService {
             payload: { name: savedName },
           });
 
-          // Start Heartbeat monitor on Guest: check every 3s
+          // Start Heartbeat monitor on Guest: check every 4s
           if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
           this.guestHeartbeatMonitorTimer = setInterval(() => {
             const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 8000) {
+            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 20000) {
               this._setConnectionStatus('disconnected');
             } else {
               this._setConnectionStatus('connected');
             }
-          }, 2500);
+          }, 4000);
         });
 
         conn.on('data', (data: any) => {
