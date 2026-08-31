@@ -161,7 +161,7 @@ class PeerSyncService {
         console.log('✓ Host PeerJS online with ID:', id);
         if (onPeerIdReady) onPeerIdReady(id);
 
-        // Start sending periodic heartbeats to all connected guests every 3s
+        // Start sending periodic heartbeats to all connected guests every 1.5s
         if (this.hostHeartbeatTimer) clearInterval(this.hostHeartbeatTimer);
         this.hostHeartbeatTimer = setInterval(() => {
           this.guestConnections.forEach((conn) => {
@@ -171,7 +171,7 @@ class PeerSyncService {
               } catch (_) {}
             }
           });
-        }, 3000);
+        }, 1500);
       });
 
       this.peer.on('connection', (conn) => {
@@ -462,16 +462,20 @@ class PeerSyncService {
             payload: { ts: Date.now() },
           });
 
-          // Start Heartbeat monitor on TV: check every 2.5s
+          // Start Heartbeat monitor on TV: check every 3s
           if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
           this.guestHeartbeatMonitorTimer = setInterval(() => {
+            if (!this.hostConnection || !this.hostConnection.open) {
+              this._setConnectionStatus('disconnected');
+              return;
+            }
             const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 8000) {
+            if (timeSinceLastHeartbeat > 20000) {
               this._setConnectionStatus('disconnected');
             } else {
               this._setConnectionStatus('connected');
             }
-          }, 2500);
+          }, 3000);
         });
 
         conn.on('data', (data: any) => {
@@ -554,13 +558,17 @@ class PeerSyncService {
           // Start Heartbeat monitor on Guest: check every 3s
           if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
           this.guestHeartbeatMonitorTimer = setInterval(() => {
+            if (!this.hostConnection || !this.hostConnection.open) {
+              this._setConnectionStatus('disconnected');
+              return;
+            }
             const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-            if (!this.hostConnection || !this.hostConnection.open || timeSinceLastHeartbeat > 8000) {
+            if (timeSinceLastHeartbeat > 20000) {
               this._setConnectionStatus('disconnected');
             } else {
               this._setConnectionStatus('connected');
             }
-          }, 2500);
+          }, 3000);
         });
 
         conn.on('data', (data: any) => {
