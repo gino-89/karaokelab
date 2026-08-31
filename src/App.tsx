@@ -884,11 +884,19 @@ export default function App() {
       if (song.id?.startsWith('yt_') || (song.videoBgId && !song.audioBlob && !song.stems?.instrumentalBlob)) {
         const vidId = song.videoBgId || song.id.replace('yt_', '');
         setYouTubeEmbedId(vidId);
-        setIsYouTubeModalOpen(true);
+        setIsYouTubeModalOpen(false);
         setCurrentSong(song);
+        setIsPlaying(true);
+        setDuration(song.duration || 240);
+        setCurrentTime(0);
+        setLyrics([]);
         showAlertToast(`🎬 Reproduciendo video de YouTube: "${song.title}"`);
         return;
-      } else if (song.stems?.instrumentalBlob) {
+      }
+
+      setYouTubeEmbedId(null);
+
+      if (song.stems?.instrumentalBlob) {
         const instArrayBuf = await song.stems.instrumentalBlob.arrayBuffer();
         const instBuf = await audioEngine.decodeAudio(instArrayBuf.slice(0));
         if (song.stems.vocalsBlob) {
@@ -1578,6 +1586,7 @@ export default function App() {
 
   const handleStop = () => {
     audioEngine.stop();
+    setYouTubeEmbedId(null);
     setIsPlaying(false);
     setCurrentTime(0);
     setCurrentIndex(-1);
@@ -1857,6 +1866,7 @@ export default function App() {
               songTitle={currentSong?.title || ''}
               songArtist={currentSong?.artist}
               isPlaying={isPlaying}
+              youTubeEmbedId={youTubeEmbedId}
               bpm={bpm}
               detectedKey={detectedKey}
               stems={currentSong?.stems}

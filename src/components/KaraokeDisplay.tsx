@@ -126,6 +126,7 @@ interface KaraokeDisplayProps {
   videoBgConfig?: VideoBackgroundConfig;
   onUpdateVideoBgConfig?: (newConfig: VideoBackgroundConfig) => void;
   onOpenVocalAutomation?: () => void;
+  youTubeEmbedId?: string | null;
 }
 
 export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
@@ -172,6 +173,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   videoBgConfig: externalVideoBgConfig,
   onUpdateVideoBgConfig: externalOnUpdateVideoBgConfig,
   onOpenVocalAutomation,
+  youTubeEmbedId = null,
 }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1284,174 +1286,188 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           </div>
         )}
 
-        {/* ── TELEPROMPTER LYRICS STAGE (With Dynamic Video Background, Singer Names & Smooth Typography) ── */}
+        {/* ── TELEPROMPTER LYRICS / YOUTUBE STAGE ── */}
         <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e] overflow-hidden">
-          {/* Dynamic Video Background Layer */}
-          <DynamicVideoBackground
-            config={videoBgConfig}
-            isPlaying={isPlaying}
-            songKey={`${songTitle}___${songArtist || ''}`}
-            currentTime={currentTime}
-            duration={duration}
-          />
+          {youTubeEmbedId ? (
+            <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20">
+              <iframe
+                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
+                title={songTitle || 'YouTube Karaoke Player'}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <>
+              {/* Dynamic Video Background Layer */}
+              <DynamicVideoBackground
+                config={videoBgConfig}
+                isPlaying={isPlaying}
+                songKey={`${songTitle}___${songArtist || ''}`}
+                currentTime={currentTime}
+                duration={duration}
+              />
 
-          {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
-          <div className="h-7 w-full flex items-center justify-center shrink-0">
-            {isPlaying && (
-              secondsToNext > 0.5 && secondsToNext <= 5.0 ? (
-                <div className="inline-flex items-center gap-2 px-3.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold animate-pulse">
-                  <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                  {nextLyric && (
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-black/60 text-amber-200">
+              {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
+              <div className="h-7 w-full flex items-center justify-center shrink-0 z-10">
+                {isPlaying && (
+                  secondsToNext > 0.5 && secondsToNext <= 5.0 ? (
+                    <div className="inline-flex items-center gap-2 px-3.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold animate-pulse">
+                      <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
+                      {nextLyric && (
+                        <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-black/60 text-amber-200">
+                          {(() => {
+                            const nextInfo = getArtistInfo(nextLyric.singer || nextSinger);
+                            return `${nextInfo.isBoth ? '👥' : '🎤'} ${nextInfo.name}`;
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                  ) : isSmartVocalCue && activeCueType ? (
+                    <div className="inline-flex items-center gap-2 animate-in fade-in">
+                      {activeCueType === 'intro' && (
+                        <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-indigo-500/30 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.5)] animate-pulse">
+                          ✨ ENTRADA GUÍA VOCAL (VOZ ORIGINAL)
+                        </span>
+                      )}
+                      {activeCueType === 'chorus' && (
+                        <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-purple-500/30 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.5)] animate-pulse">
+                          ✨ CORO GUÍA ACTIVO (ACOMPAÑAMIENTO)
+                        </span>
+                      )}
+                      {activeCueType === 'outro' && (
+                        <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-cyan-500/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse">
+                          ✨ REMATE / SEGUNDA VOZ
+                        </span>
+                      )}
+                    </div>
+                  ) : currentLyric ? (
+                    (() => {
+                      const info = getArtistInfo(currentLyric.singer || currentSinger);
+                      return (
+                        <div
+                          onClick={handleToggleActiveLineSinger}
+                          className="inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform font-mono text-xs font-bold uppercase tracking-wider"
+                          style={{ color: info.color }}
+                          title="Haz clic para alternar de cantante / artista"
+                        >
+                          <span>{info.isBoth ? '👥' : '🎤'}</span>
+                          <span>{info.isBoth ? `DÚO · ${info.name.toUpperCase()}` : `VOZ: ${info.name.toUpperCase()}`}</span>
+                        </div>
+                      );
+                    })()
+                  ) : null
+                )}
+              </div>
+
+              {/* SLOT 2: ACTIVE LINE STAGE WITH CLEAN LUMINOUS TYPOGRAPHY */}
+              <div className="h-[140px] w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden z-10">
+                {!isPlaying ? (
+                  <div className="flex flex-col items-center justify-center gap-2.5 text-center opacity-60">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
+                      <Music2 className="w-6 h-6 text-cyan-400/60" />
+                    </div>
+                    <p className="text-xs font-mono font-bold tracking-widest text-slate-400 uppercase">
+                      {songTitle && (audioBlob || stems?.instrumentalBlob)
+                        ? `LISTO PARA REPRODUCIR · ${songTitle}`
+                        : 'KARAOKELAB STUDIO'}
+                    </p>
+                    {!(audioBlob || stems?.instrumentalBlob) && (
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        Selecciona una canción de la biblioteca o cola para comenzar
+                      </span>
+                    )}
+                  </div>
+                ) : currentLyric ? (
+                  (() => {
+                    const textClean = cleanLyricText(currentLyric.text);
+                    const textLen = textClean.length;
+                    const fontSizeClass = textLen <= 25
+                      ? 'text-3xl sm:text-4xl lg:text-5xl'
+                      : textLen <= 50
+                        ? 'text-2xl sm:text-3xl lg:text-4xl'
+                        : 'text-xl sm:text-2xl lg:text-3xl';
+
+                    return (
+                      <div className="flex flex-col items-center justify-center gap-2 w-full overflow-hidden">
+                        <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
+                          {computeIntelligentWordFills(
+                            { ...currentLyric, text: textClean },
+                            effectiveTime,
+                            nextLyric?.time,
+                            bpm
+                          ).map((item, wIdx) => {
+                            const info = getArtistInfo(currentLyric.singer || currentSinger);
+                            return (
+                              <span key={wIdx} className="relative inline-block select-none">
+                                {/* Layer 1: Base Unsung Word (Clean, crisp dim text) */}
+                                <span className="text-white/25 inline-block">
+                                  {item.word}
+                                </span>
+
+                                {/* Layer 2: Active Sweeping Highlight Word (Strictly inside letter glyphs) */}
+                                {item.fillPercentage > 0 && (
+                                  <span
+                                    className="absolute inset-0 inline-block pointer-events-none"
+                                    style={{
+                                      clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
+                                      color: info.color,
+                                    }}
+                                  >
+                                    {item.word}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="text-center">
+                    <p className="text-xl sm:text-2xl font-bold text-slate-500 tracking-wider animate-pulse">
+                      ♫ [SOLO INSTRUMENTAL] ♫
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* SLOT 3: UPCOMING NEXT LINE PREVIEW */}
+              <div className="h-16 w-full max-w-3xl flex flex-col items-center justify-center shrink-0 overflow-hidden z-10">
+                {isPlaying && nextLyric ? (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/70 font-mono">
                       {(() => {
                         const nextInfo = getArtistInfo(nextLyric.singer || nextSinger);
-                        return `${nextInfo.isBoth ? '👥' : '🎤'} ${nextInfo.name}`;
+                        return `[PRÓXIMA: ${nextInfo.isBoth ? '👥 DÚO' : '🎤 ' + nextInfo.name.toUpperCase()}]`;
                       })()}
                     </span>
-                  )}
-                </div>
-              ) : isSmartVocalCue && activeCueType ? (
-                <div className="inline-flex items-center gap-2 animate-in fade-in">
-                  {activeCueType === 'intro' && (
-                    <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-indigo-500/30 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.5)] animate-pulse">
-                      ✨ ENTRADA GUÍA VOCAL (VOZ ORIGINAL)
-                    </span>
-                  )}
-                  {activeCueType === 'chorus' && (
-                    <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-purple-500/30 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.5)] animate-pulse">
-                      ✨ CORO GUÍA ACTIVO (ACOMPAÑAMIENTO)
-                    </span>
-                  )}
-                  {activeCueType === 'outro' && (
-                    <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-cyan-500/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse">
-                      ✨ REMATE / SEGUNDA VOZ
-                    </span>
-                  )}
-                </div>
-              ) : currentLyric ? (
-                (() => {
-                  const info = getArtistInfo(currentLyric.singer || currentSinger);
-                  return (
-                    <div
-                      onClick={handleToggleActiveLineSinger}
-                      className="inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform font-mono text-xs font-bold uppercase tracking-wider"
-                      style={{ color: info.color }}
-                      title="Haz clic para alternar de cantante / artista"
+                    <p
+                      onClick={() => onSeek(nextLyric.time)}
+                      className={`text-sm sm:text-lg font-bold transition-colors cursor-pointer truncate max-w-2xl ${
+                        !isDuetMode
+                          ? 'text-emerald-400 hover:text-emerald-300'
+                          : nextSinger === 'singer1'
+                            ? 'text-[#00f0ff]/80 hover:text-[#00f0ff]'
+                            : nextSinger === 'singer2'
+                              ? 'text-[#ff007f]/80 hover:text-[#ff007f]'
+                              : 'text-[#ffe600]/80 hover:text-[#ffe600]'
+                      }`}
                     >
-                      <span>{info.isBoth ? '👥' : '🎤'}</span>
-                      <span>{info.isBoth ? `DÚO · ${info.name.toUpperCase()}` : `VOZ: ${info.name.toUpperCase()}`}</span>
-                    </div>
-                  );
-                })()
-              ) : null
-            )}
-          </div>
-
-          {/* SLOT 2: ACTIVE LINE STAGE WITH CLEAN LUMINOUS TYPOGRAPHY */}
-          <div className="h-[140px] w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden">
-            {!isPlaying ? (
-              <div className="flex flex-col items-center justify-center gap-2.5 text-center opacity-60">
-                <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
-                  <Music2 className="w-6 h-6 text-cyan-400/60" />
-                </div>
-                <p className="text-xs font-mono font-bold tracking-widest text-slate-400 uppercase">
-                  {songTitle && (audioBlob || stems?.instrumentalBlob)
-                    ? `LISTO PARA REPRODUCIR · ${songTitle}`
-                    : 'KARAOKELAB STUDIO'}
-                </p>
-                {!(audioBlob || stems?.instrumentalBlob) && (
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    Selecciona una canción de la biblioteca o cola para comenzar
-                  </span>
-                )}
-              </div>
-            ) : currentLyric ? (
-              (() => {
-                const textClean = cleanLyricText(currentLyric.text);
-                const textLen = textClean.length;
-                const fontSizeClass = textLen <= 25
-                  ? 'text-3xl sm:text-4xl lg:text-5xl'
-                  : textLen <= 50
-                    ? 'text-2xl sm:text-3xl lg:text-4xl'
-                    : 'text-xl sm:text-2xl lg:text-3xl';
-
-                return (
-                  <div className="flex flex-col items-center justify-center gap-2 w-full overflow-hidden">
-                    <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
-                      {computeIntelligentWordFills(
-                        { ...currentLyric, text: textClean },
-                        effectiveTime,
-                        nextLyric?.time,
-                        bpm
-                      ).map((item, wIdx) => {
-                        const info = getArtistInfo(currentLyric.singer || currentSinger);
-                        return (
-                          <span key={wIdx} className="relative inline-block select-none">
-                            {/* Layer 1: Base Unsung Word (Clean, crisp dim text) */}
-                            <span className="text-white/25 inline-block">
-                              {item.word}
-                            </span>
-
-                            {/* Layer 2: Active Sweeping Highlight Word (Strictly inside letter glyphs) */}
-                            {item.fillPercentage > 0 && (
-                              <span
-                                className="absolute inset-0 inline-block pointer-events-none"
-                                style={{
-                                  clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
-                                  color: info.color,
-                                }}
-                              >
-                                {item.word}
-                              </span>
-                            )}
-                          </span>
-                        );
-                      })}
-                    </div>
+                      {cleanLyricText(nextLyric.text)}
+                    </p>
+                    {nextNextLyric && (
+                      <p className="text-[11px] text-slate-500 font-medium truncate max-w-xl">
+                        {cleanLyricText(nextNextLyric.text)}
+                      </p>
+                    )}
                   </div>
-                );
-              })()
-            ) : (
-              <div className="text-center">
-                <p className="text-xl sm:text-2xl font-bold text-slate-500 tracking-wider animate-pulse">
-                  ♫ [SOLO INSTRUMENTAL] ♫
-                </p>
+                ) : null}
               </div>
-            )}
-          </div>
-
-          {/* SLOT 3: UPCOMING NEXT LINE PREVIEW */}
-          <div className="h-16 w-full max-w-3xl flex flex-col items-center justify-center shrink-0 overflow-hidden">
-            {isPlaying && nextLyric ? (
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/70 font-mono">
-                  {(() => {
-                    const nextInfo = getArtistInfo(nextLyric.singer || nextSinger);
-                    return `[PRÓXIMA: ${nextInfo.isBoth ? '👥 DÚO' : '🎤 ' + nextInfo.name.toUpperCase()}]`;
-                  })()}
-                </span>
-                <p
-                  onClick={() => onSeek(nextLyric.time)}
-                  className={`text-sm sm:text-lg font-bold transition-colors cursor-pointer truncate max-w-2xl ${
-                    !isDuetMode
-                      ? 'text-emerald-400 hover:text-emerald-300'
-                      : nextSinger === 'singer1'
-                        ? 'text-[#00f0ff]/80 hover:text-[#00f0ff]'
-                        : nextSinger === 'singer2'
-                          ? 'text-[#ff007f]/80 hover:text-[#ff007f]'
-                          : 'text-[#ffe600]/80 hover:text-[#ffe600]'
-                  }`}
-                >
-                  {cleanLyricText(nextLyric.text)}
-                </p>
-                {nextNextLyric && (
-                  <p className="text-[11px] text-slate-500 font-medium truncate max-w-xl">
-                    {cleanLyricText(nextNextLyric.text)}
-                  </p>
-                )}
-              </div>
-            ) : null}
-          </div>
+            </>
+          )}
         </div>
 
         {/* ── Seek Bar with Live Scrubbing & Always-Visible Knob ── */}
