@@ -230,21 +230,87 @@ export const TvStandaloneDisplay: React.FC = () => {
   const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
+  // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV (Zero Buttons / Pure Screen) ──
+  if (youTubeEmbedId) {
+    return (
+      <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
+        <iframe
+          ref={ytTvIframeRef}
+          key={`yt_tv_${youTubeEmbedId}`}
+          src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+          title="YouTube Karaoke TV"
+          className="w-full h-full border-0 pointer-events-none scale-[1.02]"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onLoad={() => {
+            try {
+              const win = ytTvIframeRef.current?.contentWindow;
+              if (win) {
+                win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
+                if (tvState.isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+                }
+              }
+            } catch (_) {}
+          }}
+        />
+
+        {/* Invisible shield to block any YouTube UI popups or hover buttons */}
+        <div
+          onClick={toggleFullscreen}
+          className="absolute inset-0 z-30 cursor-pointer"
+          title="Haz clic para Pantalla Completa"
+        />
+
+        {/* Clean Cinema Overlay for TV */}
+        <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white text-xs font-bold shadow-2xl">
+            <span className="text-red-500 font-extrabold font-mono">● LIVE</span>
+            <span>·</span>
+            <span className="truncate max-w-md">{songTitle}</span>
+            {songArtist && <span className="text-cyan-400 truncate max-w-xs">({songArtist})</span>}
+          </div>
+
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {nextSongTitle && (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-amber-300 text-xs font-bold shadow-2xl">
+                <span className="text-slate-400 text-[10px] uppercase font-mono">Próxima:</span>
+                <span className="truncate max-w-xs">{nextSongTitle}</span>
+                {nextSongRequestedBy && (
+                  <span className="text-cyan-400 font-mono text-[11px]">🎤 {nextSongRequestedBy}</span>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-2 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-md border border-white/10 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-2xl"
+              title="Pantalla Completa (F11)"
+            >
+              <Maximize2 className="w-4 h-4 text-cyan-400" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-[#040409] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
       {/* Dynamic Video Background Layer */}
-      {!youTubeEmbedId && (
-        <DynamicVideoBackground
-          config={{
-            ...videoBgConfig,
-            overlayOpacity: Math.max(0.85, videoBgConfig.overlayOpacity ?? 0.88),
-          }}
-          isPlaying={isPlaying}
-          songKey={`${songTitle}___${songArtist || ''}`}
-          currentTime={currentTime}
-          duration={duration}
-        />
-      )}
+      <DynamicVideoBackground
+        config={{
+          ...videoBgConfig,
+          overlayOpacity: Math.max(0.85, videoBgConfig.overlayOpacity ?? 0.88),
+        }}
+        isPlaying={isPlaying}
+        songKey={`${songTitle}___${songArtist || ''}`}
+        currentTime={currentTime}
+        duration={duration}
+      />
 
       {/* Ambient Visualizer Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
@@ -289,13 +355,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           )}
 
           <button
-            onClick={() => {
-              if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => { });
-              } else {
-                document.exitFullscreen().catch(() => { });
-              }
-            }}
+            onClick={toggleFullscreen}
             className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
             title="Pantalla Completa (F11)"
           >
@@ -306,140 +366,111 @@ export const TvStandaloneDisplay: React.FC = () => {
 
       {/* Main Lyrics Center Display */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6 text-center max-w-7xl mx-auto w-full px-2 sm:px-4">
-        {youTubeEmbedId ? (
-          /* Embedded YouTube Video Mode for TV (Muted so host/mixer controls audio without echo) */
-          <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-red-500/40 bg-black">
-            <iframe
-              ref={ytTvIframeRef}
-              key={`yt_tv_${youTubeEmbedId}`}
-              src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
-              title="YouTube Karaoke TV"
-              className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              onLoad={() => {
-                try {
-                  const win = ytTvIframeRef.current?.contentWindow;
-                  if (win) {
-                    win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
-                    if (tvState.isPlaying) {
-                      win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
-                    } else {
-                      win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
-                    }
-                  }
-                } catch (_) {}
-              }}
-            />
-          </div>
-        ) : (
-          /* Standard Lyrical Teleprompter Display for TV */
-          <div className="flex flex-col items-center justify-between gap-4 w-full flex-1 min-h-0 py-2 overflow-hidden">
-            {/* Slot 1: Active Singer Badge / Countdown (Strictly Singer & Cues, No [Verso] tag) */}
-            <div className="h-9 flex items-center justify-center shrink-0">
-              {isPlaying && (
-                showCountdown ? (
-                  <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-black animate-pulse">
-                    <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                    {nextLyric && (
-                      <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
-                        {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
-                      </span>
-                    )}
-                  </div>
-                ) : currentLyric ? (
-                  <div
-                    className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
-                    style={{ color: curArtist.color }}
-                  >
-                    <span className="text-base sm:text-lg">{curArtist.isBoth ? '👥' : '🎤'}</span>
-                    <span>{curArtist.isBoth ? `DÚO · ${curArtist.name.toUpperCase()}` : `VOZ: ${curArtist.name.toUpperCase()}`}</span>
-                  </div>
-                ) : null
-              )}
-            </div>
-
-            {/* Current Active Line (Large Grand Scale for Smart TV) */}
-            <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center my-auto overflow-hidden">
-              {!isPlaying ? (
-                <div className="flex flex-col items-center gap-3 text-slate-500 opacity-60">
-                  <div className="w-20 h-20 rounded-3xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
-                    <Music className="w-10 h-10 text-cyan-400/50" />
-                  </div>
-                  <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400 font-mono">
-                    {songTitle ? `EN ESPERA · ${songTitle}` : 'ESCENARIO EN ESPERA'}
-                  </p>
+        <div className="flex flex-col items-center justify-between gap-4 w-full flex-1 min-h-0 py-2 overflow-hidden">
+          {/* Slot 1: Active Singer Badge / Countdown (Strictly Singer & Cues, No [Verso] tag) */}
+          <div className="h-9 flex items-center justify-center shrink-0">
+            {isPlaying && (
+              showCountdown ? (
+                <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-black animate-pulse">
+                  <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
+                  {nextLyric && (
+                    <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
+                      {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
+                    </span>
+                  )}
                 </div>
               ) : currentLyric ? (
-                (() => {
-                  const textClean = cleanLyricText(currentLyric.text);
-                  const textLen = textClean.length;
-                  const fontSizeClass = textLen <= 25
-                    ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black'
-                    : textLen <= 45
-                      ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black'
-                      : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black';
+                <div
+                  className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
+                  style={{ color: curArtist.color }}
+                >
+                  <span className="text-base sm:text-lg">{curArtist.isBoth ? '👥' : '🎤'}</span>
+                  <span>{curArtist.isBoth ? `DÚO · ${curArtist.name.toUpperCase()}` : `VOZ: ${curArtist.name.toUpperCase()}`}</span>
+                </div>
+              ) : null
+            )}
+          </div>
 
-                  return (
-                    <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
-                      {computeIntelligentWordFills(
-                        { ...currentLyric, text: textClean },
-                        currentTime,
-                        nextLyric?.time,
-                        128
-                      ).map((item, wIdx) => {
-                        return (
-                          <span key={wIdx} className="relative inline-block select-none">
-                            {/* Layer 1: Base Unsung Word (Clear, high-contrast text with solid outline) */}
+          {/* Current Active Line (Large Grand Scale for Smart TV) */}
+          <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center my-auto overflow-hidden">
+            {!isPlaying ? (
+              <div className="flex flex-col items-center gap-3 text-slate-500 opacity-60">
+                <div className="w-20 h-20 rounded-3xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
+                  <Music className="w-10 h-10 text-cyan-400/50" />
+                </div>
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400 font-mono">
+                  {songTitle ? `EN ESPERA · ${songTitle}` : 'ESCENARIO EN ESPERA'}
+                </p>
+              </div>
+            ) : currentLyric ? (
+              (() => {
+                const textClean = cleanLyricText(currentLyric.text);
+                const textLen = textClean.length;
+                const fontSizeClass = textLen <= 25
+                  ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black'
+                  : textLen <= 45
+                    ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black'
+                    : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black';
+
+                return (
+                  <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
+                    {computeIntelligentWordFills(
+                      { ...currentLyric, text: textClean },
+                      currentTime,
+                      nextLyric?.time,
+                      128
+                    ).map((item, wIdx) => {
+                      return (
+                        <span key={wIdx} className="relative inline-block select-none">
+                          {/* Layer 1: Base Unsung Word (Clear, high-contrast text with solid outline) */}
+                          <span
+                            className="text-white/65 inline-block"
+                            style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)' }}
+                          >
+                            {item.word}
+                          </span>
+
+                          {/* Layer 2: Active Sweeping Highlight Word (Solid, vibrant glyph fill with outline) */}
+                          {item.fillPercentage > 0 && (
                             <span
-                              className="text-white/65 inline-block"
-                              style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)' }}
+                              className="absolute inset-0 inline-block pointer-events-none"
+                              style={{
+                                clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
+                                color: curArtist.color,
+                                textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)',
+                              }}
                             >
                               {item.word}
                             </span>
-
-                            {/* Layer 2: Active Sweeping Highlight Word (Solid, vibrant glyph fill with outline) */}
-                            {item.fillPercentage > 0 && (
-                              <span
-                                className="absolute inset-0 inline-block pointer-events-none"
-                                style={{
-                                  clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
-                                  color: curArtist.color,
-                                  textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)',
-                                }}
-                              >
-                                {item.word}
-                              </span>
-                            )}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="flex flex-col items-center gap-3 text-slate-500 animate-pulse">
-                  <Music className="w-12 h-12 text-slate-600" />
-                  <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400">
-                    ♫ [SOLO INSTRUMENTAL] ♫
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Next Upcoming Line Preview */}
-            {isPlaying && nextLyric ? (
-              <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 max-w-2xl w-full flex flex-col items-center">
-                <span className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
-                  {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
-                </span>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold truncate max-w-xl text-center" style={{ color: nextArtist.color }}>
-                  {cleanLyricText(nextLyric.text)}
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-slate-500 animate-pulse">
+                <Music className="w-12 h-12 text-slate-600" />
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400">
+                  ♫ [SOLO INSTRUMENTAL] ♫
                 </p>
               </div>
-            ) : null}
+            )}
           </div>
-        )}
+
+          {/* Next Upcoming Line Preview */}
+          {isPlaying && nextLyric ? (
+            <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 max-w-2xl w-full flex flex-col items-center">
+              <span className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
+                {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
+              </span>
+              <p className="text-xl sm:text-2xl md:text-3xl font-bold truncate max-w-xl text-center" style={{ color: nextArtist.color }}>
+                {cleanLyricText(nextLyric.text)}
+              </p>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Bottom Progress Bar */}
