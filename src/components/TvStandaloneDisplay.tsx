@@ -99,6 +99,7 @@ export const TvStandaloneDisplay: React.FC = () => {
         try {
           const win = ytTvIframeRef.current?.contentWindow;
           if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
           }
         } catch (_) {}
@@ -315,15 +316,24 @@ export const TvStandaloneDisplay: React.FC = () => {
       {/* Main Lyrics Center Display */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6 text-center max-w-7xl mx-auto w-full px-2 sm:px-4">
         {youTubeEmbedId ? (
-          /* Embedded YouTube Video Mode for TV */
+          /* Embedded YouTube Video Mode for TV (Muted so host/mixer controls audio without echo) */
           <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-red-500/40 bg-black">
             <iframe
               ref={ytTvIframeRef}
               key={`yt_tv_${youTubeEmbedId}`}
-              src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+              src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
               title="YouTube Karaoke TV"
               className="w-full h-full border-0"
               allow="autoplay; encrypted-media"
+              onLoad={() => {
+                try {
+                  const win = ytTvIframeRef.current?.contentWindow;
+                  if (win) {
+                    win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+                    win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                  }
+                } catch (_) {}
+              }}
             />
           </div>
         ) : (
