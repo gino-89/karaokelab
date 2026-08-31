@@ -127,6 +127,7 @@ interface KaraokeDisplayProps {
   onUpdateVideoBgConfig?: (newConfig: VideoBackgroundConfig) => void;
   onOpenVocalAutomation?: () => void;
   youTubeEmbedId?: string | null;
+  onTimeUpdate?: (time: number, duration?: number) => void;
 }
 
 export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
@@ -146,6 +147,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   onPause,
   onStop,
   onSeek,
+  onTimeUpdate,
   onNextInQueue,
   hasNextInQueue = false,
   onToggleLoop,
@@ -274,12 +276,14 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   const onNextInQueueRef = useRef(onNextInQueue);
   const onPlayRef = useRef(onPlay);
   const onPauseRef = useRef(onPause);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
 
   useEffect(() => {
     onNextInQueueRef.current = onNextInQueue;
     onPlayRef.current = onPlay;
     onPauseRef.current = onPause;
-  }, [onNextInQueue, onPlay, onPause]);
+    onTimeUpdateRef.current = onTimeUpdate;
+  }, [onNextInQueue, onPlay, onPause, onTimeUpdate]);
 
   // Synchronize Host isPlaying state directly to YouTube iframe
   useEffect(() => {
@@ -311,6 +315,17 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       } catch (_) {}
     }, 400);
 
+    // Poll current time from YouTube iframe to keep root state and second screen in lockstep
+    const timePoll = setInterval(() => {
+      try {
+        const win = ytIframeRef.current?.contentWindow;
+        if (win && isPlaying) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'getCurrentTime', args: '' }), '*');
+          win.postMessage(JSON.stringify({ event: 'command', func: 'getDuration', args: '' }), '*');
+        }
+      } catch (_) {}
+    }, 500);
+
     const handleMessage = (event: MessageEvent) => {
       try {
         let data = event.data;
@@ -320,6 +335,13 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           } catch (_) {
             return;
           }
+        }
+
+        // Live currentTime & duration delivery from YouTube
+        if (data?.info?.currentTime !== undefined && typeof data.info.currentTime === 'number') {
+          onTimeUpdateRef.current?.(data.info.currentTime, data.info.duration);
+        } else if (data?.infoDelivery?.currentTime !== undefined && typeof data.infoDelivery.currentTime === 'number') {
+          onTimeUpdateRef.current?.(data.infoDelivery.currentTime, data.infoDelivery.duration);
         }
 
         // YouTube PlayerState: 0 = ended, 1 = playing, 2 = paused
@@ -352,6 +374,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
 
     return () => {
       clearTimeout(playTimer);
+      clearInterval(timePoll);
       window.removeEventListener('message', handleMessage);
     };
   }, [youTubeEmbedId, isPlaying]);

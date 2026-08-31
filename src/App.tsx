@@ -837,6 +837,17 @@ export default function App() {
             audioEngine.setVocalGain(0.0);
           }
         }
+      } else if (isPlaying && youTubeEmbedId) {
+        if (lastFlushTime === 0) {
+          lastFlushTime = timestamp;
+        }
+        if (timestamp - lastFlushTime >= 80) {
+          const delta = (timestamp - lastFlushTime) / 1000;
+          lastFlushTime = timestamp;
+          setCurrentTime((prev) => prev + delta);
+        }
+      } else {
+        lastFlushTime = 0;
       }
     };
 
@@ -858,7 +869,7 @@ export default function App() {
       if (animId) cancelAnimationFrame(animId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [lyrics, isSmartVocalCue, smartCues, vocalGain]);
+  }, [lyrics, isSmartVocalCue, smartCues, vocalGain, isPlaying, youTubeEmbedId]);
 
   // 3. Load a song into Web Audio Engine (Instant Fast-Path Playback)
   const loadSongIntoEngine = async (song: SongItem, autoPlay = false) => {
@@ -1640,6 +1651,13 @@ export default function App() {
     setCurrentTime(seconds);
   };
 
+  const handleTimeUpdate = useCallback((t: number, d?: number) => {
+    setCurrentTime(t);
+    if (d && d > 0) {
+      setDuration(d);
+    }
+  }, []);
+
   const handleOpenAboutModal = useCallback(() => setIsAboutModalOpen(true), []);
   const handleOpenPartyMode = useCallback(() => setIsPartyMode(true), []);
   const handleOpenVideoStudio = useCallback(() => setIsVideoStudioOpen(true), []);
@@ -1923,6 +1941,7 @@ export default function App() {
               onPause={handlePause}
               onStop={handleStop}
               onSeek={handleSeek}
+              onTimeUpdate={handleTimeUpdate}
               onNextInQueue={handleNextInQueue}
               hasNextInQueue={queue.some((q) => q.status === 'ready' && q.songData && q.songData.id !== currentSong?.id)}
               onToggleLoop={handleToggleLoop}
