@@ -120,7 +120,7 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
               !currentSong ||
               (item.songData?.id !== currentSong.id &&
                 item.id !== currentSong.id &&
-                (!currentSong.id.startsWith('yt_') || item.songData?.id !== `yt_${currentSong.id.replace('yt_', '')}`))
+                item.songData?.id?.replace('yt_', '') !== currentSong.id.replace('yt_', ''))
           );
 
           if (upcomingQueue.length === 0) {
