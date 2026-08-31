@@ -132,10 +132,17 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
   };
 
-  // Clean YouTube video ID from any prefix (yt_) or full URL
-  const cleanYoutubeId = tvState?.youTubeEmbedId
-    ? tvState.youTubeEmbedId.replace(/^yt_/, '').replace(/.*[?&]v=/, '').replace(/.*youtu\.be\//, '').trim()
-    : '';
+  // Clean and extract standard YouTube video ID
+  const cleanYoutubeId = (() => {
+    const raw = tvState?.youTubeEmbedId || '';
+    if (!raw) return '';
+    const trimmed = raw.trim().replace(/^yt_/, '');
+    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    if (match && match[1]) return match[1];
+    const simpleMatch = trimmed.match(/^[\w-]{11}$/);
+    if (simpleMatch) return simpleMatch[0];
+    return trimmed;
+  })();
 
   if (!tvState || (!tvState.songTitle && !cleanYoutubeId)) {
     return (
@@ -267,10 +274,11 @@ export const TvStandaloneDisplay: React.FC = () => {
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${cleanYoutubeId}`}
-          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&start=${startSec}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1`}
+          src={`https://www.youtube-nocookie.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${cleanYoutubeId}${startSec > 0 ? `&start=${startSec}` : ''}`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0 scale-[1.02]"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          className="w-full h-full border-0 pointer-events-none"
+          style={{ width: '100vw', height: '100vh' }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           onLoad={() => {
             try {

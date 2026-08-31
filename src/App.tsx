@@ -638,7 +638,7 @@ export default function App() {
 
           // Full state payload (sent on song change, play/pause, or periodic 2.5s heartbeat)
           const fullPayload = {
-            songTitle: currentSong?.title || '',
+            songTitle: currentSong?.title || (youTubeEmbedId ? 'Video de YouTube' : ''),
             songArtist: currentSong?.artist,
             artistsList: currentSong?.artistsList,
             currentTime,
