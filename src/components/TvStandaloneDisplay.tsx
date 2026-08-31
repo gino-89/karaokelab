@@ -248,10 +248,15 @@ export const TvStandaloneDisplay: React.FC = () => {
   const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
+  // Track initial start second once per YouTube video ID to prevent iframe reloading/blinking on every tick
+  const initialStartMapRef = useRef<Record<string, number>>({});
+  if (youTubeEmbedId && initialStartMapRef.current[youTubeEmbedId] === undefined) {
+    initialStartMapRef.current[youTubeEmbedId] = Math.max(0, Math.floor(currentTime || 0));
+  }
+  const startSec = youTubeEmbedId ? (initialStartMapRef.current[youTubeEmbedId] || 0) : 0;
+
   // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV (Zero Buttons / Pure Screen) ──
   if (youTubeEmbedId) {
-    const startSec = Math.max(0, Math.floor(currentTime || 0));
-
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
         <iframe
@@ -268,7 +273,7 @@ export const TvStandaloneDisplay: React.FC = () => {
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
                 if (startSec > 0) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [startSec, true] }), '*');
                 }
                 if (tvState.isPlaying) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
