@@ -143,7 +143,6 @@ class PeerSyncService {
     }
     this.hostId = null;
 
-    this.getOrCreateHostId(true);
     this.initHost(onCommand || this.onCommandCallback || (() => {}), onPeerIdReady);
   }
 
@@ -163,8 +162,11 @@ class PeerSyncService {
       return;
     }
 
-    // Use stored persistent room ID or create a new one
-    const sessionPeerId = this.getOrCreateHostId();
+    // Always generate a fresh unique room ID to avoid PeerJS 'unavailable-id' conflicts
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const sessionPeerId = `klab_host_${randomSuffix}`;
+    // Persist so QR modal can read it immediately via getOrCreateHostId as a fallback
+    try { localStorage.setItem('karaokelab_p2p_host_id', sessionPeerId); } catch (_) {}
 
     try {
       this.peer = new Peer(sessionPeerId, PEER_CONFIG);
