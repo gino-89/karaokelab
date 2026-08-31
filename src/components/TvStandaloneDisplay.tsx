@@ -132,7 +132,12 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
   };
 
-  if (!tvState || !tvState.songTitle) {
+  // Clean YouTube video ID from any prefix (yt_) or full URL
+  const cleanYoutubeId = tvState?.youTubeEmbedId
+    ? tvState.youTubeEmbedId.replace(/^yt_/, '').replace(/.*[?&]v=/, '').replace(/.*youtu\.be\//, '').trim()
+    : '';
+
+  if (!tvState || (!tvState.songTitle && !cleanYoutubeId)) {
     return (
       <div
         onClick={toggleFullscreen}
@@ -250,28 +255,28 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   // Track initial start second once per YouTube video ID to prevent iframe reloading/blinking on every tick
   const initialStartMapRef = useRef<Record<string, number>>({});
-  if (youTubeEmbedId && initialStartMapRef.current[youTubeEmbedId] === undefined) {
-    initialStartMapRef.current[youTubeEmbedId] = Math.max(0, Math.floor(currentTime || 0));
+  if (cleanYoutubeId && initialStartMapRef.current[cleanYoutubeId] === undefined) {
+    initialStartMapRef.current[cleanYoutubeId] = Math.max(0, Math.floor(currentTime || 0));
   }
-  const startSec = youTubeEmbedId ? (initialStartMapRef.current[youTubeEmbedId] || 0) : 0;
+  const startSec = cleanYoutubeId ? (initialStartMapRef.current[cleanYoutubeId] || 0) : 0;
 
   // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV (Zero Buttons / Pure Screen) ──
-  if (youTubeEmbedId) {
+  if (cleanYoutubeId) {
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
         <iframe
           ref={ytTvIframeRef}
-          key={`yt_tv_${youTubeEmbedId}`}
-          src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&start=${startSec}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+          key={`yt_tv_${cleanYoutubeId}`}
+          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&start=${startSec}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0 pointer-events-none scale-[1.02]"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          className="w-full h-full border-0 scale-[1.02]"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           onLoad={() => {
             try {
               const win = ytTvIframeRef.current?.contentWindow;
               if (win) {
-                win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
+                win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
                 if (startSec > 0) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [startSec, true] }), '*');
                 }
