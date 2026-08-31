@@ -14,7 +14,7 @@ export interface ConnectedGuest {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google, Mozilla & Twilio public STUN servers for 100% reliable cross-device WebRTC NAT traversal
+// Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal
 const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -23,8 +23,6 @@ const PEER_CONFIG = {
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
-      { urls: 'stun:stun.services.mozilla.com' },
-      { urls: 'stun:global.stun.twilio.com:3478' },
     ],
   },
 };
@@ -84,26 +82,6 @@ class PeerSyncService {
     }
   }
 
-  public getOrCreateHostId(forceNew = false): string {
-    const STORAGE_KEY = 'karaokelab_p2p_host_id';
-    if (!forceNew && typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved && saved.startsWith('klab_host_')) {
-          return saved;
-        }
-      } catch (_) {}
-    }
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const newId = `klab_host_${randomSuffix}`;
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY, newId);
-      } catch (_) {}
-    }
-    return newId;
-  }
-
   // Regenerate fresh room code and reconnect host peer
   public regenerateHost(
     onPeerIdReady?: (peerId: string) => void,
@@ -130,7 +108,6 @@ class PeerSyncService {
     }
     this.hostId = null;
 
-    this.getOrCreateHostId(true);
     this.initHost(onCommand || this.onCommandCallback || (() => {}), onPeerIdReady);
   }
 
@@ -150,8 +127,9 @@ class PeerSyncService {
       return;
     }
 
-    // Use stored persistent room ID or create a new one
-    const sessionPeerId = this.getOrCreateHostId();
+    // Create fresh unique room ID
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const sessionPeerId = `klab_host_${randomSuffix}`;
 
     try {
       this.peer = new Peer(sessionPeerId, PEER_CONFIG);
@@ -541,7 +519,7 @@ class PeerSyncService {
         if (!this.peer || !cleanHostId) return;
 
         console.log(`Connecting to Host: ${cleanHostId}`);
-        const conn = this.peer.connect(cleanHostId, { reliable: true });
+        const conn = this.peer.connect(cleanHostId);
         this.hostConnection = conn;
 
         conn.on('open', () => {

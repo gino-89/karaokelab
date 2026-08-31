@@ -15,11 +15,13 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   const [qrKey, setQrKey] = useState<string>(() => peerSync.getQrKey());
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
-  const effectiveHostId = hostPeerId || peerSync.getHostId() || peerSync.getOrCreateHostId();
+  const effectiveHostId = hostPeerId || peerSync.getHostId();
 
-  const guestUrl = typeof window !== 'undefined'
+  const guestUrl = typeof window !== 'undefined' && effectiveHostId
     ? `${window.location.origin}/?mode=guest&host=${effectiveHostId}&k=${qrKey}`
-    : `https://karaokelab.vercel.app/?mode=guest&host=${effectiveHostId}&k=${qrKey}`;
+    : typeof window !== 'undefined'
+      ? `${window.location.origin}/?mode=guest`
+      : 'https://karaokelab.vercel.app/?mode=guest';
 
   // Generate local high-contrast QR code Data URL
   useEffect(() => {
