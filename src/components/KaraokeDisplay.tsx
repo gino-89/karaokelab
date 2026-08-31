@@ -269,23 +269,43 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     }
   }, [songTitle, songArtist, artists, currentSongKey, isDuetMode, onToggleDuetMode, isEditorOpen]);
 
-  // ── YouTube Embedded Playback Handler (Auto-Advance on Video End & Instant Autoplay) ──
+  // ── YouTube Embedded Playback Handler (Auto-Advance on Video End & Full Play/Pause Synchronization) ──
   const ytIframeRef = useRef<HTMLIFrameElement>(null);
   const onNextInQueueRef = useRef(onNextInQueue);
+  const onPlayRef = useRef(onPlay);
+  const onPauseRef = useRef(onPause);
+
   useEffect(() => {
     onNextInQueueRef.current = onNextInQueue;
-  }, [onNextInQueue]);
+    onPlayRef.current = onPlay;
+    onPauseRef.current = onPause;
+  }, [onNextInQueue, onPlay, onPause]);
+
+  // Synchronize Host isPlaying state directly to YouTube iframe
+  useEffect(() => {
+    if (!youTubeEmbedId) return;
+    try {
+      const win = ytIframeRef.current?.contentWindow;
+      if (win) {
+        if (isPlaying) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+        } else {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+        }
+      }
+    } catch (_) {}
+  }, [isPlaying, youTubeEmbedId]);
 
   useEffect(() => {
     if (!youTubeEmbedId) return;
 
     let hasHandledEnd = false;
 
-    // Send playVideo immediately upon switching from MP3 or queue item
+    // Send playVideo immediately upon switching from MP3 or queue item if isPlaying
     const playTimer = setTimeout(() => {
       try {
         const win = ytIframeRef.current?.contentWindow;
-        if (win) {
+        if (win && isPlaying) {
           win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
         }
       } catch (_) {}
@@ -303,17 +323,27 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         }
 
         // YouTube PlayerState: 0 = ended, 1 = playing, 2 = paused
-        const isEnded =
-          (data?.event === 'onStateChange' && (data?.info === 0 || data?.info === '0')) ||
-          (data?.event === 'infoDelivery' && (data?.info?.playerState === 0 || data?.info?.playerState === '0')) ||
-          (data?.infoDelivery?.playerState === 0 || data?.infoDelivery?.playerState === '0');
+        const state =
+          data?.info?.playerState !== undefined
+            ? data.info.playerState
+            : data?.event === 'onStateChange'
+              ? data.info
+              : data?.infoDelivery?.playerState;
 
-        if (isEnded && !hasHandledEnd) {
-          hasHandledEnd = true;
-          console.log('✓ YouTube video ended, auto-advancing to next song in queue...');
-          if (onNextInQueueRef.current) {
-            onNextInQueueRef.current();
+        if (state === 0 || state === '0') {
+          if (!hasHandledEnd) {
+            hasHandledEnd = true;
+            console.log('✓ YouTube video ended, auto-advancing to next song in queue...');
+            if (onNextInQueueRef.current) {
+              onNextInQueueRef.current();
+            }
           }
+        } else if ((state === 1 || state === '1') && !isPlaying) {
+          // Video was played inside YouTube player
+          onPlayRef.current?.();
+        } else if ((state === 2 || state === '2') && isPlaying) {
+          // Video was paused inside YouTube player
+          onPauseRef.current?.();
         }
       } catch (_) {}
     };
@@ -324,7 +354,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       clearTimeout(playTimer);
       window.removeEventListener('message', handleMessage);
     };
-  }, [youTubeEmbedId]);
+  }, [youTubeEmbedId, isPlaying]);
   const [visualLines, setVisualLines] = useState<LyricLine[]>([]);
   const [isLiveTapSync, setIsLiveTapSync] = useState(false);
   const [liveTapIdx, setLiveTapIdx] = useState(0);

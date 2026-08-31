@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { tvBroadcast, TvStatePayload } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
@@ -87,6 +87,24 @@ export const TvStandaloneDisplay: React.FC = () => {
 
     return () => { isMounted = false; };
   }, [tvState?.songTitle, tvState?.songArtist, videoBgConfig.enabled, videoBgConfig.mode, tvState?.videoBgConfig, tvState?.youTubeEmbedId]);
+
+  // Synchronize Host isPlaying directly to the TV's YouTube player
+  const ytTvIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    if (!tvState?.youTubeEmbedId) return;
+
+    try {
+      const win = ytTvIframeRef.current?.contentWindow;
+      if (win) {
+        if (tvState.isPlaying) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+        } else {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+        }
+      }
+    } catch (_) {}
+  }, [tvState?.isPlaying, tvState?.youTubeEmbedId]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -292,6 +310,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           /* Embedded YouTube Video Mode for TV (Muted so host/mixer controls audio without echo) */
           <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-red-500/40 bg-black">
             <iframe
+              ref={ytTvIframeRef}
               key={`yt_tv_${youTubeEmbedId}`}
               src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
               title="YouTube Karaoke TV"
