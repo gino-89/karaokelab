@@ -132,19 +132,7 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
   };
 
-  // Clean and extract standard YouTube video ID
-  const cleanYoutubeId = (() => {
-    const raw = tvState?.youTubeEmbedId || '';
-    if (!raw) return '';
-    const trimmed = raw.trim().replace(/^yt_/, '');
-    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-    if (match && match[1]) return match[1];
-    const simpleMatch = trimmed.match(/^[\w-]{11}$/);
-    if (simpleMatch) return simpleMatch[0];
-    return trimmed;
-  })();
-
-  if (!tvState || (!tvState.songTitle && !cleanYoutubeId)) {
+  if (!tvState || !tvState.songTitle) {
     return (
       <div
         onClick={toggleFullscreen}
@@ -262,36 +250,46 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   // Track initial start second once per YouTube video ID to prevent iframe reloading/blinking on every tick
   const initialStartMapRef = useRef<Record<string, number>>({});
-  if (cleanYoutubeId && initialStartMapRef.current[cleanYoutubeId] === undefined) {
-    initialStartMapRef.current[cleanYoutubeId] = Math.max(0, Math.floor(currentTime || 0));
+  if (youTubeEmbedId && initialStartMapRef.current[youTubeEmbedId] === undefined) {
+    initialStartMapRef.current[youTubeEmbedId] = Math.max(0, Math.floor(currentTime || 0));
   }
-  const startSec = cleanYoutubeId ? (initialStartMapRef.current[cleanYoutubeId] || 0) : 0;
+  const startSec = youTubeEmbedId ? (initialStartMapRef.current[youTubeEmbedId] || 0) : 0;
 
   // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV (Zero Buttons / Pure Screen) ──
-  if (cleanYoutubeId) {
+  if (youTubeEmbedId) {
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
         <iframe
           ref={ytTvIframeRef}
-          key={`yt_tv_${cleanYoutubeId}`}
-          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1`}
+          key={`yt_tv_${youTubeEmbedId}`}
+          src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&mute=1&start=${startSec}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0"
-          style={{ width: '100vw', height: '100vh' }}
+          className="w-full h-full border-0 pointer-events-none scale-[1.02]"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           onLoad={() => {
             try {
               const win = ytTvIframeRef.current?.contentWindow;
               if (win) {
-                win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
-                win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
                 if (startSec > 0) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [startSec, true] }), '*');
+                }
+                if (tvState.isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
                 }
               }
             } catch (_) {}
           }}
+        />
+
+        {/* Invisible shield to block any YouTube UI popups or hover buttons */}
+        <div
+          onClick={toggleFullscreen}
+          className="absolute inset-0 z-30 cursor-pointer"
+          title="Haz clic para Pantalla Completa"
         />
 
         {/* Clean Cinema Overlay for TV */}
@@ -299,7 +297,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white text-xs font-bold shadow-2xl">
             <span className="text-red-500 font-extrabold font-mono">● LIVE</span>
             <span>·</span>
-            <span className="truncate max-w-md">{songTitle || 'Video de YouTube'}</span>
+            <span className="truncate max-w-md">{songTitle}</span>
             {songArtist && <span className="text-cyan-400 truncate max-w-xs">({songArtist})</span>}
           </div>
 
