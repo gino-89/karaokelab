@@ -317,6 +317,19 @@ export const TvStandaloneDisplay: React.FC = () => {
               className="w-full h-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
+              onLoad={() => {
+                try {
+                  const win = ytTvIframeRef.current?.contentWindow;
+                  if (win) {
+                    win.postMessage(JSON.stringify({ event: 'listening', id: youTubeEmbedId }), '*');
+                    if (tvState.isPlaying) {
+                      win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                    } else {
+                      win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+                    }
+                  }
+                } catch (_) {}
+              }}
             />
           </div>
         ) : (

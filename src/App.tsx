@@ -1601,6 +1601,12 @@ export default function App() {
       return;
     }
 
+    // If it's a YouTube track, just set isPlaying to true (do not reload buffer)
+    if (youTubeEmbedId || currentSong.id?.startsWith('yt_') || (currentSong.videoBgId && !currentSong.audioBlob && !currentSong.stems?.instrumentalBlob)) {
+      setIsPlaying(true);
+      return;
+    }
+
     // If no buffer loaded yet, load current song
     if (!audioEngine.getAudioBuffer()) {
       await loadSongIntoEngine(currentSong, true);
