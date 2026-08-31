@@ -883,6 +883,7 @@ export default function App() {
       let vocBuf: AudioBuffer | null = null;
       if (song.id?.startsWith('yt_') || (song.videoBgId && !song.audioBlob && !song.stems?.instrumentalBlob)) {
         const vidId = song.videoBgId || song.id.replace('yt_', '');
+        const cleanVidId = vidId.replace('yt_', '');
         setYouTubeEmbedId(vidId);
         setIsYouTubeModalOpen(false);
         setCurrentSong(song);
@@ -890,6 +891,13 @@ export default function App() {
         setDuration(song.duration || 240);
         setCurrentTime(0);
         setLyrics([]);
+        // Cleanly remove this YouTube song from the waiting queue
+        setQueue((prevQueue) =>
+          prevQueue.filter((q) => {
+            const qClean = q.songData?.id ? q.songData.id.replace('yt_', '') : q.id.replace('yt_', '');
+            return q.id !== song.id && q.songData?.id !== song.id && qClean !== cleanVidId;
+          })
+        );
         showAlertToast(`🎬 Reproduciendo video de YouTube: "${song.title}"`);
         return;
       }
@@ -941,11 +949,13 @@ export default function App() {
       audioEngine.setVocalAutomationConfig(updatedSong.vocalAutomation || null);
 
       // When a song is loaded/played, remove it from the waiting queue so it passes to "● SONANDO"
-      // and does NOT appear duplicated in the queue list below it!
+      // and does NOT appear duplicated or reappear later in the queue list!
+      const cleanUpdatedId = updatedSong.id.replace('yt_', '');
       setQueue((prevQueue) =>
-        prevQueue.filter(
-          (q) => (q.songData && q.songData.id !== updatedSong.id) && q.id !== updatedSong.id
-        )
+        prevQueue.filter((q) => {
+          const qClean = q.songData?.id ? q.songData.id.replace('yt_', '') : q.id.replace('yt_', '');
+          return q.id !== updatedSong.id && q.songData?.id !== updatedSong.id && qClean !== cleanUpdatedId;
+        })
       );
 
       // 3. START PLAYBACK INSTANTLY (0 delay)
@@ -1451,12 +1461,14 @@ export default function App() {
 
   // Play next song in queue (skip current song and load next ready track)
   const handleNextInQueue = useCallback(() => {
+    const curId = currentSong?.id;
+    const cleanCurId = curId ? curId.replace('yt_', '') : null;
+
     const nextItem = queue.find((q) => {
       if (q.status !== 'ready' || !q.songData) return false;
-      if (!currentSong) return true;
-      const cleanCurId = currentSong.id.replace('yt_', '');
+      if (!cleanCurId) return true;
       const cleanQId = q.songData.id.replace('yt_', '');
-      return cleanQId !== cleanCurId && q.id !== currentSong.id && q.songData.id !== currentSong.id;
+      return cleanQId !== cleanCurId && q.id !== curId && q.songData.id !== curId;
     });
 
     if (!nextItem || !nextItem.songData) {
@@ -1466,9 +1478,21 @@ export default function App() {
     }
 
     const nextSongData = nextItem.songData;
+    const cleanNextId = nextSongData.id.replace('yt_', '');
 
-    // Remove next item from queue
-    setQueue((prevQueue) => prevQueue.filter((q) => q.id !== nextItem.id));
+    // Remove BOTH previous song and next song from the waiting queue
+    setQueue((prevQueue) =>
+      prevQueue.filter((q) => {
+        const qClean = q.songData?.id ? q.songData.id.replace('yt_', '') : q.id.replace('yt_', '');
+        if (q.id === nextItem.id || q.songData?.id === nextSongData.id || qClean === cleanNextId) {
+          return false;
+        }
+        if (cleanCurId && (q.id === curId || q.songData?.id === curId || qClean === cleanCurId)) {
+          return false;
+        }
+        return true;
+      })
+    );
 
     // Stop current track and load next song
     audioEngine.stop();
