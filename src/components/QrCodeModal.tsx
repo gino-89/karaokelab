@@ -12,49 +12,28 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   const [copied, setCopied] = useState(false);
   const [connectedGuests, setConnectedGuests] = useState<ConnectedGuest[]>([]);
   const [qrKey, setQrKey] = useState<string>(peerSync.getQrKey());
-  const [resolvedHostId, setResolvedHostId] = useState<string>(
-    hostPeerId || peerSync.getHostId() || peerSync.getOrCreateHostId()
-  );
+  const [currentHostId, setCurrentHostId] = useState<string>(hostPeerId || peerSync.getHostId());
 
-  // Subscribe to guest connection changes & refresh QR key
-  // Also poll for hostPeerId in case PeerJS opens after modal mounts
+  // Subscribe to guest connection changes & refresh QR key and host ID
   useEffect(() => {
     if (!isOpen) return;
 
-    // Immediately try to resolve the host ID
-    const id0 = hostPeerId || peerSync.getHostId() || peerSync.getOrCreateHostId();
-    setResolvedHostId(id0);
-
-    // Poll every 300ms until host peer ID is available (max ~5s)
-    let attempts = 0;
-    const pollTimer = setInterval(() => {
-      attempts++;
-      const id = hostPeerId || peerSync.getHostId();
-      if (id) {
-        setResolvedHostId(id);
-        clearInterval(pollTimer);
-      } else if (attempts >= 17) {
-        clearInterval(pollTimer);
-      }
-    }, 300);
-
+    setCurrentHostId(hostPeerId || peerSync.getHostId());
     setQrKey(peerSync.getQrKey());
     setConnectedGuests(peerSync.getConnectedGuests());
 
     const unsub = peerSync.onGuestsChanged((guests) => {
       setConnectedGuests([...guests]);
       setQrKey(peerSync.getQrKey());
+      setCurrentHostId(peerSync.getHostId());
     });
 
-    return () => {
-      clearInterval(pollTimer);
-      unsub();
-    };
+    return () => unsub();
   }, [isOpen, hostPeerId]);
 
   if (!isOpen) return null;
 
-  const effectiveHostId = hostPeerId || resolvedHostId || peerSync.getHostId() || peerSync.getOrCreateHostId();
+  const effectiveHostId = currentHostId || hostPeerId || peerSync.getHostId();
 
   // WebRTC QR URL with dynamic session key &k=
   const guestUrl = typeof window !== 'undefined'
@@ -72,6 +51,9 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   };
 
   const handleRegenerateQr = () => {
+    peerSync.regenerateHost((newId) => {
+      setCurrentHostId(newId);
+    });
     const newKey = peerSync.rotateQrKey();
     setQrKey(newKey);
   };

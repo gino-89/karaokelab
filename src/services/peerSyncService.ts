@@ -141,17 +141,16 @@ class PeerSyncService {
 
     // If host peer is already open, immediately return current ID
     if (this.peer && !this.peer.destroyed) {
-      if (this.hostId && onPeerIdReady) {
-        onPeerIdReady(this.hostId);
+      const currentId = this.hostId || this.getOrCreateHostId();
+      if (onPeerIdReady) {
+        onPeerIdReady(currentId);
       }
       return;
     }
 
-    // Always generate a fresh unique room ID to avoid PeerJS 'unavailable-id' conflicts
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const sessionPeerId = `klab_host_${randomSuffix}`;
-    // Persist so QR modal can read it immediately via getOrCreateHostId as a fallback
-    try { localStorage.setItem('karaokelab_p2p_host_id', sessionPeerId); } catch (_) {}
+    // Use persistent host room ID so host peer ID matches the QR code 100%
+    const sessionPeerId = this.getOrCreateHostId();
+    this.hostId = sessionPeerId;
 
     try {
       this.peer = new Peer(sessionPeerId, PEER_CONFIG);
@@ -285,8 +284,8 @@ class PeerSyncService {
   }
 
   // Get current host peer ID for QR code generation
-  public getHostId(): string | null {
-    return this.hostId;
+  public getHostId(): string {
+    return this.hostId || this.getOrCreateHostId();
   }
 
   // Get list of connected guests
