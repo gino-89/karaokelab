@@ -166,6 +166,7 @@ export interface ChatMessage {
   id: string;
   senderName: string;
   senderProfileId?: string;
+  targetProfileId?: string;
   text: string;
   timestamp: number;
   avatar?: string;

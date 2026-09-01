@@ -247,12 +247,15 @@ export default function App() {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [hostChatText, setHostChatText] = useState('');
   const [liveChatBanner, setLiveChatBanner] = useState<ChatMessage | null>(null);
+  const [selectedChatProfileId, setSelectedChatProfileId] = useState<string | null>(null);
 
-  const handleSendHostChatMessage = (text: string) => {
+  const handleSendHostChatMessage = (text: string, targetProfId?: string) => {
     if (!text.trim()) return;
+    const activeTargetId = targetProfId || selectedChatProfileId || undefined;
     const msg: ChatMessage = {
       id: `msg_host_${Date.now()}`,
       senderName: 'Host / DJ 🎧',
+      targetProfileId: activeTargetId,
       text: text.trim(),
       timestamp: Date.now(),
       avatar: '🎧',
@@ -2443,6 +2446,9 @@ export default function App() {
           <div
             onClick={() => {
               setIsChatOpen(true);
+              if (liveChatBanner.senderProfileId) {
+                setSelectedChatProfileId(liveChatBanner.senderProfileId);
+              }
               setUnreadChatCount(0);
               setLiveChatBanner(null);
             }}
@@ -2475,113 +2481,218 @@ export default function App() {
         </div>
       )}
 
-      {/* ── WhatsApp / Cyberpunk Room Chat Side Drawer ── */}
+      {/* ── WhatsApp / Cyberpunk Room Chat Side Drawer (Private 1-on-1 Chats) ── */}
       {isChatOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#090a14] border-l border-pink-500/40 h-full flex flex-col shadow-[0_0_50px_rgba(255,0,127,0.25)]">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-lg font-black shadow-md">
-                  💬
+          <div className="w-full max-w-2xl bg-[#090a14] border-l border-pink-500/40 h-full flex shadow-[0_0_50px_rgba(255,0,127,0.25)] overflow-hidden">
+            {/* Left Column: Contact / Conversation Threads List */}
+            <div className="w-64 border-r border-slate-800 bg-[#0c0d1b] flex flex-col h-full shrink-0">
+              <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-pink-400" />
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">Conversaciones</h3>
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                    Chat & Saludos de la Sala
-                  </h3>
-                  <p className="text-[10px] text-pink-400 font-mono">
-                    {chatMessages.length} mensaje{chatMessages.length !== 1 ? 's' : ''} en vivo
-                  </p>
-                </div>
+                <span className="text-[10px] font-mono text-pink-300 font-bold px-1.5 py-0.5 rounded bg-pink-950/60 border border-pink-500/30">
+                  {profiles.filter((p) => p.id !== 'profile_all').length}
+                </span>
               </div>
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Message List */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 scrollbar-thin">
-              {chatMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2">
-                  <MessageSquare className="w-10 h-10 text-pink-500/30" />
-                  <p className="text-xs font-bold text-slate-400">Aún no hay mensajes en el chat</p>
-                  <p className="text-[11px] text-slate-500 max-w-xs">
-                    Los invitados pueden enviar mensajes o dedicatorias desde el control remoto de su celular.
-                  </p>
-                </div>
-              ) : (
-                chatMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${msg.isHost ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className="flex items-center gap-1.5 mb-1 px-1">
-                      <span className="text-xs">{msg.avatar || (msg.isHost ? '🎧' : '🎤')}</span>
-                      <span
-                        className={`text-[10px] font-bold ${
-                          msg.isHost ? 'text-pink-400' : 'text-cyan-300'
-                        }`}
-                      >
-                        {msg.senderName}
-                      </span>
-                      <span className="text-[9px] text-slate-500 font-mono">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-
-                    <div
-                      className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md ${
-                        msg.isHost
-                          ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-tr-none'
-                          : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none'
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
+              <div className="flex-1 overflow-y-auto space-y-1 p-2 scrollbar-thin">
+                {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
+                  <div className="p-4 text-center text-slate-500 text-xs leading-relaxed">
+                    No hay cantantes o perfiles creados aún.
                   </div>
-                ))
-              )}
+                ) : (
+                  profiles
+                    .filter((p) => p.id !== 'profile_all')
+                    .map((prof) => {
+                      const isSelected = selectedChatProfileId === prof.id;
+                      const threadMsgs = chatMessages.filter(
+                        (m) =>
+                          m.senderProfileId === prof.id ||
+                          m.targetProfileId === prof.id ||
+                          m.senderName === prof.name
+                      );
+                      const lastMsg = threadMsgs[threadMsgs.length - 1];
+
+                      return (
+                        <button
+                          key={prof.id}
+                          onClick={() => setSelectedChatProfileId(prof.id)}
+                          className={`w-full p-2.5 rounded-xl flex items-center gap-2.5 text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-pink-600/30 to-purple-600/30 border border-pink-500/50 shadow-md'
+                              : 'hover:bg-slate-900 border border-transparent'
+                          }`}
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-lg shrink-0 shadow-inner">
+                            {prof.avatar || '🎤'}
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-bold text-slate-200 truncate">{prof.name}</span>
+                              {lastMsg && (
+                                <span className="text-[9px] text-slate-500 font-mono shrink-0">
+                                  {new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10.5px] text-slate-400 truncate mt-0.5">
+                              {lastMsg ? lastMsg.text : 'Sin mensajes'}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })
+                )}
+              </div>
             </div>
 
-            {/* Quick Emojis & Host Input Bar */}
-            <div className="p-3 border-t border-slate-800 bg-[#0d0e1d] flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '🎧', '⚡'].map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleSendHostChatMessage(`${emoji}`)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-pink-500/50 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+            {/* Right Column: Active Private Chat Thread */}
+            <div className="flex-1 flex flex-col h-full bg-[#080913]">
+              {/* Header */}
+              <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
+                {selectedChatProfileId ? (
+                  (() => {
+                    const activeProf = profiles.find((p) => p.id === selectedChatProfileId);
+                    return (
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-lg font-black shadow-md">
+                          {activeProf?.avatar || '👤'}
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                            Chat Privado con {activeProf?.name || 'Cantante'}
+                          </h3>
+                          <p className="text-[10px] text-emerald-400 font-mono">
+                            ● Mensajes directos en vivo
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-pink-400" />
+                    <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                      Selecciona un Cantante para Chatear
+                    </h3>
+                  </div>
+                )}
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Escribe un anuncio o respuesta como Host/DJ..."
-                  value={hostChatText}
-                  onChange={(e) => setHostChatText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && hostChatText.trim()) {
-                      handleSendHostChatMessage(hostChatText);
-                    }
-                  }}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
-                />
                 <button
-                  type="button"
-                  onClick={() => handleSendHostChatMessage(hostChatText)}
-                  disabled={!hostChatText.trim()}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white text-xs font-black cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all"
+                  onClick={() => setIsChatOpen(false)}
+                  className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
                 >
-                  <Send className="w-4 h-4" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Message History */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 scrollbar-thin">
+                {!selectedChatProfileId ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2 p-4">
+                    <MessageSquare className="w-12 h-12 text-pink-500/30" />
+                    <p className="text-xs font-bold text-slate-300">Selecciona un cantante de la lista</p>
+                    <p className="text-[11px] text-slate-500 max-w-xs">
+                      Haz clic en cualquiera de los cantantes conectados a la izquierda para chatear en privado con él.
+                    </p>
+                  </div>
+                ) : (
+                  (() => {
+                    const activeProf = profiles.find((p) => p.id === selectedChatProfileId);
+                    const threadMsgs = chatMessages.filter(
+                      (m) =>
+                        m.senderProfileId === selectedChatProfileId ||
+                        m.targetProfileId === selectedChatProfileId ||
+                        m.senderName === activeProf?.name
+                    );
+
+                    if (threadMsgs.length === 0) {
+                      return (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2 p-4">
+                          <MessageSquare className="w-10 h-10 text-pink-500/20" />
+                          <p className="text-xs font-bold text-slate-400">Sin mensajes con {activeProf?.name}</p>
+                          <p className="text-[11px] text-slate-500 max-w-xs">
+                            Envía un saludo o responde a sus pedidos de canciones directamente aquí.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return threadMsgs.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex flex-col ${msg.isHost ? 'items-end' : 'items-start'}`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1 px-1">
+                          <span className="text-xs">{msg.avatar || (msg.isHost ? '🎧' : '🎤')}</span>
+                          <span
+                            className={`text-[10px] font-bold ${
+                              msg.isHost ? 'text-pink-400' : 'text-cyan-300'
+                            }`}
+                          >
+                            {msg.senderName}
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-mono">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        <div
+                          className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md ${
+                            msg.isHost
+                              ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-tr-none'
+                              : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+                      </div>
+                    ));
+                  })()
+                )}
+              </div>
+
+              {/* Input Bar */}
+              {selectedChatProfileId && (
+                <div className="p-3 border-t border-slate-800 bg-[#0d0e1d] flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '🎧', '⚡'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => handleSendHostChatMessage(`${emoji}`, selectedChatProfileId)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-pink-500/50 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Escribe un mensaje privado para ${profiles.find((p) => p.id === selectedChatProfileId)?.name || 'el cantante'}...`}
+                      value={hostChatText}
+                      onChange={(e) => setHostChatText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && hostChatText.trim()) {
+                          handleSendHostChatMessage(hostChatText, selectedChatProfileId);
+                        }
+                      }}
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSendHostChatMessage(hostChatText, selectedChatProfileId)}
+                      disabled={!hostChatText.trim()}
+                      className="p-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white text-xs font-black cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

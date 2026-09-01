@@ -1246,18 +1246,30 @@ export const GuestRemoteView: React.FC = () => {
 
             {/* Message List */}
             <div className="flex-1 p-3.5 overflow-y-auto space-y-3 scrollbar-thin">
-              {chatMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2 p-4">
-                  <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 text-xl">
-                    💬
-                  </div>
-                  <p className="text-xs font-bold text-slate-300">Chat de la Sala Karaoke</p>
-                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs">
-                    Escribe un saludo, dedicatoria o pide una canción especial directamente a la pantalla del Karaoke.
-                  </p>
-                </div>
-              ) : (
-                chatMessages.map((msg) => {
+              {(() => {
+                const myThreadMsgs = chatMessages.filter((m) => {
+                  if (m.senderProfileId && myProfileId && m.senderProfileId === myProfileId) return true;
+                  if (m.senderName === guestName) return true;
+                  if (m.isHost && (m.targetProfileId === myProfileId || m.targetProfileId === guestName)) return true;
+                  if (m.isHost && !m.targetProfileId) return true;
+                  return false;
+                });
+
+                if (myThreadMsgs.length === 0) {
+                  return (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2 p-4">
+                      <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 text-xl">
+                        💬
+                      </div>
+                      <p className="text-xs font-bold text-slate-300">Chat Privado con el Host / DJ</p>
+                      <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs">
+                        Escribe un saludo o pedido especial directamente al anfitrión del Karaoke.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return myThreadMsgs.map((msg) => {
                   const isMe = msg.senderProfileId === myProfileId || msg.senderName === guestName;
                   return (
                     <div
@@ -1291,8 +1303,8 @@ export const GuestRemoteView: React.FC = () => {
                       </div>
                     </div>
                   );
-                })
-              )}
+                });
+              })()}
             </div>
 
             {/* Quick Emojis & Input Bar */}
