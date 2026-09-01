@@ -71,71 +71,72 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-[#0b0d17] border border-cyan-500/40 rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.25)] overflow-hidden flex flex-col text-center relative z-50">
+      <div className="w-full max-w-md bg-[#0b0d17] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(0,240,255,0.3)] overflow-hidden flex flex-col text-center relative z-50">
         
         {/* Header */}
-        <div className="px-5 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs">
-            <QrCode className="w-4 h-4 text-[#00f0ff]" />
+        <div className="px-6 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 text-cyan-300 font-bold text-sm">
+            <QrCode className="w-5 h-5 text-[#00f0ff]" />
             <span className="uppercase tracking-wider">Control de Invitados</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleRegenerateQr}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-cyan-200 cursor-pointer transition-colors"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-cyan-200 cursor-pointer transition-colors flex items-center gap-1.5 text-xs font-semibold"
               title="Renovar y Regenerar Código QR nuevo (Expulsa a todos)"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="w-4 h-4" />
+              <span className="text-[11px] hidden sm:inline">Renovar QR</span>
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Modal Navigation Tabs */}
-        <div className="flex items-center border-b border-slate-800 bg-slate-950/60 p-1 gap-1">
+        <div className="flex items-center border-b border-slate-800 bg-slate-950/70 p-1.5 gap-1.5">
           <button
             type="button"
             onClick={() => setModalTab('qr')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               modalTab === 'qr'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
             }`}
           >
-            <QrCode className="w-3.5 h-3.5" />
+            <QrCode className="w-4 h-4" />
             <span>Código QR</span>
           </button>
 
           <button
             type="button"
             onClick={() => setModalTab('connected')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               modalTab === 'connected'
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
+            <Users className="w-4 h-4" />
             <span>En Vivo ({connectedGuests.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setModalTab('blocked')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               modalTab === 'blocked'
                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
             }`}
           >
-            <Ban className="w-3.5 h-3.5" />
+            <Ban className="w-4 h-4" />
             <span>Bloqueados ({blockedDevices.length})</span>
           </button>
         </div>
@@ -143,47 +144,47 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
         {/* Tab 1: QR Code */}
         {modalTab === 'qr' && (
           <div className="p-6 flex flex-col items-center gap-4">
-            <div className="p-3 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.3)] min-h-[240px] min-w-[240px] flex items-center justify-center">
+            <div className="p-4 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_40px_rgba(0,240,255,0.35)] min-h-[290px] min-w-[290px] flex items-center justify-center">
               {!effectiveHostId ? (
                 <div className="flex flex-col items-center justify-center text-cyan-400">
-                  <RefreshCw className="w-8 h-8 animate-spin mb-3" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Iniciando...</span>
+                  <RefreshCw className="w-10 h-10 animate-spin mb-3" />
+                  <span className="text-sm font-bold uppercase tracking-wider">Iniciando...</span>
                 </div>
               ) : (
                 <img
                   key={qrImageUrl}
                   src={qrImageUrl}
                   alt="Código QR para pedir canción"
-                  className="w-56 h-56 rounded-xl object-contain bg-slate-950"
+                  className="w-72 h-72 sm:w-76 sm:h-76 rounded-xl object-contain bg-slate-950 shadow-inner"
                   loading="eager"
                 />
               )}
             </div>
 
             <div>
-              <h4 className="text-sm font-bold text-white flex items-center justify-center gap-1.5">
-                <Smartphone className="w-4 h-4 text-emerald-400" />
+              <h4 className="text-base font-bold text-white flex items-center justify-center gap-2">
+                <Smartphone className="w-5 h-5 text-emerald-400" />
                 <span>Escanea desde tu Celular</span>
               </h4>
-              <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
-                Los invitados pueden buscar canciones y agregarlas a la cola desde su móvil.
+              <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+                Los invitados pueden buscar canciones del catálogo y agregarlas a la cola en tiempo real.
               </p>
             </div>
 
             {/* Copy Link Input */}
-            <div className="w-full flex items-center gap-2 p-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+            <div className="w-full flex items-center gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
               <input
                 type="text"
                 readOnly
                 value={guestUrl}
-                className="w-full bg-transparent px-2 text-[11px] font-mono text-cyan-300 focus:outline-none truncate"
+                className="w-full bg-transparent px-2.5 text-xs font-mono text-cyan-300 focus:outline-none truncate"
               />
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] shrink-0 flex items-center gap-1 cursor-pointer transition-all"
+                className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95"
               >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 <span>{copied ? 'Copiado' : 'Copiar'}</span>
               </button>
             </div>
