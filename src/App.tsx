@@ -376,45 +376,61 @@ export default function App() {
   // Listen for guest song requests from mobile phones via BroadcastChannel & WebRTC P2P
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
+      const recentRequestsRef = new Map<string, number>();
+
       const handleRemoteRequest = (data: any) => {
         if (!data) return;
-        const { id, title, artist, isYouTube, videoId, guestName } = data;
+        const { id, title, artist, isYouTube, videoId, guestName, requestId } = data;
         const who = guestName || 'Invitado';
+        const dedupeKey = requestId || (isYouTube ? `yt_${videoId}` : (id || title));
+        const now = Date.now();
+
+        // Drop duplicate network/channel requests arriving within 3 seconds
+        if (dedupeKey && recentRequestsRef.has(dedupeKey)) {
+          const lastTime = recentRequestsRef.get(dedupeKey)!;
+          if (now - lastTime < 3000) {
+            return;
+          }
+        }
+        if (dedupeKey) {
+          recentRequestsRef.set(dedupeKey, now);
+        }
 
         if (isYouTube && videoId) {
           const ytTitle = title || 'Video de YouTube';
           const ytArtist = artist || 'YouTube';
 
-          if (queue.some((q) => q.songData?.id === `yt_${videoId}` || q.songData?.videoBgId === videoId)) {
-            showAlertToast(`ℹ️ "${ytTitle}" ya está en la cola.`);
-            return;
-          }
+          setQueue((prev) => {
+            if (prev.some((q) => q.songData?.id === `yt_${videoId}` || q.songData?.videoBgId === videoId || q.id.includes(videoId))) {
+              showAlertToast(`ℹ️ "${ytTitle}" ya está en la cola.`);
+              return prev;
+            }
 
-          const newItem: QueueItem = {
-            id: `queue_yt_${videoId}_${Date.now()}`,
-            fileName: `🎬 [YouTube] ${ytTitle}`,
-            status: 'ready',
-            progress: 100,
-            requestedBy: who,
-            songData: {
-              id: `yt_${videoId}`,
-              title: ytTitle,
-              artist: ytArtist,
-              duration: 240,
-              bpm: 120,
-              key: 'C',
-              lyrics: [],
-              originalFileName: `${ytTitle}.mp4`,
-              videoBgId: videoId,
-              videoBgMode: 'custom',
-              videoBgCustomUrl: `https://www.youtube.com/watch?v=${videoId}`,
-              createdAt: Date.now(),
-            },
-          };
+            const newItem: QueueItem = {
+              id: `queue_yt_${videoId}_${Date.now()}`,
+              fileName: `🎬 [YouTube] ${ytTitle}`,
+              status: 'ready',
+              progress: 100,
+              requestedBy: who,
+              songData: {
+                id: `yt_${videoId}`,
+                title: ytTitle,
+                artist: ytArtist,
+                duration: 240,
+                bpm: 120,
+                key: 'C',
+                lyrics: [],
+                originalFileName: `${ytTitle}.mp4`,
+                videoBgId: videoId,
+                videoBgMode: 'custom',
+                videoBgCustomUrl: `https://www.youtube.com/watch?v=${videoId}`,
+                createdAt: Date.now(),
+              },
+            };
 
-          // Strictly add to queue and wait for its turn without autoplaying immediately
-          setQueue((prev) => [...prev, newItem]);
-          showAlertToast(`🎬 ${who} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
+            showAlertToast(`🎬 ${who} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
+            return [...prev, newItem];
+          });
           return;
         }
 
@@ -428,21 +444,24 @@ export default function App() {
         );
 
         if (matchedSong) {
-          // Add the REAL song object (with audioBlob) to the queue
-          if (queue.some((q) => q.songData?.id === matchedSong.id)) {
-            showAlertToast(`ℹ️ "${matchedSong.title}" ya está en la cola.`);
-            return;
-          }
-          const newItem: QueueItem = {
-            id: `queue_remote_${matchedSong.id}_${Date.now()}`,
-            fileName: `${matchedSong.title}${matchedSong.artist ? ' - ' + matchedSong.artist : ''}`,
-            status: 'ready',
-            progress: 100,
-            requestedBy: who,
-            songData: matchedSong,
-          };
-          setQueue((prev) => [...prev, newItem]);
-          showAlertToast(`🎤 ${who} pidió "${matchedSong.title}" · Agregada a la cola`);
+          setQueue((prev) => {
+            if (prev.some((q) => q.songData?.id === matchedSong.id || q.id.includes(matchedSong.id))) {
+              showAlertToast(`ℹ️ "${matchedSong.title}" ya está en la cola.`);
+              return prev;
+            }
+
+            const newItem: QueueItem = {
+              id: `queue_remote_${matchedSong.id}_${Date.now()}`,
+              fileName: `${matchedSong.title}${matchedSong.artist ? ' - ' + matchedSong.artist : ''}`,
+              status: 'ready',
+              progress: 100,
+              requestedBy: who,
+              songData: matchedSong,
+            };
+
+            showAlertToast(`🎤 ${who} pidió "${matchedSong.title}" · Agregada a la cola`);
+            return [...prev, newItem];
+          });
         } else {
           showAlertToast(`⚠️ ${who} pidió "${title || 'Desconocida'}" · No encontrada en la biblioteca`);
         }
@@ -1443,15 +1462,21 @@ export default function App() {
   };
 
   const handleAddToQueue = (song: SongItem) => {
-    if (queue.some((q) => q.songData?.id === song.id)) return;
-    const newItem: QueueItem = {
-      id: `queue_lib_${song.id}_${Date.now()}`,
-      fileName: `${song.title}${song.artist ? ' - ' + song.artist : ''}`,
-      status: 'ready',
-      progress: 100,
-      songData: song,
-    };
-    setQueue((prev) => [...prev, newItem]);
+    setQueue((prev) => {
+      if (prev.some((q) => q.songData?.id === song.id || q.id === song.id || (q.songData?.title && q.songData.title.toLowerCase() === song.title.toLowerCase() && q.songData.artist === song.artist))) {
+        showAlertToast(`ℹ️ "${song.title}" ya está en la cola.`);
+        return prev;
+      }
+      const newItem: QueueItem = {
+        id: `queue_lib_${song.id}_${Date.now()}`,
+        fileName: `${song.title}${song.artist ? ' - ' + song.artist : ''}`,
+        status: 'ready',
+        progress: 100,
+        songData: song,
+      };
+      showAlertToast(`➕ "${song.title}" agregada a la cola`);
+      return [...prev, newItem];
+    });
   };
 
   const handleRemoveFromQueue = (queueId: string) => {

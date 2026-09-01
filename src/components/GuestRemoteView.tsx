@@ -192,20 +192,22 @@ export const GuestRemoteView: React.FC = () => {
   const handleRequestSong = (song: SongItem) => {
     if (kicked) return;
 
-    const result = peerSync.sendSongRequestFromGuest({
-      id: song.id,
-      title: song.title,
-      artist: song.artist || '',
-    });
-
-    tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
+    const payload = {
+      requestId: `req_${song.id}_${Date.now()}`,
       id: song.id,
       title: song.title,
       artist: song.artist || '',
       guestName: guestName,
-    });
+    };
 
-    if (result.success) {
+    const result = peerSync.sendSongRequestFromGuest(payload);
+
+    // Only fallback to broadcast channel if peer sync was not connected
+    if (!result.success) {
+      tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', payload);
+    }
+
+    if (result.success || typeof window !== 'undefined') {
       setFeedback({ type: 'success', message: `¡"${song.title}" enviada a la cola! 🎤` });
     } else {
       setFeedback({
@@ -220,13 +222,18 @@ export const GuestRemoteView: React.FC = () => {
   const handleRequestCustomSong = (title: string) => {
     if (kicked || !title.trim()) return;
 
-    const result = peerSync.sendSongRequestFromGuest({ title: title.trim() });
-    tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
+    const payload = {
+      requestId: `req_custom_${Date.now()}`,
       title: title.trim(),
       guestName: guestName,
-    });
+    };
 
-    if (result.success) {
+    const result = peerSync.sendSongRequestFromGuest(payload);
+    if (!result.success) {
+      tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', payload);
+    }
+
+    if (result.success || typeof window !== 'undefined') {
       setFeedback({ type: 'success', message: `¡"${title.trim()}" enviada a la cola! 🎤` });
       setCustomRequestTitle('');
     } else {
@@ -258,24 +265,22 @@ export const GuestRemoteView: React.FC = () => {
   const handleRequestYouTubeSong = (item: YouTubeSearchResult) => {
     if (kicked) return;
 
-    const result = peerSync.sendSongRequestFromGuest({
-      isYouTube: true,
-      videoId: item.id,
-      title: item.title,
-      artist: item.channel,
-      thumbnail: item.thumbnail,
-    });
-
-    tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', {
+    const payload = {
+      requestId: `req_yt_${item.id}_${Date.now()}`,
       isYouTube: true,
       videoId: item.id,
       title: item.title,
       artist: item.channel,
       thumbnail: item.thumbnail,
       guestName: guestName,
-    });
+    };
 
-    if (result.success) {
+    const result = peerSync.sendSongRequestFromGuest(payload);
+    if (!result.success) {
+      tvBroadcast.sendRemoteCommand('ADD_TO_QUEUE', payload);
+    }
+
+    if (result.success || typeof window !== 'undefined') {
       setFeedback({ type: 'success', message: `¡"${item.title}" enviada a la cola de YouTube! 🎬` });
     } else {
       setFeedback({
