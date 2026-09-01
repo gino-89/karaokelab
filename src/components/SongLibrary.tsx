@@ -373,7 +373,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
   const targetPersonalProfileId = useMemo(() => {
     if (isGuestMode) {
-      return guestRestrictedProfileId || (activeProfile?.id !== 'profile_all' ? activeProfile?.id : profiles.find((p) => p.id !== 'profile_all')?.id);
+      if (guestRestrictedProfileId && guestRestrictedProfileId !== 'profile_all') return guestRestrictedProfileId;
+      if (activeProfile && activeProfile.id !== 'profile_all') return activeProfile.id;
+      const firstReal = profiles.find((p) => p.id !== 'profile_all');
+      return firstReal ? firstReal.id : null;
     }
     return activeProfile && activeProfile.id !== 'profile_all' ? activeProfile.id : null;
   }, [isGuestMode, guestRestrictedProfileId, activeProfile, profiles]);
@@ -393,8 +396,9 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
     (e: React.MouseEvent, song: SongItem) => {
       e.stopPropagation();
       if (isGuestMode) {
-        if (targetPersonalProfileId) {
-          onToggleFavoriteSong?.(targetPersonalProfileId, song.id);
+        const targetId = targetPersonalProfileId || (activeProfile?.id !== 'profile_all' ? activeProfile?.id : profiles.find((p) => p.id !== 'profile_all')?.id);
+        if (targetId) {
+          onToggleFavoriteSong?.(targetId, song.id);
         }
       } else if (activeProfile && activeProfile.id !== 'profile_all') {
         onToggleFavoriteSong?.(activeProfile.id, song.id);
@@ -402,7 +406,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         setSongForProfileAssign(song);
       }
     },
-    [isGuestMode, targetPersonalProfileId, activeProfile, onToggleFavoriteSong]
+    [isGuestMode, targetPersonalProfileId, activeProfile, profiles, onToggleFavoriteSong]
   );
 
   const getIsYouTubeFavorite = useCallback(
@@ -419,8 +423,9 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
     (e: React.MouseEvent, yt: any) => {
       e.stopPropagation();
       if (isGuestMode) {
-        if (targetPersonalProfileId) {
-          onToggleYouTubeFavorite?.(yt, targetPersonalProfileId);
+        const targetId = targetPersonalProfileId || (activeProfile?.id !== 'profile_all' ? activeProfile?.id : profiles.find((p) => p.id !== 'profile_all')?.id);
+        if (targetId) {
+          onToggleYouTubeFavorite?.(yt, targetId);
         }
       } else if (activeProfile && activeProfile.id !== 'profile_all') {
         onToggleYouTubeFavorite?.(yt, activeProfile.id);
@@ -428,7 +433,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         setYtTrackForProfileAssign(yt);
       }
     },
-    [isGuestMode, targetPersonalProfileId, activeProfile, onToggleYouTubeFavorite]
+    [isGuestMode, targetPersonalProfileId, activeProfile, profiles, onToggleYouTubeFavorite]
   );
 
   const handleAddProfileFavoritesToQueue = () => {

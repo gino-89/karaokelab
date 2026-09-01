@@ -149,6 +149,7 @@ export default function App() {
     const updated = [...profiles, newProfile];
     setProfiles(updated);
     saveProfilesToStorage(updated);
+    peerSync.broadcastProfilesToGuests(updated);
     setActiveProfileId(newProfile.id);
     setActiveProfileIdToStorage(newProfile.id);
   };
@@ -158,6 +159,7 @@ export default function App() {
     const updated = profiles.filter((p) => p.id !== id);
     setProfiles(updated);
     saveProfilesToStorage(updated);
+    peerSync.broadcastProfilesToGuests(updated);
     if (activeProfileId === id) {
       setActiveProfileId('profile_all');
       setActiveProfileIdToStorage('profile_all');
@@ -177,6 +179,7 @@ export default function App() {
         return p;
       });
       saveProfilesToStorage(updated);
+      peerSync.broadcastProfilesToGuests(updated);
       return updated;
     });
   };
