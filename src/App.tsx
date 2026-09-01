@@ -2631,9 +2631,16 @@ export default function App() {
                           {activeProf?.avatar || '👤'}
                         </div>
                         <div>
-                          <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                            Chat Privado con {activeProf?.name || 'Cantante'}
-                          </h3>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                              Chat Privado con {activeProf?.name || 'Cantante'}
+                            </h3>
+                            {activeProf?.tableNumber && (
+                              <span className="px-1.5 py-0.2 rounded bg-pink-500/30 text-pink-300 border border-pink-500/50 text-[9px] font-black">
+                                🪑 {activeProf.tableNumber}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-emerald-400 font-mono">
                             ● Mensajes directos en vivo
                           </p>
@@ -2697,14 +2704,21 @@ export default function App() {
                       >
                         <div className="flex items-center gap-1.5 mb-1 px-1">
                           <span className="text-xs">{msg.avatar || (msg.isHost ? '🎧' : '🎤')}</span>
-                          <span
-                            className={`text-[10px] font-bold ${
-                              msg.isHost ? 'text-pink-400' : 'text-cyan-300'
-                            }`}
-                          >
-                            {msg.senderName}
-                          </span>
-                          <span className="text-[9px] text-slate-500 font-mono">
+                          <div className="flex flex-col">
+                            <span
+                              className={`text-[10px] font-bold ${
+                                msg.isHost ? 'text-pink-400' : 'text-cyan-300'
+                              }`}
+                            >
+                              {msg.senderName}
+                            </span>
+                            {!msg.isHost && (msg.tableNumber || activeProf?.tableNumber) && (
+                              <span className="text-[8.5px] font-black text-pink-300">
+                                🪑 {msg.tableNumber || activeProf?.tableNumber}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[9px] text-slate-500 font-mono self-start mt-0.5">
                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>

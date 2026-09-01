@@ -1300,8 +1300,11 @@ export const GuestRemoteView: React.FC = () => {
                   <h3 className="text-xs font-black text-white uppercase tracking-wider">
                     Chat de la Sala
                   </h3>
-                  <p className="text-[10px] text-pink-400 font-mono">
-                    Conectado como: <span className="text-white font-bold">{guestName}</span>
+                  <p className="text-[10px] text-pink-400 font-mono flex items-center gap-1.5">
+                    <span>Conectado como: <strong className="text-white">{guestName}</strong></span>
+                    <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 border border-pink-500/40 text-[9px] font-black">
+                      🪑 {tableNumber}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -1348,14 +1351,21 @@ export const GuestRemoteView: React.FC = () => {
                     >
                       <div className="flex items-center gap-1.5 mb-1 px-1">
                         <span className="text-xs">{msg.avatar || (msg.isHost ? '🎧' : '🎤')}</span>
-                        <span
-                          className={`text-[10px] font-bold ${
-                            msg.isHost ? 'text-pink-400' : isMe ? 'text-cyan-300' : 'text-purple-300'
-                          }`}
-                        >
-                          {msg.isHost ? 'Host / DJ 🎧' : isMe ? 'Tú' : msg.senderName}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-mono">
+                        <div className="flex flex-col">
+                          <span
+                            className={`text-[10px] font-bold ${
+                              msg.isHost ? 'text-pink-400' : isMe ? 'text-cyan-300' : 'text-purple-300'
+                            }`}
+                          >
+                            {msg.isHost ? 'Host / DJ 🎧' : isMe ? 'Tú' : msg.senderName}
+                          </span>
+                          {!msg.isHost && (msg.tableNumber || tableNumber) && (
+                            <span className="text-[8.5px] font-black text-pink-300">
+                              🪑 {msg.tableNumber || tableNumber}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-mono self-start mt-0.5">
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
