@@ -37,31 +37,46 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
 
+  // Static embed URL per videoId (NEVER depends on isPlaying to prevent iframe reloading on pause/play)
+  const embedUrl = useRef<string>('');
+  const lastVideoIdRef = useRef<string>('');
+
+  if (config.videoId && config.videoId !== lastVideoIdRef.current) {
+    lastVideoIdRef.current = config.videoId;
+    const startSec = Math.max(0, Math.floor(currentTime || 0));
+    const startParam = startSec > 0 ? `&start=${startSec}` : '';
+    embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
+  }
+
   // Sync Play / Pause command when playback state changes
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
-
-    // Check if song has ended
-    const isSongEnded = duration !== undefined && duration > 0 && currentTime !== undefined && currentTime >= duration - 0.5;
-    const shouldPlay = isPlaying && !isSongEnded;
-
-    if (prevIsPlayingRef.current === shouldPlay) return;
-    prevIsPlayingRef.current = shouldPlay;
 
     try {
       const win = iframeRef.current?.contentWindow;
       if (!win) return;
 
+      if (currentTime !== undefined) {
+        win.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func: 'seekTo',
+            args: [currentTime, true],
+          }),
+          '*'
+        );
+      }
+
       win.postMessage(
         JSON.stringify({
           event: 'command',
-          func: shouldPlay ? 'playVideo' : 'pauseVideo',
+          func: isPlaying ? 'playVideo' : 'pauseVideo',
           args: '',
         }),
         '*'
       );
     } catch (_) {}
-  }, [isPlaying, config.enabled, config.mode, config.videoId, duration, currentTime]);
+  }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
   // Sync Seek position when user jumps / seeks in the song
   useEffect(() => {
@@ -70,8 +85,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     const delta = Math.abs(currentTime - prevTimeRef.current);
     const now = Date.now();
 
-    // If time jumped by more than 2 seconds (manual seek)
-    if (delta > 2.0 && now - lastSeekTimeRef.current > 800) {
+    // If time jumped by more than 1.5 seconds (manual seek)
+    if (delta > 1.5 && now - lastSeekTimeRef.current > 500) {
       lastSeekTimeRef.current = now;
       prevTimeRef.current = currentTime;
       try {
@@ -97,13 +112,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return null;
   }
 
-  // Construct optimized, zero-controls, muted, loop URL with exact start second
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const startSeconds = initialStartTimeRef.current;
-  const startParam = startSeconds > 0 ? `&start=${startSeconds}` : '';
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${isPlaying ? 1 : 0}${startParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
-
-  const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.88));
+  const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.65));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 ${className}`}>
@@ -127,7 +136,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         <iframe
           ref={iframeRef}
           key={`${config.videoId}_${songKey || 'default'}`}
-          src={embedUrl}
+          src={embedUrl.current}
           title="Dynamic Background Video"
           tabIndex={-1}
           aria-hidden="true"
@@ -140,6 +149,22 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             touchAction: 'none',
             transform: 'translate3d(0, 0, 0)',
             willChange: 'transform',
+          }}
+          onLoad={() => {
+            try {
+              const win = iframeRef.current?.contentWindow;
+              if (win) {
+                win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
+                if (currentTime) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
+                }
+                if (!isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+                } else {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                }
+              }
+            } catch (_) {}
           }}
         />
       </div>
