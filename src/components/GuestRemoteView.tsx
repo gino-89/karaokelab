@@ -38,7 +38,7 @@ const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
 
 export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
-  const [guestPin, setGuestPin] = useState<string>(() => localStorage.getItem('karaokelab_guest_pin') || '');
+  const [guestPin, setGuestPin] = useState<string>('');
   const [inputPin, setInputPin] = useState<string>('');
   const [pinChallengeModal, setPinChallengeModal] = useState<{
     show: boolean;
@@ -109,7 +109,10 @@ export const GuestRemoteView: React.FC = () => {
   useEffect(() => {
     const unsub = peerSync.onProfileRejected((payload) => {
       setNameConfirmed(false);
+      setGuestPin('');
+      setInputPin('');
       localStorage.removeItem('karaokelab_guest_name');
+      localStorage.removeItem('karaokelab_guest_pin');
       setFeedback({
         type: 'error',
         message: `⚠️ El nombre "${payload.name}" ya pertenece a otro cliente registrado en la sala con otro PIN. Por favor usa tu PIN correcto o ingresa un nombre diferente (ej. ${payload.name} P., ${payload.name} ${tableNumber}).`,
@@ -496,8 +499,7 @@ export const GuestRemoteView: React.FC = () => {
       return;
     }
 
-    const savedPin = localStorage.getItem('karaokelab_guest_pin') || '';
-    const pinToUse = (overridePin !== undefined ? overridePin : (guestPin || inputPin || savedPin)).trim();
+    const pinToUse = (overridePin !== undefined ? overridePin : (guestPin || inputPin)).trim();
     if (!pinToUse || pinToUse.length !== 4) {
       setFeedback({ type: 'error', message: '⚠️ Debes ingresar un PIN obligatorio de 4 dígitos para proteger tu perfil (ej. 1234).' });
       setTimeout(() => setFeedback(null), 4000);
@@ -1095,7 +1097,10 @@ export const GuestRemoteView: React.FC = () => {
               type="button"
               onClick={() => {
                 setNameConfirmed(false);
+                setGuestPin('');
+                setInputPin('');
                 localStorage.removeItem('karaokelab_guest_name');
+                localStorage.removeItem('karaokelab_guest_pin');
               }}
               className="p-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-400 hover:text-white text-xs cursor-pointer transition-all hover:bg-slate-800"
               title="Cambiar nombre de cantante"
