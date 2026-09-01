@@ -103,8 +103,7 @@ export const GuestRemoteView: React.FC = () => {
       }
     } catch (_) {}
 
-    const activeId = localStorage.getItem(GUEST_ACTIVE_PROFILE_KEY) || 'profile_all';
-    setActiveProfileId(activeId);
+    setActiveProfileId('profile_all');
 
     // Real-time listener: host kicked this device or refreshed QR
     const unsubKick = peerSync.onKicked((reason) => {
@@ -226,8 +225,6 @@ export const GuestRemoteView: React.FC = () => {
       if (myProfileId !== existing.id) {
         setMyProfileId(existing.id);
         localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
-        setActiveProfileId(existing.id);
-        localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, existing.id);
       }
     } else {
       const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -243,8 +240,6 @@ export const GuestRemoteView: React.FC = () => {
       saveGuestProfiles(updated);
       setMyProfileId(newProfId);
       localStorage.setItem('karaokelab_guest_my_profile_id', newProfId);
-      setActiveProfileId(newProfId);
-      localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, newProfId);
       peerSync.sendCreateProfileFromGuest(newProf);
     }
   }, [nameConfirmed, guestName, profiles]);
@@ -256,15 +251,14 @@ export const GuestRemoteView: React.FC = () => {
     setNameConfirmed(true);
     peerSync.sendGuestName(trimmed);
 
-    // Auto-link or auto-create personal singer profile for this guest
+    // Auto-link personal singer profile in background while keeping library clean on "profile_all"
+    setActiveProfileId('profile_all');
     const existing = profiles.find(
       (p) => p.name.toLowerCase().trim() === trimmed.toLowerCase().trim() && p.id !== 'profile_all'
     );
     if (existing) {
       setMyProfileId(existing.id);
       localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
-      setActiveProfileId(existing.id);
-      localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, existing.id);
     } else {
       const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       const newProf: SingerProfile = {
@@ -279,8 +273,6 @@ export const GuestRemoteView: React.FC = () => {
       saveGuestProfiles(updated);
       setMyProfileId(newProfId);
       localStorage.setItem('karaokelab_guest_my_profile_id', newProfId);
-      setActiveProfileId(newProfId);
-      localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, newProfId);
       peerSync.sendCreateProfileFromGuest(newProf);
     }
   };
