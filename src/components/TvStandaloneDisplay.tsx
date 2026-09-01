@@ -391,11 +391,17 @@ export const TvStandaloneDisplay: React.FC = () => {
           )}
 
           {nextSongTitle && (
-            <div className="hidden md:flex flex-col text-right font-mono text-[10px]">
-              <span className="text-slate-400 font-bold">SIGUIENTE:</span>
-              <span className="text-amber-300 font-bold truncate max-w-[200px]">{nextSongTitle}</span>
+            <div className="flex flex-col text-right px-4 py-2 rounded-2xl bg-amber-950/70 border border-amber-500/60 shadow-[0_0_25px_rgba(245,158,11,0.4)] animate-pulse">
+              <span className="text-amber-300 font-mono font-black text-xs sm:text-sm uppercase tracking-widest flex items-center justify-end gap-1">
+                <span>▶ SIGUIENTE CANCIÓN:</span>
+              </span>
+              <span className="text-[#00f0ff] font-black text-base sm:text-lg md:text-xl truncate max-w-[280px] sm:max-w-[420px]">
+                {nextSongTitle}
+              </span>
               {nextSongRequestedBy && (
-                <span className="text-cyan-400 font-bold truncate max-w-[200px]">🎤 {nextSongRequestedBy}</span>
+                <span className="text-pink-300 font-bold text-xs sm:text-sm truncate max-w-[280px] sm:max-w-[420px] flex items-center justify-end gap-1">
+                  <span>🎤 {nextSongRequestedBy}</span>
+                </span>
               )}
             </div>
           )}
@@ -503,11 +509,11 @@ export const TvStandaloneDisplay: React.FC = () => {
 
           {/* Next Upcoming Line Preview */}
           {nextLyric ? (
-            <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 max-w-2xl w-full flex flex-col items-center">
-              <span className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
+            <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/85 border border-slate-700/80 max-w-3xl w-full flex flex-col items-center shadow-lg">
+              <span className="text-sm sm:text-base md:text-lg font-mono font-black uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
                 {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
               </span>
-              <p className="text-xl sm:text-2xl md:text-3xl font-bold truncate max-w-xl text-center" style={{ color: nextArtist.color }}>
+              <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold truncate max-w-2xl text-center" style={{ color: nextArtist.color }}>
                 {cleanLyricText(nextLyric.text)}
               </p>
             </div>
