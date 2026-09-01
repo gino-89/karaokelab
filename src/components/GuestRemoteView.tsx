@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../types';
 import { getSongsFromDB, getYouTubeFavoritesFromStorage, saveYouTubeFavoritesToStorage, getChatMessagesFromStorage, saveChatMessagesToStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Send,
   MessageCircle,
+  Trash2,
 } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
@@ -81,6 +82,62 @@ export const GuestRemoteView: React.FC = () => {
   const [chatInputText, setChatInputText] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Live Room Queue State & Mis Pedidos modal
+  const [roomQueue, setRoomQueue] = useState<any[]>([]);
+  const [isMyQueueOpen, setIsMyQueueOpen] = useState(false);
+
+  useEffect(() => {
+    const unsub = peerSync.onQueueReceived((queue) => {
+      setRoomQueue(queue);
+    });
+    return () => unsub();
+  }, []);
+
+  const myQueueItems = useMemo(() => {
+    const name = guestName.trim().toLowerCase();
+    const table = tableNumber.trim().toLowerCase();
+    return roomQueue.filter((q) => {
+      if (name && q.requestedBy && q.requestedBy.toLowerCase().trim() === name) return true;
+      if (table && q.tableNumber && q.tableNumber.toLowerCase().trim() === table) return true;
+      return false;
+    });
+  }, [roomQueue, guestName, tableNumber]);
+
+  const isSongInMyQueue = useCallback(
+    (songId: string, songTitle?: string) => {
+      const name = guestName.trim().toLowerCase();
+      const table = tableNumber.trim().toLowerCase();
+      return roomQueue.some((q) => {
+        const isMine =
+          (name && q.requestedBy && q.requestedBy.toLowerCase().trim() === name) ||
+          (table && q.tableNumber && q.tableNumber.toLowerCase().trim() === table);
+        if (!isMine) return false;
+        if (q.songId === songId || q.songId === `yt_${songId}` || (q.id && q.id.includes(songId))) return true;
+        if (songTitle && q.title && q.title.toLowerCase().trim() === songTitle.toLowerCase().trim()) return true;
+        return false;
+      });
+    },
+    [roomQueue, guestName, tableNumber]
+  );
+
+  const handleCancelQueueItem = (songId?: string, queueItemId?: string, songTitle?: string) => {
+    peerSync.sendRemoveFromQueueFromGuest({
+      songId,
+      queueItemId,
+      songTitle,
+      guestName: guestName.trim(),
+    });
+    setRoomQueue((prev) =>
+      prev.filter((q) => {
+        if (queueItemId && q.id === queueItemId) return false;
+        if (songId && (q.songId === songId || q.songData?.id === songId || q.id.includes(songId))) return false;
+        return true;
+      })
+    );
+    setFeedback({ type: 'success', message: `¡Pedido de "${songTitle || 'canción'}" cancelado! 🗑️` });
+    setTimeout(() => setFeedback(null), 3000);
+  };
 
   // Save guest chat messages to localStorage with 12-hour auto TTL pruning
   useEffect(() => {
@@ -877,6 +934,23 @@ export const GuestRemoteView: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <button
               type="button"
+              onClick={() => setIsMyQueueOpen(true)}
+              className={`px-2 py-1 rounded-lg border text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all shadow-sm ${
+                myQueueItems.length > 0
+                  ? 'bg-gradient-to-r from-pink-600 to-purple-600 border-pink-400 text-white shadow-[0_0_12px_rgba(255,0,127,0.4)] animate-pulse'
+                  : 'bg-slate-850 border-slate-700 text-slate-300 hover:text-white'
+              }`}
+            >
+              <span>📋 Mis Pedidos</span>
+              {myQueueItems.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-white text-slate-950 font-mono text-[9px] font-black shrink-0">
+                  {myQueueItems.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 setNameConfirmed(false);
                 localStorage.removeItem('karaokelab_guest_name');
@@ -1103,14 +1177,26 @@ export const GuestRemoteView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => handleRequestYouTubeSong(item)}
-                        className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-                      >
-                        <ListPlus className="w-3.5 h-3.5" />
-                        <span>Pedir a la Cola 🎤</span>
-                      </button>
+                      {isSongInMyQueue(item.id, item.title) ? (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelQueueItem(`yt_${item.id}`, undefined, item.title)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 animate-pulse"
+                          title="Toca para cancelar este pedido de la cola"
+                        >
+                          <Check className="w-3.5 h-3.5 text-white" />
+                          <span>✓ En Cola · Cancelar ❌</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestYouTubeSong(item)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                        >
+                          <ListPlus className="w-3.5 h-3.5" />
+                          <span>Pedir a la Cola 🎤</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"
@@ -1371,6 +1457,83 @@ export const GuestRemoteView: React.FC = () => {
                   <Send className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mis Pedidos / Mi Fila Modal ── */}
+      {isMyQueueOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-md mx-auto bg-[#090a14] border-t border-indigo-500/40 rounded-t-3xl h-[75vh] flex flex-col shadow-[0_0_50px_rgba(99,102,241,0.35)] overflow-hidden">
+            {/* Header */}
+            <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-base font-black shadow-md">
+                  📋
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                    Mis Canciones en Cola ({myQueueItems.length})
+                  </h3>
+                  <p className="text-[10px] text-indigo-300 font-mono">
+                    Cantante: <strong className="text-white">{guestName}</strong> · <span className="text-pink-400">🪑 {tableNumber}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMyQueueOpen(false)}
+                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List of Requested Songs */}
+            <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 scrollbar-thin">
+              {myQueueItems.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2 p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl">
+                    🎤
+                  </div>
+                  <p className="text-xs font-bold text-slate-300">No tienes canciones en la cola</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs">
+                    Busca en la biblioteca o YouTube y presiona <b>"+ Pedir Canción"</b> para agregarte a la fila del Karaoke.
+                  </p>
+                </div>
+              ) : (
+                myQueueItems.map((qItem, idx) => (
+                  <div
+                    key={qItem.id || idx}
+                    className="p-3 rounded-2xl bg-slate-900/90 border border-indigo-500/30 flex items-center justify-between gap-3 shadow-lg"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-950 border border-indigo-500/40 text-indigo-300 font-mono text-xs font-black flex items-center justify-center shrink-0 shadow-inner">
+                        #{idx + 1}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-extrabold text-white truncate">
+                          {qItem.songData?.title || qItem.title || qItem.fileName}
+                        </span>
+                        <span className="text-[10.5px] text-slate-400 truncate">
+                          {qItem.songData?.artist || qItem.artist || 'Artista'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCancelQueueItem(qItem.songData?.id, qItem.id, qItem.songData?.title || qItem.title || qItem.fileName)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-bold shrink-0 cursor-pointer transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                      title="Cancelar este pedido"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Cancelar</span>
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

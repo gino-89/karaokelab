@@ -542,6 +542,18 @@ export default function App() {
         (cmd, data) => {
           if (cmd === 'ADD_TO_QUEUE') {
             handleRemoteRequest(data);
+          } else if (cmd === 'REMOVE_FROM_QUEUE') {
+            if (data) {
+              setQueue((prev) => {
+                const updated = prev.filter((q) => {
+                  if (data.queueItemId && q.id === data.queueItemId) return false;
+                  if (data.songId && q.songData?.id === data.songId && (!data.guestName || q.requestedBy === data.guestName)) return false;
+                  return true;
+                });
+                return updated;
+              });
+              showAlertToast(`🗑️ Pedido cancelado por ${data.guestName || 'invitado'}`);
+            }
           } else if (cmd === 'CREATE_PROFILE' || cmd === 'GUEST_INFO') {
             if (data?.name) {
               const newProfile: SingerProfile = {
@@ -643,6 +655,22 @@ export default function App() {
       return () => unsub();
     }
   }, [isTvDisplayMode, isGuestMode]);
+
+  // Broadcast updated queue to guests whenever queue changes
+  useEffect(() => {
+    if (!isTvDisplayMode && !isGuestMode) {
+      peerSync.broadcastQueueToGuests(
+        queue.map((q) => ({
+          id: q.id,
+          requestedBy: q.requestedBy,
+          tableNumber: q.tableNumber,
+          songId: q.songData?.id,
+          title: q.songData?.title || q.fileName,
+          artist: q.songData?.artist || '',
+        }))
+      );
+    }
+  }, [queue, isTvDisplayMode, isGuestMode]);
 
   // Sync catalog, profiles & YouTube favorites over WebRTC to connected guest mobile phones
   useEffect(() => {

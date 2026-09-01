@@ -3,7 +3,7 @@ import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../t
 import { getDeviceFingerprint } from './deviceFingerprint';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'CHAT_MESSAGE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'REMOVE_FROM_QUEUE' | 'QUEUE_SYNC' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'CHAT_MESSAGE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
   payload?: any;
 }
 
@@ -53,10 +53,19 @@ class PeerSyncService {
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
   private onKickedCallback: ((reason?: string, message?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
+  private onQueueReceivedCallback: ((queue: any[]) => void) | null = null;
 
   public onChatMessageReceived(callback: (msg: ChatMessage) => void): () => void {
     this.onChatMessageReceivedCallback = callback;
     return () => { this.onChatMessageReceivedCallback = null; };
+  }
+
+  public onQueueReceived(callback: (queue: any[]) => void): () => void {
+    this.onQueueReceivedCallback = callback;
+    if (this.currentQueue && this.currentQueue.length > 0) {
+      callback(this.currentQueue);
+    }
+    return () => { this.onQueueReceivedCallback = null; };
   }
 
   constructor() {
@@ -92,6 +101,7 @@ class PeerSyncService {
   private currentProfiles: SingerProfile[] = [];
   private currentYtFavorites: YouTubeFavoriteTrack[] = [];
   private currentTvState: any = null;
+  private currentQueue: any[] = [];
 
   // Heartbeat & connection monitoring
   private hostHeartbeatTimer: any = null;
@@ -621,6 +631,32 @@ class PeerSyncService {
     });
   }
 
+  // Broadcast updated room queue to all connected guest phones
+  public broadcastQueueToGuests(queue: any[]) {
+    if (!this.isHost) return;
+    this.currentQueue = queue;
+
+    this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'QUEUE_SYNC', payload: queue });
+        } catch (_) {}
+      }
+    });
+  }
+
+  // Send request from guest to remove a song from queue
+  public sendRemoveFromQueueFromGuest(payload: { songId?: string; queueItemId?: string; songTitle?: string; guestName?: string }) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'REMOVE_FROM_QUEUE',
+          payload,
+        });
+      } catch (_) {}
+    }
+  }
+
   // Broadcast live TV state (lyrics, song, playback, visualizer, video bg) to Smart TV displays
   public broadcastTvState(state: any) {
     if (!this.isHost) return;
@@ -810,6 +846,12 @@ class PeerSyncService {
             console.log('✓ Received YouTube favorites sync from Host:', data.payload.length, 'favorites');
             if (this.onYtFavoritesReceivedCallback) {
               this.onYtFavoritesReceivedCallback(data.payload);
+            }
+          } else if (data.type === 'QUEUE_SYNC' && Array.isArray(data.payload)) {
+            console.log('✓ Received queue sync from Host:', data.payload.length, 'items');
+            this.currentQueue = data.payload;
+            if (this.onQueueReceivedCallback) {
+              this.onQueueReceivedCallback(data.payload);
             }
           } else if (data.type === 'CHAT_MESSAGE' && data.payload) {
             if (this.onChatMessageReceivedCallback) {
