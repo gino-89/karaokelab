@@ -40,7 +40,7 @@ class PeerSyncService {
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
   private onYtFavoritesReceivedCallback: ((favorites: YouTubeFavoriteTrack[]) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
-  private onKickedCallback: ((kickedKey?: string) => void) | null = null;
+  private onKickedCallback: ((reason?: string, message?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
 
   private currentMiniCatalog: any[] = [];
@@ -102,7 +102,7 @@ class PeerSyncService {
     return newId;
   }
 
-  // Regenerate fresh room code and reconnect host peer
+  // Regenerate fresh room code and reconnect host peer, disconnecting previous guests
   public regenerateHost(
     onPeerIdReady?: (peerId: string) => void,
     onCommand?: (cmd: string, data?: any) => void
@@ -111,15 +111,31 @@ class PeerSyncService {
       clearInterval(this.hostHeartbeatTimer);
       this.hostHeartbeatTimer = null;
     }
+
+    // 1. Notify all currently connected guests that QR code was refreshed
     this.guestConnections.forEach((conn) => {
       try {
-        conn.close();
+        conn.send({
+          type: 'KICK',
+          payload: {
+            reason: 'expired_qr',
+            message: 'El anfitrión ha renovado el código QR de la sala. Solicita o escanea el nuevo código QR.',
+          },
+        });
       } catch (_) {}
+      setTimeout(() => {
+        try { conn.close(); } catch (_) {}
+      }, 300);
     });
+
     this.guestConnections.clear();
     this.connectedGuests.clear();
     this._notifyGuestsChanged();
 
+    // 2. Rotate the QR key
+    this.rotateQrKey();
+
+    // 3. Destroy old peer and recreate fresh host
     if (this.peer) {
       try {
         this.peer.destroy();
@@ -127,6 +143,10 @@ class PeerSyncService {
       this.peer = null;
     }
     this.hostId = null;
+
+    // Force a fresh new host ID
+    const newHostId = this.getOrCreateHostId(true);
+    this.hostId = newHostId;
 
     this.initHost(onCommand || this.onCommandCallback || (() => {}), onPeerIdReady);
   }
@@ -197,6 +217,28 @@ class PeerSyncService {
           if (!data) return;
 
           if (data.type === 'GUEST_INFO') {
+            const guestQrKey = data.payload?.qrKey || '';
+            // If the host has a QR key active and guest connects with an old/expired QR key:
+            if (this.currentQrKey && guestQrKey && guestQrKey !== this.currentQrKey) {
+              console.warn(`Rejecting guest with expired QR key: ${guestQrKey} (expected: ${this.currentQrKey})`);
+              try {
+                conn.send({
+                  type: 'KICK',
+                  payload: {
+                    reason: 'expired_qr',
+                    message: 'El código QR ha expirado. Solicita el nuevo código QR.',
+                  },
+                });
+              } catch (_) {}
+              setTimeout(() => {
+                try { conn.close(); } catch (_) {}
+                this.guestConnections.delete(conn.peer);
+                this.connectedGuests.delete(conn.peer);
+                this._notifyGuestsChanged();
+              }, 300);
+              return;
+            }
+
             const guestName = (data.payload?.name || 'Invitado').trim();
             const guest: ConnectedGuest = {
               peerId: conn.peer,
@@ -340,7 +382,7 @@ class PeerSyncService {
   }
 
   // Register callback for when this guest gets kicked
-  public onKicked(callback: (kickedKey?: string) => void): () => void {
+  public onKicked(callback: (reason?: string, message?: string) => void): () => void {
     this.onKickedCallback = callback;
     return () => { this.onKickedCallback = null; };
   }
@@ -546,9 +588,12 @@ class PeerSyncService {
           this._setConnectionStatus('connected');
 
           const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
+          const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+          const urlQrKey = params ? params.get('k') || '' : '';
+
           conn.send({
             type: 'GUEST_INFO',
-            payload: { name: savedName },
+            payload: { name: savedName, qrKey: urlQrKey },
           });
 
           // Start Heartbeat monitor on Guest: check every 3s
@@ -593,6 +638,9 @@ class PeerSyncService {
               this.onYtFavoritesReceivedCallback(data.payload);
             }
           } else if (data.type === 'KICK') {
+            const reason = data.payload?.reason || 'kicked';
+            const message = data.payload?.message || '';
+
             try {
               localStorage.removeItem('karaokelab_guest_name');
             } catch (_) {}
@@ -603,7 +651,7 @@ class PeerSyncService {
             this._setConnectionStatus('disconnected');
 
             if (this.onKickedCallback) {
-              this.onKickedCallback();
+              this.onKickedCallback(reason, message);
             }
           }
         });

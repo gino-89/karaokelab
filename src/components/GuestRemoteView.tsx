@@ -49,6 +49,7 @@ export const GuestRemoteView: React.FC = () => {
   const [activeProfileId, setActiveProfileId] = useState('profile_all');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
+  const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
 
   // Initial mount & URL validation
   useEffect(() => {
@@ -72,8 +73,9 @@ export const GuestRemoteView: React.FC = () => {
     const activeId = localStorage.getItem(GUEST_ACTIVE_PROFILE_KEY) || 'profile_all';
     setActiveProfileId(activeId);
 
-    // Real-time listener: host kicked this device
-    const unsubKick = peerSync.onKicked(() => {
+    // Real-time listener: host kicked this device or refreshed QR
+    const unsubKick = peerSync.onKicked((reason) => {
+      setKickReason(reason || 'kicked');
       setKicked(true);
       setNameConfirmed(false);
     });
@@ -364,46 +366,84 @@ export const GuestRemoteView: React.FC = () => {
     peerSync.sendToggleFavoriteFromGuest(profileId, songId);
   };
 
-  // ── KICKED / EXPELLED SCREEN ──
+  // ── KICKED / EXPELLED / EXPIRED QR SCREEN ──
   if (kicked) {
+    const isQrExpired = kickReason === 'expired_qr';
+
     return (
       <div className="min-h-screen bg-[#06070d] text-white flex items-center justify-center p-4 font-sans select-none">
         <div className="w-full max-w-sm flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-300">
           <div className="relative flex items-center justify-center">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-900/40 border border-rose-500/50 flex items-center justify-center shadow-[0_0_50px_rgba(244,63,94,0.35)]">
-              <ShieldX className="w-12 h-12 text-rose-400" />
+            <div
+              className={`w-24 h-24 rounded-3xl bg-gradient-to-br flex items-center justify-center shadow-2xl transition-all ${
+                isQrExpired
+                  ? 'from-amber-500/20 via-orange-600/30 to-amber-900/40 border border-amber-500/50 shadow-[0_0_50px_rgba(245,158,11,0.35)]'
+                  : 'from-rose-500/20 via-rose-600/30 to-red-900/40 border border-rose-500/50 shadow-[0_0_50px_rgba(244,63,94,0.35)]'
+              }`}
+            >
+              {isQrExpired ? (
+                <QrCode className="w-12 h-12 text-amber-400" />
+              ) : (
+                <ShieldX className="w-12 h-12 text-rose-400" />
+              )}
             </div>
             <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shadow-md">
-              🚫
+              {isQrExpired ? '🔄' : '🚫'}
             </div>
           </div>
 
           <div className="text-center flex flex-col gap-1">
-            <h1 className="text-xl font-black uppercase tracking-wider text-rose-400">
-              Dispositivo Expulsado
+            <h1
+              className={`text-xl font-black uppercase tracking-wider ${
+                isQrExpired ? 'text-amber-400' : 'text-rose-400'
+              }`}
+            >
+              {isQrExpired ? 'Código QR Expirado' : 'Dispositivo Desconectado'}
             </h1>
             <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-              El anfitrión ha desconectado este dispositivo de la sala.
+              {isQrExpired
+                ? 'El anfitrión ha renovado el código QR de la sala.'
+                : 'El anfitrión ha desconectado este dispositivo de la sala.'}
             </p>
           </div>
 
-          <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-cyan-950/60 border border-cyan-500/50 flex items-center justify-center text-[#00f0ff] shadow-[0_0_25px_rgba(0,240,255,0.25)] animate-pulse">
+          <div
+            className={`w-full p-5 rounded-2xl bg-slate-900/90 border shadow-xl flex flex-col items-center gap-4 text-center ${
+              isQrExpired
+                ? 'border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)]'
+                : 'border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.15)]'
+            }`}
+          >
+            <div
+              className={`w-16 h-16 rounded-2xl border flex items-center justify-center shadow-lg animate-pulse ${
+                isQrExpired
+                  ? 'bg-amber-950/60 border-amber-500/50 text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.25)]'
+                  : 'bg-cyan-950/60 border-cyan-500/50 text-[#00f0ff] shadow-[0_0_25px_rgba(0,240,255,0.25)]'
+              }`}
+            >
               <ScanLine className="w-8 h-8" />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-black text-cyan-300 tracking-wide">
-                Escanea el Código QR
+              <span
+                className={`text-sm font-black tracking-wide uppercase ${
+                  isQrExpired ? 'text-amber-300' : 'text-cyan-300'
+                }`}
+              >
+                {isQrExpired ? 'Solicitar Nuevo Código QR' : 'Escanea el Código QR'}
               </span>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Abre la <b>cámara de tu celular</b> y escanea el código QR que se muestra en la pantalla del anfitrión para volver a entrar.
+                {isQrExpired
+                  ? 'Estás intentando ingresar con un código anterior. Pídele al anfitrión el nuevo código QR y escanéalo con la cámara de tu celular para entrar.'
+                  : 'Abre la cámara de tu celular y escanea el código QR que se muestra en la pantalla del anfitrión para volver a entrar.'}
               </p>
             </div>
 
             <div className="w-full pt-3 border-t border-slate-800/80 flex items-center justify-center gap-2 text-xs text-slate-400">
-              <Camera className="w-4 h-4 text-cyan-400 animate-bounce" />
-              <span className="font-semibold text-slate-300">Usa la cámara nativa de tu teléfono</span>
+              <Camera className={`w-4 h-4 animate-bounce ${isQrExpired ? 'text-amber-400' : 'text-cyan-400'}`} />
+              <span className="font-semibold text-slate-300">
+                {isQrExpired ? 'Escanea el nuevo QR en pantalla' : 'Usa la cámara nativa de tu teléfono'}
+              </span>
             </div>
           </div>
 
