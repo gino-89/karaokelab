@@ -986,9 +986,11 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         {p.avatar} {p.name} ({p.favoriteSongIds.length} favs)
                       </option>
                     ))}
-                  <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
-                    ➕ + Crear Perfil...
-                  </option>
+                  {!isGuestMode && (
+                    <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
+                      ➕ + Crear Perfil...
+                    </option>
+                  )}
                 </select>
               </div>
 
@@ -2095,9 +2097,11 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         {p.avatar} Cantante: {p.name} ({p.favoriteSongIds.length})
                       </option>
                     ))}
-                  <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
-                    ➕ + Nuevo Perfil...
-                  </option>
+                  {!isGuestMode && (
+                    <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
+                      ➕ + Nuevo Perfil...
+                    </option>
+                  )}
                 </select>
 
                 {/* Artist Filter */}

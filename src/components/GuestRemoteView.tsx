@@ -52,10 +52,6 @@ export const GuestRemoteView: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
-  const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
-  const [newProfileName, setNewProfileName] = useState('');
-  const [newProfileAvatar, setNewProfileAvatar] = useState('🎤');
-  const [newProfileColor, setNewProfileColor] = useState('#00f0ff');
 
   // Initial mount & URL validation
   useEffect(() => {
@@ -1072,85 +1068,6 @@ export const GuestRemoteView: React.FC = () => {
             isGuestMode={true}
             guestRestrictedProfileId={myProfileId}
           />
-        </div>
-      )}
-
-      {/* Modal: Crear Perfil de Cantante */}
-      {isCreateProfileOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
-          <div className="w-full max-w-sm bg-[#0c0d18] border border-cyan-500/40 rounded-3xl p-5 flex flex-col gap-4 shadow-[0_0_40px_rgba(0,240,255,0.25)]">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
-                <span>🎤</span>
-                <span>Crear Cantante</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCreateProfileOpen(false)}
-                className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Nombre del Cantante</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Gino, Andrea..."
-                  value={newProfileName}
-                  onChange={(e) => setNewProfileName(e.target.value)}
-                  autoFocus
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Elige un Emoji</label>
-                <div className="flex flex-wrap gap-2">
-                  {['🎤', '🌟', '🎸', '🔥', '👑', '😎', '💃', '🚀', '🎶', '💎'].map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setNewProfileAvatar(emoji)}
-                      className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition-all cursor-pointer ${
-                        newProfileAvatar === emoji
-                          ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
-                          : 'bg-slate-950 border-slate-800 hover:bg-slate-800'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setIsCreateProfileOpen(false)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (newProfileName.trim()) {
-                    handleCreateProfile(newProfileName.trim(), newProfileAvatar, newProfileColor);
-                    setNewProfileName('');
-                    setIsCreateProfileOpen(false);
-                  }
-                }}
-                disabled={!newProfileName.trim()}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] disabled:opacity-50 text-slate-950 text-xs font-black cursor-pointer shadow-md"
-              >
-                Crear Perfil
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
