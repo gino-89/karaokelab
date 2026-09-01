@@ -1,5 +1,6 @@
 import Peer, { DataConnection } from 'peerjs';
 import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
+import { getDeviceFingerprint } from './deviceFingerprint';
 
 export interface PeerMessage {
   type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
@@ -10,6 +11,13 @@ export interface ConnectedGuest {
   peerId: string;
   name: string;
   connectedAt: number;
+  fingerprint?: string;
+}
+
+export interface BlockedGuestDevice {
+  fingerprint: string;
+  name: string;
+  blockedAt: number;
 }
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
@@ -32,6 +40,7 @@ class PeerSyncService {
   private hostConnection: DataConnection | null = null;
   private guestConnections: Map<string, DataConnection> = new Map();
   private connectedGuests: Map<string, ConnectedGuest> = new Map();
+  private blockedDevices: Map<string, BlockedGuestDevice> = new Map();
   private hostId: string | null = null;
   private isHost: boolean = false;
   private currentQrKey: string = Math.random().toString(36).substring(2, 8);
@@ -42,6 +51,22 @@ class PeerSyncService {
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
   private onKickedCallback: ((reason?: string, message?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('karaokelab_blocked_devices');
+        if (raw) {
+          const list: BlockedGuestDevice[] = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            list.forEach((b) => {
+              if (b.fingerprint) this.blockedDevices.set(b.fingerprint, b);
+            });
+          }
+        }
+      } catch (_) {}
+    }
+  }
 
   private currentMiniCatalog: any[] = [];
   private currentProfiles: SingerProfile[] = [];
@@ -217,8 +242,32 @@ class PeerSyncService {
           if (!data) return;
 
           if (data.type === 'GUEST_INFO') {
+            const guestFp = data.payload?.fingerprint || '';
+            const guestName = (data.payload?.name || 'Invitado').trim();
+
+            // 1. Check if device is in permanent blacklist (Hardware Fingerprint)
+            if (guestFp && this.isFingerprintBlocked(guestFp)) {
+              console.warn(`Rejecting permanently banned device: ${guestFp} (${guestName})`);
+              try {
+                conn.send({
+                  type: 'KICK',
+                  payload: {
+                    reason: 'device_banned',
+                    message: 'Este dispositivo ha sido bloqueado por el anfitrión.',
+                  },
+                });
+              } catch (_) {}
+              setTimeout(() => {
+                try { conn.close(); } catch (_) {}
+                this.guestConnections.delete(conn.peer);
+                this.connectedGuests.delete(conn.peer);
+                this._notifyGuestsChanged();
+              }, 300);
+              return;
+            }
+
             const guestQrKey = data.payload?.qrKey || '';
-            // If the host has a QR key active and guest connects with an old/expired QR key:
+            // 2. If the host has a QR key active and guest connects with an old/expired QR key:
             if (this.currentQrKey && guestQrKey && guestQrKey !== this.currentQrKey) {
               console.warn(`Rejecting guest with expired QR key: ${guestQrKey} (expected: ${this.currentQrKey})`);
               try {
@@ -239,11 +288,11 @@ class PeerSyncService {
               return;
             }
 
-            const guestName = (data.payload?.name || 'Invitado').trim();
             const guest: ConnectedGuest = {
               peerId: conn.peer,
               name: guestName,
               connectedAt: Date.now(),
+              fingerprint: guestFp,
             };
             this.connectedGuests.set(conn.peer, guest);
             this._notifyGuestsChanged();
@@ -265,12 +314,19 @@ class PeerSyncService {
             }
           } else if (data.type === 'ADD_TO_QUEUE') {
             console.log('✓ Host received ADD_TO_QUEUE from guest:', data.payload);
+            const guest = this.connectedGuests.get(conn.peer);
+            if (guest?.fingerprint && this.isFingerprintBlocked(guest.fingerprint)) {
+              console.warn('Blocked song submission from banned device:', guest.fingerprint);
+              return;
+            }
+
             // Ensure guest is recognized in list if not already
             if (!this.connectedGuests.has(conn.peer)) {
               this.connectedGuests.set(conn.peer, {
                 peerId: conn.peer,
                 name: data.payload?.guestName || 'Invitado',
                 connectedAt: Date.now(),
+                fingerprint: data.payload?.fingerprint,
               });
               this._notifyGuestsChanged();
             }
@@ -335,7 +391,18 @@ class PeerSyncService {
     return Array.from(this.connectedGuests.values());
   }
 
-  // Kick/expel a guest by peerId
+  // Get list of permanently blocked devices
+  public getBlockedDevices(): BlockedGuestDevice[] {
+    return Array.from(this.blockedDevices.values()).sort((a, b) => b.blockedAt - a.blockedAt);
+  }
+
+  // Check if a hardware fingerprint is blocked
+  public isFingerprintBlocked(fingerprint?: string): boolean {
+    if (!fingerprint) return false;
+    return this.blockedDevices.has(fingerprint);
+  }
+
+  // Kick/expel a guest by peerId (Temporary disconnect)
   public kickGuest(peerId: string) {
     const conn = this.guestConnections.get(peerId);
     const keyToBan = this.currentQrKey;
@@ -345,7 +412,7 @@ class PeerSyncService {
         conn.send({
           type: 'KICK',
           payload: {
-            reason: 'Expulsado por el host',
+            reason: 'kicked',
             kickedKey: keyToBan,
             hostId: this.hostId,
           },
@@ -357,7 +424,7 @@ class PeerSyncService {
           conn.send({
             type: 'KICK',
             payload: {
-              reason: 'Expulsado por el host',
+              reason: 'kicked',
               kickedKey: keyToBan,
               hostId: this.hostId,
             },
@@ -373,6 +440,60 @@ class PeerSyncService {
     this.guestConnections.delete(peerId);
     this.connectedGuests.delete(peerId);
     this._notifyGuestsChanged();
+  }
+
+  // Permanently block and ban a guest device (Hardware Blacklist)
+  public blockGuest(peerId: string) {
+    const conn = this.guestConnections.get(peerId);
+    const guest = this.connectedGuests.get(peerId);
+    const fp = guest?.fingerprint || `fp_${peerId}`;
+    const name = guest?.name || 'Invitado';
+
+    const blockedEntry: BlockedGuestDevice = {
+      fingerprint: fp,
+      name,
+      blockedAt: Date.now(),
+    };
+
+    this.blockedDevices.set(fp, blockedEntry);
+    this._saveBlockedDevices();
+
+    if (conn) {
+      try {
+        conn.send({
+          type: 'KICK',
+          payload: {
+            reason: 'device_banned',
+            message: 'Este dispositivo ha sido bloqueado por el anfitrión.',
+            hostId: this.hostId,
+          },
+        });
+      } catch (_) {}
+
+      setTimeout(() => {
+        try { conn.close(); } catch (_) {}
+      }, 300);
+    }
+
+    this.guestConnections.delete(peerId);
+    this.connectedGuests.delete(peerId);
+    this._notifyGuestsChanged();
+  }
+
+  // Unblock a device from the blacklist
+  public unblockDevice(fingerprint: string) {
+    this.blockedDevices.delete(fingerprint);
+    this._saveBlockedDevices();
+    this._notifyGuestsChanged();
+  }
+
+  private _saveBlockedDevices() {
+    if (typeof window !== 'undefined') {
+      try {
+        const list = Array.from(this.blockedDevices.values());
+        localStorage.setItem('karaokelab_blocked_devices', JSON.stringify(list));
+      } catch (_) {}
+    }
   }
 
   // Register callback for guest connection changes
@@ -582,7 +703,7 @@ class PeerSyncService {
         const conn = this.peer.connect(targetHostId, { reliable: true });
         this.hostConnection = conn;
 
-        conn.on('open', () => {
+        conn.on('open', async () => {
           console.log('✓ WebRTC P2P connected to Host:', targetHostId);
           this.lastHeartbeatReceived = Date.now();
           this._setConnectionStatus('connected');
@@ -590,10 +711,11 @@ class PeerSyncService {
           const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
           const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
           const urlQrKey = params ? params.get('k') || '' : '';
+          const deviceFp = await getDeviceFingerprint();
 
           conn.send({
             type: 'GUEST_INFO',
-            payload: { name: savedName, qrKey: urlQrKey },
+            payload: { name: savedName, qrKey: urlQrKey, fingerprint: deviceFp },
           });
 
           // Start Heartbeat monitor on Guest: check every 3s
