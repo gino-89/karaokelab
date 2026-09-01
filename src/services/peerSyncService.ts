@@ -387,6 +387,11 @@ class PeerSyncService {
             if (this.onCommandCallback) {
               this.onCommandCallback('ADD_TO_QUEUE', data.payload);
             }
+          } else if (data.type === 'REMOVE_FROM_QUEUE') {
+            console.log('✓ Host received REMOVE_FROM_QUEUE from guest:', data.payload);
+            if (this.onCommandCallback) {
+              this.onCommandCallback('REMOVE_FROM_QUEUE', data.payload);
+            }
           } else if (data.type === 'CREATE_PROFILE') {
             if (this.onCommandCallback) {
               this.onCommandCallback('CREATE_PROFILE', data.payload);

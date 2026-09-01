@@ -314,8 +314,22 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const activeProcessing = queue.filter((q) => q.status !== 'ready' && q.status !== 'error');
   const hasActive = activeProcessing.length > 0;
 
-  const isSongInQueue = (songId: string) => {
-    return queue.some((q) => q.songData?.id === songId);
+  const isSongInQueue = (songId: string, title?: string) => {
+    if (!queue || queue.length === 0) return false;
+    const sId = String(songId || '');
+    const sTitle = (title || '').toLowerCase().trim();
+
+    return queue.some((q: any) => {
+      const qSongId = String(q.songData?.id || q.songId || '');
+      if (sId && (qSongId === sId || qSongId === `yt_${sId}` || sId === `yt_${qSongId}` || (q.id && String(q.id).includes(sId)))) {
+        return true;
+      }
+      const qTitle = (q.songData?.title || q.title || q.fileName || '').toLowerCase().trim();
+      if (sTitle && qTitle && (qTitle === sTitle || qTitle.includes(sTitle) || sTitle.includes(qTitle))) {
+        return true;
+      }
+      return false;
+    });
   };
 
   // Reanalyze single song handler
@@ -1120,7 +1134,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                   {/* Local Songs Section in Unified Search */}
                   {filteredSongs.map((song) => {
                     const isSelected = currentSongId === song.id;
-                    const inQueue = isSongInQueue(song.id);
+                    const inQueue = isSongInQueue(song.id, song.title);
                     return (
                       <div
                         key={song.id}
@@ -1235,9 +1249,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       <div className="flex flex-col gap-1.5">
                         {filteredYouTubeFavorites.map((yt) => {
                           const prof = profiles.find((p) => p.id === yt.singerProfileId);
-                          const isInQueue = queue.some(
-                            (q) => q.songData?.id === `yt_${yt.id}` || q.songData?.videoBgId === yt.id || q.id.includes(yt.id)
-                          );
+                          const isInQueue = isSongInQueue(yt.id, yt.title) || isSongInQueue(`yt_${yt.id}`, yt.title);
                           const ytSongItem: SongItem = {
                             id: `yt_${yt.id}`,
                             title: yt.title,
@@ -1365,7 +1377,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       {/* 1. LOCAL SONGS LIST (FIRST) */}
                       {filteredSongs.map((song) => {
                         const isSelected = currentSongId === song.id;
-                        const inQueue = isSongInQueue(song.id);
+                        const inQueue = isSongInQueue(song.id, song.title);
                         return (
                           <div
                             key={song.id}
@@ -1471,9 +1483,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           </div>
                           <div className="flex flex-col gap-1.5">
                             {filteredYouTubeFavorites.map((yt) => {
-                              const isInQueue = queue.some(
-                                (q) => q.songData?.id === `yt_${yt.id}` || q.songData?.videoBgId === yt.id || q.id.includes(yt.id)
-                              );
+                              const isInQueue = isSongInQueue(yt.id, yt.title) || isSongInQueue(`yt_${yt.id}`, yt.title);
                               const ytSongItem: SongItem = {
                                 id: `yt_${yt.id}`,
                                 title: yt.title,
@@ -1727,9 +1737,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           const isFav = youtubeFavorites.some(
                             (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
                           );
-                          const isInQueue = queue.some(
-                            (q) => q.songData?.id === `yt_${item.id}` || q.songData?.videoBgId === item.id || q.id.includes(item.id)
-                          );
+                          const isInQueue = isSongInQueue(item.id, item.title) || isSongInQueue(`yt_${item.id}`, item.title);
 
                           const ytSongItem: SongItem = {
                             id: `yt_${item.id}`,
@@ -1847,9 +1855,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       <div className="flex flex-col gap-2">
                         {filteredYouTubeFavorites.map((yt) => {
                           const prof = profiles.find((p) => p.id === yt.singerProfileId);
-                          const isInQueue = queue.some(
-                            (q) => q.songData?.id === `yt_${yt.id}` || q.songData?.videoBgId === yt.id || q.id.includes(yt.id)
-                          );
+                          const isInQueue = isSongInQueue(yt.id, yt.title) || isSongInQueue(`yt_${yt.id}`, yt.title);
 
                           const ytSongItem: SongItem = {
                             id: `yt_${yt.id}`,
@@ -2206,7 +2212,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 <div className="flex flex-col divide-y divide-slate-850/80 border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40">
                   {filteredSongs.map((song, idx) => {
                     const isSelected = currentSongId === song.id;
-                    const inQueue = isSongInQueue(song.id);
+                    const inQueue = isSongInQueue(song.id, song.title);
                     const isReanalyzing = reanalyzingSongId === song.id;
                     return (
                       <div
@@ -2403,7 +2409,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {filteredSongs.map((song) => {
                     const isSelected = currentSongId === song.id;
-                    const inQueue = isSongInQueue(song.id);
+                    const inQueue = isSongInQueue(song.id, song.title);
                     const isReanalyzing = reanalyzingSongId === song.id;
                     const isFav = activeProfile && activeProfile.id !== 'profile_all'
                       ? activeProfile.favoriteSongIds.includes(song.id)
