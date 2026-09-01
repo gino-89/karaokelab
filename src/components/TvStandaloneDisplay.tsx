@@ -132,12 +132,7 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
   };
 
-  // Clean YouTube video ID from any prefix (yt_) or full URL
-  const cleanYoutubeId = tvState?.youTubeEmbedId
-    ? tvState.youTubeEmbedId.replace(/^yt_/, '').replace(/.*[?&]v=/, '').replace(/.*youtu\.be\//, '').trim()
-    : '';
-
-  if (!tvState || (!tvState.songTitle && !cleanYoutubeId)) {
+  if (!tvState || !tvState.songTitle) {
     return (
       <div
         onClick={toggleFullscreen}
@@ -253,25 +248,26 @@ export const TvStandaloneDisplay: React.FC = () => {
   const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
-  // Track initial start second once per YouTube video ID to prevent iframe reloading/blinking on every tick
-  const initialStartMapRef = useRef<Record<string, number>>({});
-  if (cleanYoutubeId && initialStartMapRef.current[cleanYoutubeId] === undefined) {
-    initialStartMapRef.current[cleanYoutubeId] = Math.max(0, Math.floor(currentTime || 0));
-  }
-  const startSec = cleanYoutubeId ? (initialStartMapRef.current[cleanYoutubeId] || 0) : 0;
+  // Clean and extract standard YouTube video ID
+  const cleanYoutubeId = (() => {
+    const raw = youTubeEmbedId || '';
+    if (!raw) return '';
+    const trimmed = raw.trim().replace(/^yt_/, '');
+    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    if (match && match[1]) return match[1];
+    const simpleMatch = trimmed.match(/^[\w-]{11}$/);
+    if (simpleMatch) return simpleMatch[0];
+    return trimmed;
+  })();
 
-  // Construct valid YouTube embed URL with unencoded origin
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const ytEmbedUrl = `https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${origin}`;
-
-  // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV (Zero Buttons / Pure Screen) ──
+  // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV ──
   if (cleanYoutubeId) {
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${cleanYoutubeId}`}
-          src={ytEmbedUrl}
+          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0`}
           title="YouTube Karaoke TV"
           className="w-full h-full border-0"
           style={{ width: '100vw', height: '100vh' }}
@@ -283,9 +279,6 @@ export const TvStandaloneDisplay: React.FC = () => {
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
-                if (startSec > 0) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [startSec, true] }), '*');
-                }
               }
             } catch (_) {}
           }}
@@ -293,16 +286,16 @@ export const TvStandaloneDisplay: React.FC = () => {
 
         {/* Clean Cinema Overlay for TV */}
         <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white text-xs font-bold shadow-2xl">
-            <span className="text-red-500 font-extrabold font-mono">● LIVE</span>
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-2xl">
+            <span className="text-red-500 font-extrabold font-mono animate-pulse">● EN VIVO</span>
             <span>·</span>
-            <span className="truncate max-w-md">{songTitle || 'Video de YouTube'}</span>
+            <span className="truncate max-w-md">{songTitle || 'YouTube Karaoke'}</span>
             {songArtist && <span className="text-cyan-400 truncate max-w-xs">({songArtist})</span>}
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
             {nextSongTitle && (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-amber-300 text-xs font-bold shadow-2xl">
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-amber-300 text-xs font-bold shadow-2xl">
                 <span className="text-slate-400 text-[10px] uppercase font-mono">Próxima:</span>
                 <span className="truncate max-w-xs">{nextSongTitle}</span>
                 {nextSongRequestedBy && (
@@ -314,7 +307,7 @@ export const TvStandaloneDisplay: React.FC = () => {
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="p-2 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-md border border-white/10 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-2xl"
+              className="p-2 rounded-full bg-black/80 hover:bg-black/90 backdrop-blur-md border border-white/20 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-2xl"
               title="Pantalla Completa (F11)"
             >
               <Maximize2 className="w-4 h-4 text-cyan-400" />
@@ -326,18 +319,26 @@ export const TvStandaloneDisplay: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#040409] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer */}
-      <DynamicVideoBackground
-        config={{
-          ...videoBgConfig,
-          overlayOpacity: Math.max(0.85, videoBgConfig.overlayOpacity ?? 0.88),
-        }}
-        isPlaying={isPlaying}
-        songKey={`${songTitle}___${songArtist || ''}`}
-        currentTime={currentTime}
-        duration={duration}
-      />
+    <div className="fixed inset-0 bg-[#060714] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
+      {/* Dynamic Video Background Layer or Ambient Gradient */}
+      {videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId ? (
+        <DynamicVideoBackground
+          config={{
+            ...videoBgConfig,
+            overlayOpacity: 0.65,
+          }}
+          isPlaying={isPlaying}
+          songKey={`${songTitle}___${songArtist || ''}`}
+          currentTime={currentTime}
+          duration={duration}
+        />
+      ) : (
+        /* Rich Ambient Gradient Stage Background when no video background is configured */
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0f24] via-[#060714] to-[#140824] pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#00f0ff]/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#ff007f]/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+        </div>
+      )}
 
       {/* Ambient Visualizer Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
