@@ -283,18 +283,9 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
           )}
         </div>
 
-        {/* Slot 2: Dynamic-Scaled Active Lyric (Prevents Overlap) */}
+        {/* Slot 2: Dynamic-Scaled Active Lyric (Always visible on pause, frozen in place) */}
         <div className="flex-1 min-h-0 w-full max-w-5xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden my-auto">
-          {!isPlaying ? (
-            <div className="flex flex-col items-center gap-3 text-slate-500 opacity-60">
-              <div className="w-16 h-16 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
-                <Music className="w-8 h-8 text-cyan-400/50" />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold tracking-wider text-slate-400 font-mono">
-                {songTitle ? `LISTO PARA REPRODUCIR · ${songTitle}` : 'MODO TV · LISTO'}
-              </p>
-            </div>
-          ) : currentLyric ? (
+          {currentLyric ? (
             (() => {
               const textClean = cleanLyricText(currentLyric.text);
               const textLen = textClean.length;
@@ -308,7 +299,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                     : 'text-xl sm:text-3xl md:text-4xl lg:text-5xl';
 
               return (
-                <div className={`flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-5 gap-y-2 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
+                <div className={`flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-5 gap-y-2 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
                   {computeIntelligentWordFills(
                     { ...currentLyric, text: textClean },
                     Math.max(0, currentTime - syncDelay),
@@ -317,8 +308,8 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                   ).map((item, wIdx) => {
                     return (
                       <span key={wIdx} className="relative inline-block select-none">
-                        {/* Layer 1: Base Unsung Word (Clean, crisp dim text) */}
-                        <span className="text-white/25 inline-block">
+                        {/* Layer 1: Base Unsung Word (Clean, crisp high contrast text) */}
+                        <span className="text-white/70 inline-block" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95)' }}>
                           {item.word}
                         </span>
 
@@ -329,6 +320,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                             style={{
                               clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
                               color: curArtist.color,
+                              textShadow: '0 2px 6px rgba(0,0,0,0.95)',
                             }}
                           >
                             {item.word}
@@ -340,10 +332,17 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                 </div>
               );
             })()
+          ) : nextLyric ? (
+            <div className="flex flex-col items-center gap-3 text-slate-300">
+              <Music className="w-12 h-12 text-cyan-400" />
+              <p className="text-xl sm:text-3xl font-bold tracking-wider text-cyan-300">
+                {cleanLyricText(nextLyric.text)}
+              </p>
+            </div>
           ) : (
-            <div className="flex flex-col items-center gap-3 text-slate-500 animate-pulse">
-              <Music className="w-12 h-12 text-slate-600" />
-              <p className="text-xl sm:text-3xl font-bold tracking-wider text-slate-400">
+            <div className="flex flex-col items-center gap-3 text-slate-400">
+              <Music className="w-12 h-12 text-slate-500" />
+              <p className="text-xl sm:text-3xl font-bold tracking-wider text-slate-300">
                 ♫ [SOLO INSTRUMENTAL] ♫
               </p>
             </div>
@@ -352,7 +351,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
 
         {/* Slot 3: Upcoming Line Preview */}
         <div className="h-14 w-full max-w-4xl flex flex-col items-center justify-center shrink-0">
-          {isPlaying && nextLyric ? (
+          {nextLyric ? (
             <div className="flex flex-col items-center gap-0.5">
               <span className="text-[11px] font-bold uppercase tracking-widest font-mono" style={{ color: nextArtist.color }}>
                 {`[PRÓXIMA: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
