@@ -273,7 +273,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           key={`yt_tv_${cleanYoutubeId}`}
           src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0 scale-[1.05]"
+          className="w-full h-full border-0 pointer-events-none scale-[1.06]"
           style={{ width: '100vw', height: '100vh' }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -293,6 +293,13 @@ export const TvStandaloneDisplay: React.FC = () => {
               }
             } catch (_) {}
           }}
+        />
+
+        {/* Invisible shield to block any YouTube UI popups, pause buttons, or hover overlays */}
+        <div
+          onClick={toggleFullscreen}
+          className="absolute inset-0 z-30 cursor-pointer"
+          title="Haz clic para Pantalla Completa"
         />
 
         {/* Clean Cinema Overlay for TV */}
