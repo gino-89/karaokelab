@@ -1034,7 +1034,7 @@ export const GuestRemoteView: React.FC = () => {
       </div>
 
       {/* Sticky Header & Navigation for Mobile Phones */}
-      <div className="sticky top-0 z-30 -mx-3 -mt-3 px-3 pt-3 bg-[#080814] border-b border-slate-800/80 pb-2.5 space-y-2 shadow-xl">
+      <div className="sticky top-0 z-[100] -mx-3 -mt-3 px-3 pt-3 bg-[#080814] border-b border-slate-800/80 pb-2.5 space-y-2 shadow-2xl">
         {/* Header Main Row */}
         <div className="flex items-center justify-between gap-2 px-1">
           {/* Left: Brand Logo + Status Dot + Singer & Table Info */}
