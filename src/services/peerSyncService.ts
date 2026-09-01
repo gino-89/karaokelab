@@ -382,6 +382,10 @@ class PeerSyncService {
             if (this.onCommandCallback) {
               this.onCommandCallback('TOGGLE_FAVORITE', data.payload);
             }
+          } else if (data.type === 'TOGGLE_YT_FAVORITE') {
+            if (this.onCommandCallback) {
+              this.onCommandCallback('TOGGLE_YT_FAVORITE', data.payload);
+            }
           } else if (data.type === 'TV_DISPLAY_JOIN') {
             console.log('✓ Smart TV display connected via WebRTC:', conn.peer);
             if (this.currentTvState) {
