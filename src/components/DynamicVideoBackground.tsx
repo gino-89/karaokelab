@@ -112,7 +112,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return null;
   }
 
-  const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.65));
+  const overlayOpacity = Math.max(0.15, Math.min(0.85, config.overlayOpacity ?? 0.45));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 ${className}`}>

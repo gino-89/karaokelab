@@ -413,42 +413,31 @@ export const TvStandaloneDisplay: React.FC = () => {
       {/* Main Lyrics Center Display */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6 text-center max-w-7xl mx-auto w-full px-2 sm:px-4">
         <div className="flex flex-col items-center justify-between gap-4 w-full flex-1 min-h-0 py-2 overflow-hidden">
-          {/* Slot 1: Active Singer Badge / Countdown (Strictly Singer & Cues, No [Verso] tag) */}
+          {/* Slot 1: Active Singer Badge / Countdown */}
           <div className="h-9 flex items-center justify-center shrink-0">
-            {isPlaying && (
-              showCountdown ? (
-                <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-black animate-pulse">
-                  <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                  {nextLyric && (
-                    <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
-                      {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
-                    </span>
-                  )}
-                </div>
-              ) : currentLyric ? (
-                <div
-                  className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
-                  style={{ color: curArtist.color }}
-                >
-                  <span className="text-base sm:text-lg">{curArtist.isBoth ? '👥' : '🎤'}</span>
-                  <span>{curArtist.isBoth ? `DÚO · ${curArtist.name.toUpperCase()}` : `VOZ: ${curArtist.name.toUpperCase()}`}</span>
-                </div>
-              ) : null
-            )}
-          </div>
-
-          {/* Current Active Line (Large Grand Scale for Smart TV) */}
-          <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center my-auto overflow-hidden">
-            {!isPlaying ? (
-              <div className="flex flex-col items-center gap-3 text-slate-500 opacity-60">
-                <div className="w-20 h-20 rounded-3xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
-                  <Music className="w-10 h-10 text-cyan-400/50" />
-                </div>
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400 font-mono">
-                  {songTitle ? `EN ESPERA · ${songTitle}` : 'ESCENARIO EN ESPERA'}
-                </p>
+            {showCountdown ? (
+              <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-black animate-pulse">
+                <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
+                {nextLyric && (
+                  <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
+                    {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
+                  </span>
+                )}
               </div>
             ) : currentLyric ? (
+              <div
+                className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
+                style={{ color: curArtist.color }}
+              >
+                <span className="text-base sm:text-lg">{curArtist.isBoth ? '👥' : '🎤'}</span>
+                <span>{curArtist.isBoth ? `DÚO · ${curArtist.name.toUpperCase()}` : `VOZ: ${curArtist.name.toUpperCase()}`}</span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Current Active Line (Always visible on pause, perfectly frozen in place) */}
+          <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center my-auto overflow-hidden">
+            {currentLyric ? (
               (() => {
                 const textClean = cleanLyricText(currentLyric.text);
                 const textLen = textClean.length;
@@ -495,10 +484,17 @@ export const TvStandaloneDisplay: React.FC = () => {
                   </div>
                 );
               })()
+            ) : nextLyric ? (
+              <div className="flex flex-col items-center gap-3 text-slate-300">
+                <Music className="w-12 h-12 text-cyan-400" />
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-cyan-300">
+                  {cleanLyricText(nextLyric.text)}
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 text-slate-500 animate-pulse">
-                <Music className="w-12 h-12 text-slate-600" />
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-400">
+              <div className="flex flex-col items-center gap-3 text-slate-400">
+                <Music className="w-12 h-12 text-slate-500" />
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-300">
                   ♫ [SOLO INSTRUMENTAL] ♫
                 </p>
               </div>
@@ -506,7 +502,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           </div>
 
           {/* Next Upcoming Line Preview */}
-          {isPlaying && nextLyric ? (
+          {nextLyric ? (
             <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 max-w-2xl w-full flex flex-col items-center">
               <span className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
                 {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
