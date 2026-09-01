@@ -1072,32 +1072,27 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
             </div>
           )}
 
-          {/* Active Singer Action Pill (when a singer like John is selected) */}
+          {/* Active Singer Action Pill */}
           {activeProfile && activeProfile.id !== 'profile_all' && (
             <div className="px-2.5 py-1 bg-indigo-950/60 border border-indigo-500/40 rounded-lg flex items-center justify-between text-xs animate-in fade-in duration-100">
-              <div className="flex items-center gap-1.5 text-indigo-200">
-                <span className="text-sm">{activeProfile.avatar}</span>
+              <div className="flex items-center gap-1.5 text-indigo-200 min-w-0">
+                <span className="text-sm shrink-0">{activeProfile.avatar}</span>
                 <span className="font-bold text-white text-[11px] truncate">{activeProfile.name}</span>
                 {activeProfile.tableNumber && (
-                  <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 text-[9px] font-bold border border-pink-500/30">
+                  <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 text-[9px] font-bold border border-pink-500/30 shrink-0">
                     🪑 {activeProfile.tableNumber}
                   </span>
                 )}
-                {!isGuestMode && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9.5px] font-mono font-bold flex items-center gap-0.5">
-                    🔑 PIN: {activeProfile.pin || '1234'}
-                  </span>
-                )}
-                <span className="text-[10px] font-mono text-cyan-400">
+                <span className="text-[10px] font-mono text-cyan-400 shrink-0">
                   ({activeProfile.favoriteSongIds.length + filteredYouTubeFavorites.length} favs)
                 </span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 {(activeProfile.favoriteSongIds.length > 0 || filteredYouTubeFavorites.length > 0) && (
                   <button
                     onClick={handleAddProfileFavoritesToQueue}
                     className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer transition-colors shadow-sm flex items-center gap-1"
-                    title={`Encolar todas las favoritas de ${activeProfile.name} (Locales + YouTube)`}
+                    title={`Encolar todas las favoritas de ${activeProfile.name}`}
                   >
                     <span>⚡ Encolar Todo</span>
                   </button>
@@ -1110,10 +1105,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       setNewPinInput(activeProfile.pin || '1234');
                     }}
                     className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1"
-                    title={`Resetear PIN de ${activeProfile.name}`}
+                    title={`Ver y Editar PIN de ${activeProfile.name}`}
                   >
-                    <KeyRound className="w-3 h-3" />
-                    <span>Resetear PIN</span>
+                    <Edit3 className="w-3 h-3 text-amber-400" />
+                    <span>Editar PIN</span>
                   </button>
                 )}
                 {(!isGuestMode || (guestRestrictedProfileId && activeProfile.id === guestRestrictedProfileId)) && (
@@ -1127,7 +1122,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       })
                     }
                     className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md cursor-pointer transition-colors"
-                    title={`Eliminar mi perfil de ${activeProfile.name}`}
+                    title={`Eliminar perfil de ${activeProfile.name}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
