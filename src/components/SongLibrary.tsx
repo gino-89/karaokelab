@@ -4,7 +4,7 @@ import {
   UploadCloud, Database, Trash2, Music2, Loader2, ListPlus, Check,
   AlertTriangle, Search, Filter, X, Tag, User, Play, Maximize2, Minimize2,
   Download, Edit3, ArrowUpDown, Sparkles, Layers, FileText, Clock, List, LayoutGrid,
-  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2, RotateCcw
+  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2, RotateCcw, UserPlus
 } from 'lucide-react';
 import { formatLRC } from '../services/lrcParser';
 import {
@@ -353,6 +353,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const [newProfileAvatar, setNewProfileAvatar] = useState('🎤');
   const [newProfileColor, setNewProfileColor] = useState('#00f0ff');
   const [songForProfileAssign, setSongForProfileAssign] = useState<SongItem | null>(null);
+  const [quickSingerName, setQuickSingerName] = useState('');
+  const [quickSingerAvatar, setQuickSingerAvatar] = useState('🎤');
   const [ytTrackForProfileAssign, setYtTrackForProfileAssign] = useState<{
     id: string;
     title: string;
@@ -2930,20 +2932,48 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
               </p>
             </div>
 
-            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
-              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
-                <div className="py-6 text-center text-slate-500 text-xs">
-                  <p className="mb-2">Aún no has creado ningún perfil de persona.</p>
+            {/* Quick Inline Singer Creation */}
+            {onCreateProfile && (
+              <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-col gap-1.5 shadow-inner">
+                <span className="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
+                  <UserPlus className="w-3 h-3 text-cyan-400" />
+                  <span>¿No ves al cantante? Créalo y asígnalo aquí:</span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Nombre del cantante (ej: Gino)..."
+                    value={quickSingerName}
+                    onChange={(e) => setQuickSingerName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && quickSingerName.trim() && onCreateProfile) {
+                        onCreateProfile(quickSingerName.trim(), quickSingerAvatar, '#00f0ff');
+                        setQuickSingerName('');
+                      }
+                    }}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  />
                   <button
                     type="button"
                     onClick={() => {
-                      setSongForProfileAssign(null);
-                      setIsCreateProfileOpen(true);
+                      if (quickSingerName.trim() && onCreateProfile) {
+                        onCreateProfile(quickSingerName.trim(), quickSingerAvatar, '#00f0ff');
+                        setQuickSingerName('');
+                      }
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 cursor-pointer"
+                    disabled={!quickSingerName.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] disabled:opacity-40 text-slate-950 text-xs font-black cursor-pointer shadow-sm hover:scale-105 active:scale-95 transition-all shrink-0"
                   >
-                    + Crear Perfil (Ej: John)
+                    + Crear
                   </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
+                <div className="py-4 text-center text-slate-500 text-xs">
+                  <p className="mb-2">Aún no has creado ningún perfil de persona.</p>
                 </div>
               ) : (
                 profiles
@@ -3023,20 +3053,48 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
               Selecciona qué cantantes tienen este video en su repertorio favorito:
             </p>
 
-            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
-              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
-                <div className="py-6 text-center text-slate-500 text-xs">
-                  <p className="mb-2">Aún no has creado ningún perfil de persona.</p>
+            {/* Quick Inline Singer Creation */}
+            {onCreateProfile && (
+              <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-col gap-1.5 shadow-inner">
+                <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
+                  <UserPlus className="w-3 h-3 text-amber-400" />
+                  <span>¿No ves al cantante? Créalo y asígnalo aquí:</span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Nombre del cantante (ej: Gino)..."
+                    value={quickSingerName}
+                    onChange={(e) => setQuickSingerName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && quickSingerName.trim() && onCreateProfile) {
+                        onCreateProfile(quickSingerName.trim(), quickSingerAvatar, '#00f0ff');
+                        setQuickSingerName('');
+                      }
+                    }}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                  />
                   <button
                     type="button"
                     onClick={() => {
-                      setYtTrackForProfileAssign(null);
-                      setIsCreateProfileOpen(true);
+                      if (quickSingerName.trim() && onCreateProfile) {
+                        onCreateProfile(quickSingerName.trim(), quickSingerAvatar, '#00f0ff');
+                        setQuickSingerName('');
+                      }
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 cursor-pointer"
+                    disabled={!quickSingerName.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 disabled:opacity-40 text-slate-950 text-xs font-black cursor-pointer shadow-sm hover:scale-105 active:scale-95 transition-all shrink-0"
                   >
-                    + Crear Perfil (Ej: John)
+                    + Crear
                   </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
+                <div className="py-4 text-center text-slate-500 text-xs">
+                  <p className="mb-2">Aún no has creado ningún perfil de persona.</p>
                 </div>
               ) : (
                 profiles

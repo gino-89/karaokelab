@@ -24,6 +24,7 @@ import {
   BookOpen,
   X,
   Star,
+  UserPlus,
 } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
@@ -1033,6 +1034,42 @@ export const GuestRemoteView: React.FC = () => {
             <p className="text-xs text-slate-400">
               Selecciona qué cantantes tienen este video en su repertorio favorito:
             </p>
+
+            {/* Quick Inline Singer Creation */}
+            <div className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 shadow-inner">
+              <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
+                <UserPlus className="w-3 h-3 text-amber-400" />
+                <span>¿No ves al cantante? Créalo y asígnalo aquí:</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Nombre del cantante (ej: Gino)..."
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newProfileName.trim()) {
+                      handleCreateProfile(newProfileName.trim(), newProfileAvatar, newProfileColor);
+                      setNewProfileName('');
+                    }
+                  }}
+                  className="flex-1 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newProfileName.trim()) {
+                      handleCreateProfile(newProfileName.trim(), newProfileAvatar, newProfileColor);
+                      setNewProfileName('');
+                    }
+                  }}
+                  disabled={!newProfileName.trim()}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 disabled:opacity-40 text-slate-950 text-xs font-black cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center gap-1"
+                >
+                  + Crear
+                </button>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
               {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
