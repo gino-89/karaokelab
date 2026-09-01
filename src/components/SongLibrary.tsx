@@ -610,17 +610,6 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
             <h3 className="text-xs font-bold uppercase tracking-wider text-white truncate">
               Biblioteca
             </h3>
-            {onOpenYouTubeModal && (
-              <button
-                type="button"
-                onClick={onOpenYouTubeModal}
-                className="ml-0.5 px-2 py-0.5 rounded-full bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-400 text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
-                title="Abrir buscador de YouTube Karaoke"
-              >
-                <Youtube className="w-3 h-3 text-red-500 fill-current" />
-                <span className="hidden sm:inline">YouTube</span>
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
