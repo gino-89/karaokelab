@@ -143,10 +143,10 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
 
         {/* Tab 1: QR Code */}
         {modalTab === 'qr' && (
-          <div className="p-6 flex flex-col items-center gap-4">
-            <div className="p-4 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_40px_rgba(0,240,255,0.35)] min-h-[290px] min-w-[290px] flex items-center justify-center">
+          <div className="h-[520px] p-6 flex flex-col items-center justify-between animate-in fade-in duration-150">
+            <div className="p-3.5 bg-[#080811] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_40px_rgba(0,240,255,0.35)] flex items-center justify-center">
               {!effectiveHostId ? (
-                <div className="flex flex-col items-center justify-center text-cyan-400">
+                <div className="flex flex-col items-center justify-center text-cyan-400 w-64 h-64">
                   <RefreshCw className="w-10 h-10 animate-spin mb-3" />
                   <span className="text-sm font-bold uppercase tracking-wider">Iniciando...</span>
                 </div>
@@ -155,18 +155,18 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
                   key={qrImageUrl}
                   src={qrImageUrl}
                   alt="Código QR para pedir canción"
-                  className="w-72 h-72 sm:w-76 sm:h-76 rounded-xl object-contain bg-slate-950 shadow-inner"
+                  className="w-64 h-64 sm:w-72 sm:h-72 rounded-xl object-contain bg-slate-950 shadow-inner"
                   loading="eager"
                 />
               )}
             </div>
 
-            <div>
+            <div className="flex-1 flex flex-col justify-center gap-2">
               <h4 className="text-base font-bold text-white flex items-center justify-center gap-2">
                 <Smartphone className="w-5 h-5 text-emerald-400" />
                 <span>Escanea desde tu Celular</span>
               </h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
                 Los invitados pueden buscar canciones del catálogo y agregarlas a la cola en tiempo real.
               </p>
             </div>
@@ -193,10 +193,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
 
         {/* Tab 2: Connected Guests */}
         {modalTab === 'connected' && (
-          <div className="p-4 flex flex-col gap-3 min-h-[280px]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Invitados Conectados ({connectedGuests.length})
+          <div className="h-[520px] p-5 flex flex-col justify-between animate-in fade-in duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span>Invitados Conectados ({connectedGuests.length})</span>
               </span>
               {connectedGuests.length > 0 && (
                 <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
@@ -207,43 +208,45 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
             </div>
 
             {connectedGuests.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-slate-800/80 gap-2">
-                <Users className="w-8 h-8 text-slate-600" />
-                <span className="text-xs font-bold text-slate-400">No hay invitados conectados</span>
-                <p className="text-[10px] text-slate-500 max-w-[200px]">
-                  Muestra el código QR para que los invitados se conecten con su celular.
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-slate-800/80 gap-3 my-2">
+                <div className="w-14 h-14 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center text-slate-500">
+                  <Users className="w-7 h-7" />
+                </div>
+                <span className="text-sm font-bold text-slate-300">No hay invitados conectados</span>
+                <p className="text-xs text-slate-500 max-w-[240px] leading-relaxed">
+                  Muestra la pestaña del Código QR para que las personas en la sala puedan escanearlo y conectarse desde su celular.
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
+              <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 my-2">
                 {connectedGuests.map((guest) => (
                   <div
                     key={guest.peerId}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 transition-all shadow-sm"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 transition-all shadow-sm"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-black text-slate-950 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-black text-slate-950 shrink-0 shadow-sm">
                         {guest.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex flex-col items-start text-left">
                         <span className="text-xs font-bold text-white leading-tight">{guest.name}</span>
-                        <span className="text-[9px] text-slate-400 font-mono">
-                          {formatTime(guest.connectedAt)}
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          Conectado {formatTime(guest.connectedAt)}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {/* Desconectar (Kick temporal) */}
                       <button
                         type="button"
                         onClick={() => {
                           peerSync.kickGuest(guest.peerId);
                         }}
-                        className="px-2 py-1 rounded-lg bg-amber-950/50 hover:bg-amber-800/60 text-amber-300 text-[10px] font-bold cursor-pointer transition-all border border-amber-500/30 flex items-center gap-1"
+                        className="px-2.5 py-1.5 rounded-xl bg-amber-950/50 hover:bg-amber-800/60 text-amber-300 text-[11px] font-bold cursor-pointer transition-all border border-amber-500/30 flex items-center gap-1"
                         title={`Desconectar a ${guest.name}`}
                       >
-                        <UserX className="w-3 h-3" />
+                        <UserX className="w-3.5 h-3.5" />
                         <span>Desconectar</span>
                       </button>
 
@@ -253,10 +256,10 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
                         onClick={() => {
                           peerSync.blockGuest(guest.peerId);
                         }}
-                        className="px-2 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-800/80 text-rose-300 text-[10px] font-black cursor-pointer transition-all border border-rose-500/40 flex items-center gap-1 shadow-[0_0_10px_rgba(244,63,94,0.2)]"
+                        className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-800/80 text-rose-300 text-[11px] font-black cursor-pointer transition-all border border-rose-500/40 flex items-center gap-1 shadow-[0_0_10px_rgba(244,63,94,0.2)]"
                         title={`Bloquear dispositivo de ${guest.name} permanentemente`}
                       >
-                        <Ban className="w-3 h-3 text-rose-400" />
+                        <Ban className="w-3.5 h-3.5 text-rose-400" />
                         <span>Bloquear</span>
                       </button>
                     </div>
@@ -264,44 +267,52 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
                 ))}
               </div>
             )}
+
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-500 font-mono">
+              <span>Consejo: Usa "Bloquear" si alguien sabotea la lista</span>
+            </div>
           </div>
         )}
 
         {/* Tab 3: Blocked Devices */}
         {modalTab === 'blocked' && (
-          <div className="p-4 flex flex-col gap-3 min-h-[280px]">
-            <div className="flex items-center justify-between">
+          <div className="h-[520px] p-5 flex flex-col justify-between animate-in fade-in duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <span className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                Lista Negra ({blockedDevices.length})
+                <ShieldAlert className="w-4 h-4" />
+                <span>Lista Negra de Dispositivos ({blockedDevices.length})</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">Hardware Ban</span>
+              <span className="text-[10px] text-rose-400/80 font-mono font-bold bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-500/30">
+                Hardware Ban
+              </span>
             </div>
 
             {blockedDevices.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-slate-800/80 gap-2">
-                <ShieldCheck className="w-8 h-8 text-emerald-500/50" />
-                <span className="text-xs font-bold text-slate-400">No hay dispositivos bloqueados</span>
-                <p className="text-[10px] text-slate-500 max-w-[210px]">
-                  Los dispositivos que bloquees aparecerán aquí y no podrán volver a entrar aunque borren cookies o escaneen el QR.
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-slate-800/80 gap-3 my-2">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <span className="text-sm font-bold text-slate-300">No hay dispositivos bloqueados</span>
+                <p className="text-xs text-slate-500 max-w-[240px] leading-relaxed">
+                  Los dispositivos que bloquees aparecerán aquí. No podrán pedir canciones ni reconectarse aunque borren cookies.
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
+              <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 my-2">
                 {blockedDevices.map((blocked) => (
                   <div
                     key={blocked.fingerprint}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-rose-950/20 border border-rose-500/30 transition-all shadow-sm"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-rose-950/25 border border-rose-500/30 transition-all shadow-sm"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-rose-900/50 border border-rose-500/50 flex items-center justify-center text-xs text-rose-300 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-rose-900/50 border border-rose-500/50 flex items-center justify-center text-sm text-rose-300 shrink-0">
                         🚫
                       </div>
                       <div className="flex flex-col items-start text-left">
                         <span className="text-xs font-bold text-rose-200 leading-tight">
                           {blocked.name || 'Dispositivo'}
                         </span>
-                        <span className="text-[9px] text-slate-400 font-mono">
+                        <span className="text-[10px] text-slate-400 font-mono">
                           Bloqueado {formatTime(blocked.blockedAt)}
                         </span>
                       </div>
@@ -312,16 +323,20 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
                       onClick={() => {
                         peerSync.unblockDevice(blocked.fingerprint);
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-800/70 text-emerald-300 text-[10px] font-bold cursor-pointer transition-all border border-emerald-500/40 flex items-center gap-1 shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-800/70 text-emerald-300 text-[11px] font-bold cursor-pointer transition-all border border-emerald-500/40 flex items-center gap-1.5 shadow-sm"
                       title="Desbloquear este dispositivo"
                     >
-                      <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Desbloquear</span>
                     </button>
                   </div>
                 ))}
               </div>
             )}
+
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-500 font-mono">
+              <span>Los bloqueos se conservan permanentemente</span>
+            </div>
           </div>
         )}
 
