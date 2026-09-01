@@ -53,10 +53,41 @@ export const GuestRemoteView: React.FC = () => {
 
   // Initial mount & URL validation
   useEffect(() => {
-    const saved = localStorage.getItem('karaokelab_guest_name');
-    if (saved) {
-      setGuestName(saved);
-      setNameConfirmed(true);
+    const params = new URLSearchParams(window.location.search);
+    const hostParam = params.get('host') || '';
+    const urlKey = params.get('k') || '';
+    const expiredHost = localStorage.getItem('karaokelab_expired_qr_host');
+    const expiredKey = localStorage.getItem('karaokelab_expired_qr_key');
+
+    let isExpiredLock = false;
+
+    // Check if device was locked due to an expired QR code
+    if (expiredHost && hostParam && expiredHost === hostParam) {
+      if (urlKey && expiredKey && urlKey !== expiredKey) {
+        // Genuine new QR scanned with a different key! Unlock and clear lock
+        localStorage.removeItem('karaokelab_expired_qr_host');
+        localStorage.removeItem('karaokelab_expired_qr_key');
+        setKicked(false);
+      } else {
+        // Same expired link/key reloaded -> STRICT LOCK on Expired screen!
+        setKickReason('expired_qr');
+        setKicked(true);
+        setNameConfirmed(false);
+        isExpiredLock = true;
+      }
+    } else if (expiredHost && hostParam && expiredHost !== hostParam) {
+      // Switched to a new host ID
+      localStorage.removeItem('karaokelab_expired_qr_host');
+      localStorage.removeItem('karaokelab_expired_qr_key');
+      setKicked(false);
+    }
+
+    if (!isExpiredLock) {
+      const saved = localStorage.getItem('karaokelab_guest_name');
+      if (saved) {
+        setGuestName(saved);
+        setNameConfirmed(true);
+      }
     }
 
     // Load guest-local profiles
@@ -75,6 +106,17 @@ export const GuestRemoteView: React.FC = () => {
 
     // Real-time listener: host kicked this device or refreshed QR
     const unsubKick = peerSync.onKicked((reason) => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const currentHost = currentParams.get('host') || '';
+      const currentKey = currentParams.get('k') || '';
+
+      if (reason === 'expired_qr') {
+        try {
+          if (currentHost) localStorage.setItem('karaokelab_expired_qr_host', currentHost);
+          if (currentKey) localStorage.setItem('karaokelab_expired_qr_key', currentKey);
+        } catch (_) {}
+      }
+
       setKickReason(reason || 'kicked');
       setKicked(true);
       setNameConfirmed(false);

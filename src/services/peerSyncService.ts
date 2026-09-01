@@ -643,6 +643,14 @@ class PeerSyncService {
 
             try {
               localStorage.removeItem('karaokelab_guest_name');
+              if (reason === 'expired_qr' && targetHostId) {
+                localStorage.setItem('karaokelab_expired_qr_host', targetHostId);
+                const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+                const currentKey = params?.get('k') || '';
+                if (currentKey) {
+                  localStorage.setItem('karaokelab_expired_qr_key', currentKey);
+                }
+              }
             } catch (_) {}
 
             try { conn.close(); } catch (_) {}
