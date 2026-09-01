@@ -245,10 +245,26 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [unreadByProfile, setUnreadByProfile] = useState<Record<string, number>>({});
   const [hostChatText, setHostChatText] = useState('');
   const [liveChatBanner, setLiveChatBanner] = useState<ChatMessage | null>(null);
   const [selectedChatProfileId, setSelectedChatProfileId] = useState<string | null>(null);
   const hostChatMessagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const handleSelectChatProfile = (profId: string) => {
+    setSelectedChatProfileId(profId);
+    const prof = profiles.find((p) => p.id === profId);
+    const count = unreadByProfile[profId] || (prof?.name ? unreadByProfile[prof.name] : 0) || 0;
+    if (count > 0) {
+      setUnreadByProfile((prev) => {
+        const next = { ...prev };
+        delete next[profId];
+        if (prof?.name) delete next[prof.name];
+        return next;
+      });
+      setUnreadChatCount((prev) => Math.max(0, prev - count));
+    }
+  };
 
   useEffect(() => {
     if (isChatOpen && selectedChatProfileId) {
@@ -569,7 +585,14 @@ export default function App() {
               });
               setLiveChatBanner(msg);
               setTimeout(() => setLiveChatBanner((curr) => (curr?.id === msg.id ? null : curr)), 6000);
-              setUnreadChatCount((prev) => prev + 1);
+              const senderKey = msg.senderProfileId || msg.senderName;
+              if (!isChatOpen || selectedChatProfileId !== senderKey) {
+                setUnreadByProfile((prev) => ({
+                  ...prev,
+                  [senderKey]: (prev[senderKey] || 0) + 1,
+                }));
+                setUnreadChatCount((prev) => prev + 1);
+              }
               peerSync.broadcastChatMessageToGuests(msg);
             }
           }
@@ -2519,6 +2542,9 @@ export default function App() {
                     .filter((p) => p.id !== 'profile_all')
                     .map((prof) => {
                       const isSelected = selectedChatProfileId === prof.id;
+                      const unreadCount = unreadByProfile[prof.id] || unreadByProfile[prof.name] || 0;
+                      const hasUnread = unreadCount > 0 && !isSelected;
+
                       const threadMsgs = chatMessages.filter(
                         (m) =>
                           m.senderProfileId === prof.id ||
@@ -2530,26 +2556,39 @@ export default function App() {
                       return (
                         <button
                           key={prof.id}
-                          onClick={() => setSelectedChatProfileId(prof.id)}
-                          className={`w-full p-2.5 rounded-xl flex items-center gap-2.5 text-left transition-all cursor-pointer ${
+                          onClick={() => handleSelectChatProfile(prof.id)}
+                          className={`w-full p-2.5 rounded-xl flex items-center gap-2.5 text-left transition-all cursor-pointer relative ${
                             isSelected
                               ? 'bg-gradient-to-r from-pink-600/30 to-purple-600/30 border border-pink-500/50 shadow-md'
+                              : hasUnread
+                              ? 'bg-pink-950/40 border border-pink-500/80 shadow-[0_0_15px_rgba(255,0,127,0.35)] animate-pulse'
                               : 'hover:bg-slate-900 border border-transparent'
                           }`}
                         >
-                          <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-lg shrink-0 shadow-inner">
+                          <div className={`w-9 h-9 rounded-xl border flex items-center justify-center text-lg shrink-0 shadow-inner relative ${
+                            hasUnread ? 'bg-pink-950 border-pink-400 text-pink-300' : 'bg-slate-900 border-slate-700'
+                          }`}>
                             {prof.avatar || '🎤'}
+                            {hasUnread && (
+                              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping border border-slate-950" />
+                            )}
                           </div>
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-1">
-                              <span className="text-xs font-bold text-slate-200 truncate">{prof.name}</span>
-                              {lastMsg && (
+                              <span className={`text-xs truncate ${hasUnread ? 'font-black text-pink-200' : 'font-bold text-slate-200'}`}>
+                                {prof.name}
+                              </span>
+                              {hasUnread ? (
+                                <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono text-[9px] font-black shadow-md animate-bounce shrink-0">
+                                  {unreadCount} nuevo{unreadCount > 1 ? 's' : ''}
+                                </span>
+                              ) : lastMsg ? (
                                 <span className="text-[9px] text-slate-500 font-mono shrink-0">
                                   {new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
-                              )}
+                              ) : null}
                             </div>
-                            <p className="text-[10.5px] text-slate-400 truncate mt-0.5">
+                            <p className={`text-[10.5px] truncate mt-0.5 ${hasUnread ? 'font-semibold text-pink-300' : 'text-slate-400'}`}>
                               {lastMsg ? lastMsg.text : 'Sin mensajes'}
                             </p>
                           </div>

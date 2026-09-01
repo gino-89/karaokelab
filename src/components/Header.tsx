@@ -178,13 +178,17 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <button
               id="btn-chat-modal"
               onClick={onOpenChatModal}
-              className="relative px-2.5 py-1 rounded-xl border border-pink-500/60 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95"
+              className={`relative px-2.5 py-1 rounded-xl text-[11px] font-extrabold uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 ${
+                unreadChatCount && unreadChatCount > 0
+                  ? 'border border-pink-400 bg-gradient-to-r from-pink-600 via-purple-600 to-pink-500 text-white shadow-[0_0_22px_rgba(255,0,127,0.7)] animate-pulse ring-2 ring-pink-500/50'
+                  : 'border border-pink-500/60 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20'
+              }`}
               title="Abrir Chat de la Sala en Vivo"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-pink-400" />
+              <MessageSquare className={`w-3.5 h-3.5 ${unreadChatCount && unreadChatCount > 0 ? 'text-white animate-bounce' : 'text-pink-400'}`} />
               <span>Chat de la Sala</span>
               {unreadChatCount && unreadChatCount > 0 ? (
-                <span className="w-4 h-4 rounded-full bg-pink-500 text-white text-[9px] font-mono font-black flex items-center justify-center -mr-1 animate-pulse shadow-md">
+                <span className="px-1.5 py-0.5 rounded-full bg-white text-pink-700 font-mono text-[9.5px] font-black flex items-center justify-center -mr-1 shadow-md animate-bounce">
                   {unreadChatCount}
                 </span>
               ) : null}
