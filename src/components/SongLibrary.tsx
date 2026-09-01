@@ -17,6 +17,7 @@ import {
 } from '../services/libraryBackup';
 import { importSongsFromFolder, syncSongsToFolder } from '../services/folderSyncService';
 import { extractYouTubeVideoId, fetchYouTubeVideoTitle } from '../services/videoBackgroundService';
+import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
 
 interface SongLibraryProps {
   savedSongs: SongItem[];
@@ -128,6 +129,27 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const [showFilters, setShowFilters] = useState(true);
   const [libraryTab, setLibraryTab] = useState<'local' | 'youtube'>('local');
   const [showLibraryMenu, setShowLibraryMenu] = useState(false);
+
+  // YouTube Karaoke Live Search State
+  const [ytQuery, setYtQuery] = useState('');
+  const [ytResults, setYtResults] = useState<YouTubeSearchResult[]>([]);
+  const [ytSearching, setYtSearching] = useState(false);
+  const [ytActiveEmbedId, setYtActiveEmbedId] = useState<string | null>(null);
+
+  const handleYouTubeSearch = async (searchTerm?: string) => {
+    const q = searchTerm !== undefined ? searchTerm : ytQuery;
+    if (!q || !q.trim()) return;
+    setYtSearching(true);
+    setYtActiveEmbedId(null);
+    try {
+      const res = await searchYouTubeVideos(q);
+      setYtResults(res);
+    } catch (err) {
+      console.error('YouTube search error in library:', err);
+    } finally {
+      setYtSearching(false);
+    }
+  };
 
   // 1. Export Metadata JSON (Lightweight)
   const handleExportMetadataJson = () => {
@@ -726,65 +748,68 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
             </button>
           </div>
 
-          {/* Row 1: Search Input + Filter Toggle Button */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative flex items-center flex-1">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
-              <input
-                type="search"
-                enterKeyHint="search"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="Buscar canción, artista o género..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={(e) => {
-                  setTimeout(() => {
-                    e.target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }, 300);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
-                  title="Limpiar búsqueda"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Filter Toggle Button */}
-            {(() => {
-              const activeCount = (selectedArtist !== 'ALL' ? 1 : 0) + (selectedGenre !== 'ALL' ? 1 : 0) + (activeProfileId !== 'profile_all' ? 1 : 0);
-              return (
-                <button
-                  onClick={() => setShowFilters((prev) => !prev)}
-                  className={`p-1.5 px-2 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shrink-0 ${showFilters || activeCount > 0
-                    ? 'bg-slate-800 border-cyan-500/50 text-cyan-300'
-                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                    }`}
-                  title={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  <span className="text-[10px] hidden sm:inline">Filtros</span>
-                  {activeCount > 0 && (
-                    <span className="w-4 h-4 rounded-full bg-[#00f0ff] text-slate-950 font-bold text-[9px] flex items-center justify-center font-mono">
-                      {activeCount}
-                    </span>
+          {/* Local Search & Filter Toolbar - Shown only in Locales tab */}
+          {libraryTab === 'local' && (
+            <>
+              {/* Row 1: Search Input + Filter Toggle Button */}
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex items-center flex-1">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                  <input
+                    type="search"
+                    enterKeyHint="search"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="Buscar canción, artista o género..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={(e) => {
+                      setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 300);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] transition-colors"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
+                      title="Limpiar búsqueda"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </button>
-              );
-            })()}
-          </div>
+                </div>
+
+                {/* Filter Toggle Button */}
+                {(() => {
+                  const activeCount = (selectedArtist !== 'ALL' ? 1 : 0) + (selectedGenre !== 'ALL' ? 1 : 0) + (activeProfileId !== 'profile_all' ? 1 : 0);
+                  return (
+                    <button
+                      onClick={() => setShowFilters((prev) => !prev)}
+                      className={`p-1.5 px-2 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shrink-0 ${showFilters || activeCount > 0
+                        ? 'bg-slate-800 border-cyan-500/50 text-cyan-300'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                        }`}
+                      title={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+                    >
+                      <Filter className="w-3.5 h-3.5" />
+                      <span className="text-[10px] hidden sm:inline">Filtros</span>
+                      {activeCount > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-[#00f0ff] text-slate-950 font-bold text-[9px] flex items-center justify-center font-mono">
+                          {activeCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
+              </div>
 
           {/* Row 1.5: Organizador de Ordenamiento Rápido */}
           <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1.5 bg-slate-900/90 rounded-xl border border-slate-800 scrollbar-none">
@@ -967,6 +992,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
               </div>
             </div>
           )}
+          </>
+        )}
         </div>
 
         {/* Songs List */}
@@ -1296,98 +1323,392 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 </>
               )}
 
-              {/* TAB 3: YOUTUBE FAVORITES */}
+              {/* TAB 3: YOUTUBE KARAOKE SEARCH & FAVORITES HUB */}
               {libraryTab === 'youtube' && (
-                <div className="p-3 flex flex-col gap-2.5">
-                  {filteredYouTubeFavorites.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                      {filteredYouTubeFavorites.map((yt) => {
-                        const prof = profiles.find((p) => p.id === yt.singerProfileId);
-                        return (
-                          <div
-                            key={yt.id}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/80 border border-red-500/30 hover:border-red-500/60 transition-all gap-3 shadow-md"
+                <div className="p-3 flex flex-col gap-3 animate-in fade-in duration-200">
+                  {/* YouTube Search Bar */}
+                  <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-red-500/40 flex flex-col gap-2.5 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-red-300 flex items-center gap-1.5 font-mono uppercase tracking-wider">
+                        <Youtube className="w-3.5 h-3.5 text-red-500 fill-current" />
+                        <span>Buscador YouTube en Vivo</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400">Karaoke / Videos oficiales</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="search"
+                          enterKeyHint="search"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          placeholder="Busca por canción o artista (ej. Luis Miguel, Bad Bunny)..."
+                          value={ytQuery}
+                          onChange={(e) => setYtQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                              handleYouTubeSearch();
+                            }
+                          }}
+                          className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all"
+                        />
+                        <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        {ytQuery && (
+                          <button
+                            type="button"
+                            onClick={() => { setYtQuery(''); setYtResults([]); }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <img
-                                src={yt.thumbnail}
-                                alt={yt.title}
-                                className="w-14 h-10 rounded-lg object-cover shrink-0 bg-slate-900"
-                              />
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-bold text-white truncate">
-                                  {yt.title}
-                                </span>
-                                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 truncate mt-0.5">
-                                  <span>{yt.channel}</span>
-                                  <span>·</span>
-                                  <span className="font-mono">{yt.duration}</span>
-                                  {prof && prof.id !== 'profile_all' && (
-                                    <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
-                                      {prof.avatar} {prof.name}
-                                    </span>
-                                  )}
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleYouTubeSearch()}
+                        disabled={ytSearching || !ytQuery.trim()}
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+                      >
+                        {ytSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        <span>Buscar</span>
+                      </button>
+                    </div>
+
+                    {/* Popular Suggestions */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                      <span className="text-slate-500 font-mono font-bold shrink-0">Popular:</span>
+                      {['Luis Miguel', 'Bad Bunny', 'Karol G', 'Queen', 'Rocío Dúrcal', 'RBD', 'Salsa', 'Cumbia'].map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            setYtQuery(tag);
+                            handleYouTubeSearch(tag);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-colors cursor-pointer shrink-0"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Singer Profile Active Indicator */}
+                    {profiles && profiles.length > 1 && (
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs border-t border-slate-800/80">
+                        <span className="text-[10px] text-slate-400 font-mono shrink-0">Cantante activo:</span>
+                        {profiles.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => onSelectProfile?.(p.id)}
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                              activeProfileId === p.id
+                                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
+                                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
+                            }`}
+                          >
+                            <span>{p.avatar}</span>
+                            <span>{p.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active Preview Embed Player */}
+                  {ytActiveEmbedId && (
+                    <div className="rounded-2xl overflow-hidden border border-red-500/40 bg-black shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+                      <div className="p-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                        <span className="text-xs font-bold text-red-400 font-mono flex items-center gap-1.5">
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          PREVIEW DE VIDEO
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setYtActiveEmbedId(null)}
+                          className="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 cursor-pointer"
+                        >
+                          Cerrar Preview
+                        </button>
+                      </div>
+                      <div className="relative aspect-video w-full">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${ytActiveEmbedId}?autoplay=1`}
+                          title="YouTube Player Preview"
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* YouTube Results List */}
+                  {ytSearching ? (
+                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400 bg-slate-900/40 rounded-2xl border border-slate-800">
+                      <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+                      <p className="text-xs font-medium">Buscando pistas de Karaoke en YouTube...</p>
+                    </div>
+                  ) : ytResults.length > 0 ? (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                          <Youtube className="w-4 h-4 text-red-500" />
+                          Resultados de YouTube ({ytResults.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setYtResults([])}
+                          className="text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          Limpiar resultados
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        {ytResults.map((item) => {
+                          const isFav = youtubeFavorites.some(
+                            (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
+                          );
+                          const isInQueue = queue.some(
+                            (q) => q.songData?.id === `yt_${item.id}` || q.songData?.videoBgId === item.id || q.id.includes(item.id)
+                          );
+
+                          const ytSongItem: SongItem = {
+                            id: `yt_${item.id}`,
+                            title: item.title,
+                            artist: item.channel,
+                            duration: 240,
+                            bpm: 120,
+                            key: 'C',
+                            lyrics: [],
+                            originalFileName: `${item.title}.mp4`,
+                            videoBgId: item.id,
+                            videoBgMode: 'custom',
+                            videoBgCustomUrl: `https://www.youtube.com/watch?v=${item.id}`,
+                            createdAt: Date.now(),
+                          };
+
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex flex-col justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-2.5"
+                            >
+                              <div className="flex gap-3">
+                                <div
+                                  onClick={() => setYtActiveEmbedId(ytActiveEmbedId === item.id ? null : item.id)}
+                                  className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800 cursor-pointer group"
+                                  title="Ver preview"
+                                >
+                                  <img
+                                    src={item.thumbnail}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    onError={(e) => {
+                                      (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+                                    <Play className="w-5 h-5 text-white/80 group-hover:text-white drop-shadow" />
+                                  </div>
+                                  <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
+                                    {item.duration}
+                                  </span>
+                                </div>
+
+                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                  <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
+                                    {item.title}
+                                  </h3>
+                                  <p className="text-[10px] text-slate-400 mt-1 truncate">{item.channel}</p>
                                 </div>
                               </div>
-                            </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => onOpenYouTubeEmbed ? onOpenYouTubeEmbed(yt.id) : onOpenYouTubeModal?.()}
-                                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-red-600/30"
-                              >
-                                <Play className="w-3.5 h-3.5 fill-current" />
-                                <span>Ver Video</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onToggleYouTubeFavorite?.(yt, yt.singerProfileId)}
-                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
-                                title="Quitar de favoritos"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onOpenYouTubeEmbed) {
+                                      onOpenYouTubeEmbed(item.id);
+                                    } else {
+                                      onSelectSong(ytSongItem);
+                                    }
+                                  }}
+                                  className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Reproducir</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => onAddToQueue(ytSongItem)}
+                                  disabled={isInQueue}
+                                  className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                                    isInQueue
+                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40 shadow-sm active:scale-95'
+                                  }`}
+                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
+                                >
+                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5" />}
+                                  <span>{isInQueue ? 'En Cola' : 'Cola'}</span>
+                                </button>
+
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onToggleYouTubeFavorite(
+                                        {
+                                          id: item.id,
+                                          title: item.title,
+                                          channel: item.channel,
+                                          duration: item.duration,
+                                          thumbnail: item.thumbnail,
+                                          url: item.url,
+                                        },
+                                        activeProfileId
+                                      )
+                                    }
+                                    className={`p-2 rounded-xl border transition-all cursor-pointer shrink-0 ${
+                                      isFav
+                                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-300'
+                                    }`}
+                                    title={isFav ? 'Quitar de Favoritos' : 'Guardar en Favoritos'}
+                                  >
+                                    <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-current' : ''}`} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  ) : (
+                  ) : null}
+
+                  {/* Saved YouTube Favorites Section */}
+                  {filteredYouTubeFavorites.length > 0 && (
+                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                          <Star className="w-3.5 h-3.5 fill-current text-amber-400" />
+                          Videos Guardados en Favoritos ({filteredYouTubeFavorites.length})
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {filteredYouTubeFavorites.map((yt) => {
+                          const prof = profiles.find((p) => p.id === yt.singerProfileId);
+                          const isInQueue = queue.some(
+                            (q) => q.songData?.id === `yt_${yt.id}` || q.songData?.videoBgId === yt.id || q.id.includes(yt.id)
+                          );
+
+                          const ytSongItem: SongItem = {
+                            id: `yt_${yt.id}`,
+                            title: yt.title,
+                            artist: yt.channel,
+                            duration: 240,
+                            bpm: 120,
+                            key: 'C',
+                            lyrics: [],
+                            originalFileName: `${yt.title}.mp4`,
+                            videoBgId: yt.id,
+                            videoBgMode: 'custom',
+                            videoBgCustomUrl: `https://www.youtube.com/watch?v=${yt.id}`,
+                            createdAt: Date.now(),
+                          };
+
+                          return (
+                            <div
+                              key={yt.id}
+                              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/80 border border-red-500/30 hover:border-red-500/60 transition-all gap-3 shadow-md"
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <img
+                                  src={yt.thumbnail}
+                                  alt={yt.title}
+                                  className="w-14 h-10 rounded-lg object-cover shrink-0 bg-slate-900"
+                                />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-bold text-white truncate">
+                                    {yt.title}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 truncate mt-0.5">
+                                    <span>{yt.channel}</span>
+                                    <span>·</span>
+                                    <span className="font-mono">{yt.duration}</span>
+                                    {prof && prof.id !== 'profile_all' && (
+                                      <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
+                                        {prof.avatar} {prof.name}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onOpenYouTubeEmbed) {
+                                      onOpenYouTubeEmbed(yt.id);
+                                    } else {
+                                      onSelectSong(ytSongItem);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-md shadow-red-600/30"
+                                  title="Reproducir ahora"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Ver</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => onAddToQueue(ytSongItem)}
+                                  disabled={isInQueue}
+                                  className={`p-1.5 rounded-lg border text-xs font-bold transition-all flex items-center cursor-pointer ${
+                                    isInQueue
+                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40'
+                                  }`}
+                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
+                                >
+                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5" />}
+                                </button>
+
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleYouTubeFavorite(yt, yt.singerProfileId)}
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
+                                    title="Quitar de favoritos"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!ytSearching && ytResults.length === 0 && filteredYouTubeFavorites.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500 text-center">
-                      <Youtube className="w-10 h-10 text-red-500/40" />
-                      {searchQuery.trim() ? (
-                        <>
-                          <p className="text-xs font-bold text-slate-300">No hay favoritos de YouTube para "{searchQuery}"</p>
-                          {filteredSongs.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setLibraryTab('local')}
-                              className="px-3 py-1.5 rounded-lg bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5"
-                            >
-                              <Music2 className="w-3.5 h-3.5" />
-                              <span>Ver {filteredSongs.length} canción(es) local(es) →</span>
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs font-bold text-slate-300">No hay videos de YouTube guardados aún</p>
-                          <p className="text-[11px] text-slate-500 max-w-xs">
-                            Busca tus videos karaoke favoritos en YouTube y guárdalos por cantante.
-                          </p>
-                          {onOpenYouTubeModal && (
-                            <button
-                              type="button"
-                              onClick={onOpenYouTubeModal}
-                              className="mt-1 px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-md"
-                            >
-                              <Youtube className="w-4 h-4 fill-current" />
-                              <span>Buscar en YouTube</span>
-                            </button>
-                          )}
-                        </>
-                      )}
+                      <Youtube className="w-12 h-12 text-red-500/40 animate-pulse" />
+                      <p className="text-xs font-bold text-slate-300">Buscador de Karaoke YouTube</p>
+                      <p className="text-[11px] text-slate-500 max-w-xs">
+                        Escribe el nombre de tu canción favorita o artista en el buscador de arriba para encontrar pistas de karaoke en YouTube al instante.
+                      </p>
                     </div>
                   )}
                 </div>
