@@ -43,7 +43,7 @@ class PeerSyncService {
   private blockedDevices: Map<string, BlockedGuestDevice> = new Map();
   private hostId: string | null = null;
   private isHost: boolean = false;
-  private currentQrKey: string = Math.random().toString(36).substring(2, 8);
+  private currentQrKey: string = '';
   private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
@@ -55,6 +55,17 @@ class PeerSyncService {
   constructor() {
     if (typeof window !== 'undefined') {
       try {
+        const savedQrKey = localStorage.getItem('karaokelab_qr_session_key');
+        if (savedQrKey) {
+          this.currentQrKey = savedQrKey;
+        } else {
+          this.currentQrKey = this.getOrCreateQrKey();
+        }
+      } catch (_) {
+        this.currentQrKey = Math.random().toString(36).substring(2, 8);
+      }
+
+      try {
         const raw = localStorage.getItem('karaokelab_blocked_devices');
         if (raw) {
           const list: BlockedGuestDevice[] = JSON.parse(raw);
@@ -65,6 +76,8 @@ class PeerSyncService {
           }
         }
       } catch (_) {}
+    } else {
+      this.currentQrKey = Math.random().toString(36).substring(2, 8);
     }
   }
 
@@ -80,12 +93,36 @@ class PeerSyncService {
   private currentConnectionStatus: ConnectionStatus = 'disconnected';
   private targetHostId: string | null = null;
 
+  public getOrCreateQrKey(forceNew = false): string {
+    const KEY_STORAGE = 'karaokelab_qr_session_key';
+    if (!forceNew && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(KEY_STORAGE);
+        if (saved) {
+          this.currentQrKey = saved;
+          return saved;
+        }
+      } catch (_) {}
+    }
+    const newKey = Math.random().toString(36).substring(2, 8);
+    this.currentQrKey = newKey;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(KEY_STORAGE, newKey);
+      } catch (_) {}
+    }
+    return newKey;
+  }
+
   public getQrKey(): string {
+    if (!this.currentQrKey) {
+      this.currentQrKey = this.getOrCreateQrKey();
+    }
     return this.currentQrKey;
   }
 
   public rotateQrKey(): string {
-    this.currentQrKey = Math.random().toString(36).substring(2, 8);
+    this.currentQrKey = this.getOrCreateQrKey(true);
     return this.currentQrKey;
   }
 
