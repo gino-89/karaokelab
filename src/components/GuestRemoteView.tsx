@@ -1074,7 +1074,7 @@ export const GuestRemoteView: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Actions (Mis Pedidos + Change Singer Name) */}
+          {/* Right: Actions (Mis Pedidos + Chat + Change Singer Name) */}
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
@@ -1096,13 +1096,30 @@ export const GuestRemoteView: React.FC = () => {
             <button
               type="button"
               onClick={() => {
+                setIsChatOpen(true);
+                setUnreadChatCount(0);
+              }}
+              className="relative p-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-pink-400 hover:text-pink-300 hover:border-pink-500/50 text-xs cursor-pointer transition-all hover:bg-slate-800 shrink-0"
+              title="Chat de la Sala y Saludos 💬"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-pink-400" />
+              {unreadChatCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-pink-500 text-white font-mono text-[9px] font-black flex items-center justify-center animate-pulse shadow-md">
+                  {unreadChatCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
                 setNameConfirmed(false);
                 setGuestPin('');
                 setInputPin('');
                 localStorage.removeItem('karaokelab_guest_name');
                 localStorage.removeItem('karaokelab_guest_pin');
               }}
-              className="p-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-400 hover:text-white text-xs cursor-pointer transition-all hover:bg-slate-800"
+              className="p-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-400 hover:text-white text-xs cursor-pointer transition-all hover:bg-slate-800 shrink-0"
               title="Cambiar nombre de cantante"
             >
               <UserRound className="w-3.5 h-3.5 text-slate-300" />
@@ -1365,41 +1382,6 @@ export const GuestRemoteView: React.FC = () => {
       {/* TAB 2: LOCAL LIBRARY VIEW */}
       {remoteTab === 'library' && (
         <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-          {/* Quick Room Chat Bar */}
-          <div
-            onClick={() => {
-              setIsChatOpen(true);
-              setUnreadChatCount(0);
-            }}
-            className="p-3 rounded-2xl bg-slate-900/90 border border-pink-500/40 hover:border-pink-400 flex items-center justify-between shadow-lg cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] group"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-xs font-black shadow-md group-hover:scale-110 transition-transform">
-                💬
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-black text-white group-hover:text-pink-300 transition-colors">
-                  Chat de la Sala & Saludos 💬
-                </span>
-                <span className="text-[10px] text-slate-400">
-                  {chatMessages.length > 0
-                    ? `Último: "${chatMessages[chatMessages.length - 1].text}"`
-                    : 'Envía dedicatorias o mensajes a la pantalla principal'}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {unreadChatCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-pink-500 text-white font-mono text-[10px] font-black animate-pulse shadow-md">
-                  {unreadChatCount} nuevo{unreadChatCount > 1 ? 's' : ''}
-                </span>
-              )}
-              <span className="px-3 py-1.5 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-bold group-hover:bg-pink-500 group-hover:text-white transition-all">
-                Abrir Chat
-              </span>
-            </div>
-          </div>
 
           {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management and YouTube favorites) */}
           <SongLibrary
