@@ -934,48 +934,60 @@ export const GuestRemoteView: React.FC = () => {
       </div>
 
       {/* Sticky Header & Navigation for Mobile Phones */}
-      <div className="sticky top-0 z-30 bg-[#080811]/95 backdrop-blur-md pb-2 pt-1 space-y-2">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#00f0ff] to-[#ff007f] flex items-center justify-center font-black text-slate-950 text-xs shadow-md">
+      <div className="sticky top-0 z-30 bg-[#080814]/90 backdrop-blur-xl border-b border-slate-800/70 pb-2 pt-1.5 space-y-2 shadow-md">
+        {/* Header Main Row */}
+        <div className="flex items-center justify-between gap-2 px-1">
+          {/* Left: Brand Logo + Status Dot + Singer & Table Info */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-pink-500 flex items-center justify-center font-black text-slate-950 text-xs shadow-[0_0_12px_rgba(0,240,255,0.35)] shrink-0">
               🎤
             </div>
-            <div>
-              <h1 className="text-sm font-black italic uppercase tracking-wider text-white">
-                KaraokeLab Remote
-              </h1>
-              <div className="flex items-center gap-1.5 text-[9px] text-cyan-400 font-mono">
-                <span>Conectado: <strong className="text-white">{guestName}</strong></span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black italic uppercase tracking-wider text-white">
+                  KaraokeLab
+                </span>
+                {connStatus === 'connected' ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" title="En Vivo (Conectado)" />
+                ) : connStatus === 'reconnecting' ? (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" title="Reconectando..." />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-rose-500" title="Desconectado" />
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono truncate">
+                <span className="truncate max-w-[90px] text-slate-200 font-bold">{guestName}</span>
+                <span>·</span>
                 <button
                   type="button"
                   onClick={() => {
                     setTempTableNumber(tableNumber);
                     setIsEditTableOpen(true);
                   }}
-                  className="px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/40 text-[9px] font-black flex items-center gap-1 hover:bg-pink-500/40 cursor-pointer transition-all shadow-sm"
-                  title="Cambiar de Mesa"
+                  className="text-pink-400 font-bold hover:underline flex items-center gap-0.5 shrink-0 cursor-pointer"
+                  title="Cambiar de Mesa / Ubicación"
                 >
                   <span>🪑 {tableNumber}</span>
-                  <span className="text-[8px] text-pink-400">✏️</span>
+                  <span className="text-[8px] opacity-70">✏️</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          {/* Right: Actions (Mis Pedidos + Change Singer Name) */}
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setIsMyQueueOpen(true)}
-              className={`px-2 py-1 rounded-lg border text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all shadow-sm ${
+              className={`px-2.5 py-1 rounded-xl border text-[11px] font-black flex items-center gap-1.5 cursor-pointer transition-all shadow-sm ${
                 myQueueItems.length > 0
-                  ? 'bg-gradient-to-r from-pink-600 to-purple-600 border-pink-400 text-white shadow-[0_0_12px_rgba(255,0,127,0.4)] animate-pulse'
-                  : 'bg-slate-850 border-slate-700 text-slate-300 hover:text-white'
+                  ? 'bg-gradient-to-r from-pink-600 to-purple-600 border-pink-400 text-white shadow-[0_0_14px_rgba(255,0,127,0.45)] animate-pulse'
+                  : 'bg-slate-900/80 border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
               }`}
             >
               <span>📋 Mis Pedidos</span>
               {myQueueItems.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-white text-slate-950 font-mono text-[9px] font-black shrink-0">
+                <span className="px-1.5 py-0.2 rounded-full bg-white text-slate-950 font-mono text-[9.5px] font-black shrink-0">
                   {myQueueItems.length}
                 </span>
               )}
@@ -987,40 +999,23 @@ export const GuestRemoteView: React.FC = () => {
                 setNameConfirmed(false);
                 localStorage.removeItem('karaokelab_guest_name');
               }}
-              className="px-2 py-1 rounded-lg bg-slate-850 border border-slate-700 text-slate-400 hover:text-white text-[10px] font-bold cursor-pointer transition-all"
+              className="p-1.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-400 hover:text-white text-xs cursor-pointer transition-all hover:bg-slate-800"
+              title="Cambiar nombre de cantante"
             >
-              Nombre
+              <UserRound className="w-3.5 h-3.5 text-slate-300" />
             </button>
-
-            {/* Real-time Heartbeat Connection Pill */}
-            {connStatus === 'connected' ? (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold font-mono flex items-center gap-1">
-                <Wifi className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-                <span>En Vivo</span>
-              </span>
-            ) : connStatus === 'reconnecting' ? (
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold font-mono flex items-center gap-1 animate-pulse">
-                <RefreshCw className="w-2.5 h-2.5 text-amber-400 animate-spin" />
-                <span>Reconectando</span>
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-bold font-mono flex items-center gap-1">
-                <WifiOff className="w-2.5 h-2.5 text-rose-400" />
-                <span>Desconectado</span>
-              </span>
-            )}
           </div>
         </div>
 
         {/* Remote Navigation Tabs: Local Library vs YouTube Online Search */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-xl border border-slate-800 shadow-xl">
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800/80 shadow-inner">
           <button
             type="button"
             onClick={() => setRemoteTab('library')}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            className={`py-1.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               remoteTab === 'library'
-                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_20px_rgba(0,240,255,0.3)] font-black'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_15px_rgba(0,240,255,0.3)] font-black'
+                : 'text-slate-400 hover:text-white font-bold hover:bg-slate-900/50'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
@@ -1030,10 +1025,10 @@ export const GuestRemoteView: React.FC = () => {
           <button
             type="button"
             onClick={() => setRemoteTab('youtube')}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            className={`py-1.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               remoteTab === 'youtube'
-                ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] font-black'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.35)] font-black'
+                : 'text-slate-400 hover:text-white font-bold hover:bg-slate-900/50'
             }`}
           >
             <Youtube className="w-3.5 h-3.5 text-red-400 fill-current" />
