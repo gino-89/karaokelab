@@ -104,6 +104,8 @@ export const GuestRemoteView: React.FC = () => {
     return () => unsub();
   }, []);
 
+
+
   useEffect(() => {
     const unsub = peerSync.onProfileRejected((payload) => {
       setNameConfirmed(false);
@@ -386,6 +388,16 @@ export const GuestRemoteView: React.FC = () => {
     } catch (_) {}
   }, []);
 
+  useEffect(() => {
+    const unsub = peerSync.onProfilesReceived((syncedProfiles) => {
+      if (syncedProfiles && Array.isArray(syncedProfiles) && syncedProfiles.length > 0) {
+        setProfiles(syncedProfiles);
+        saveGuestProfiles(syncedProfiles);
+      }
+    });
+    return () => unsub();
+  }, [saveGuestProfiles]);
+
   // Connect to host and load songs once name is confirmed (and NOT kicked)
   useEffect(() => {
     if (!nameConfirmed || kicked) return;
@@ -433,6 +445,7 @@ export const GuestRemoteView: React.FC = () => {
             },
             (syncedProfiles) => {
               if (syncedProfiles && Array.isArray(syncedProfiles) && syncedProfiles.length > 0) {
+                setProfiles(syncedProfiles);
                 saveGuestProfiles(syncedProfiles);
               }
             },
@@ -458,35 +471,18 @@ export const GuestRemoteView: React.FC = () => {
     return () => unsub();
   }, [nameConfirmed, kicked, saveGuestProfiles]);
 
-  // Ensure guest's personal profile is created and synchronized as soon as name is confirmed
+  // Ensure guest's personal profile ID is linked once name is confirmed
   useEffect(() => {
     if (!nameConfirmed || !guestName.trim()) return;
     const trimmed = guestName.trim();
     const existing = profiles.find(
       (p) => p.name.toLowerCase().trim() === trimmed.toLowerCase().trim() && p.id !== 'profile_all'
     );
-    if (existing) {
-      if (myProfileId !== existing.id) {
-        setMyProfileId(existing.id);
-        localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
-      }
-    } else {
-      const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      const newProf: SingerProfile = {
-        id: newProfId,
-        name: trimmed,
-        avatar: '🎤',
-        color: '#00f0ff',
-        favoriteSongIds: [],
-        createdAt: Date.now(),
-      };
-      const updated = [...profiles, newProf];
-      saveGuestProfiles(updated);
-      setMyProfileId(newProfId);
-      localStorage.setItem('karaokelab_guest_my_profile_id', newProfId);
-      peerSync.sendCreateProfileFromGuest(newProf);
+    if (existing && myProfileId !== existing.id) {
+      setMyProfileId(existing.id);
+      localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
     }
-  }, [nameConfirmed, guestName, profiles]);
+  }, [nameConfirmed, guestName, profiles, myProfileId]);
 
   const handleConfirmName = (overrideName?: string, overridePin?: string) => {
     const trimmed = (overrideName || guestName).trim();

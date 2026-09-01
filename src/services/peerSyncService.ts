@@ -924,6 +924,16 @@ class PeerSyncService {
     };
   }
 
+  public onProfilesReceived(callback: (profiles: SingerProfile[]) => void) {
+    this.onProfilesReceivedCallback = callback;
+    if (this.currentProfiles && this.currentProfiles.length > 0) {
+      callback(this.currentProfiles);
+    }
+    return () => {
+      this.onProfilesReceivedCallback = null;
+    };
+  }
+
   // Reconnect guest on demand
   public reconnectGuest() {
     if (this.targetHostId && !this.isHost && this.onCatalogReceivedCallback) {
