@@ -1469,7 +1469,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      <div className="flex flex-col gap-2.5">
                         {ytResults.map((item) => {
                           const isFav = youtubeFavorites.some(
                             (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
@@ -1496,13 +1496,14 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           return (
                             <div
                               key={item.id}
-                              className="flex flex-col justify-between p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/40 transition-all shadow-lg gap-2.5"
+                              className="flex flex-col p-3 rounded-2xl bg-slate-900/95 border border-slate-800 hover:border-red-500/50 transition-all shadow-lg gap-2.5 group"
                             >
-                              <div className="flex gap-3">
+                              {/* Top row: HD Thumbnail + Info */}
+                              <div className="flex items-center gap-3">
                                 <div
                                   onClick={() => setYtActiveEmbedId(ytActiveEmbedId === item.id ? null : item.id)}
-                                  className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800 cursor-pointer group"
-                                  title="Ver preview"
+                                  className="relative w-28 h-18 sm:w-32 sm:h-20 rounded-xl overflow-hidden shrink-0 bg-slate-950 border border-slate-800 cursor-pointer group-hover:border-red-500/40 transition-all"
+                                  title="Ver preview del video"
                                 >
                                   <img
                                     src={item.thumbnail}
@@ -1513,22 +1514,27 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                     }}
                                   />
                                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 flex items-center justify-center transition-colors">
-                                    <Play className="w-5 h-5 text-white/80 group-hover:text-white drop-shadow" />
+                                    <Play className="w-6 h-6 text-white/90 group-hover:text-white drop-shadow-md" />
                                   </div>
-                                  <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white font-bold">
+                                  <span className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/85 text-white font-bold border border-white/10">
                                     {item.duration}
                                   </span>
                                 </div>
 
-                                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                  <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug">
+                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+                                  <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-red-300 transition-colors">
                                     {item.title}
                                   </h3>
-                                  <p className="text-[10px] text-slate-400 mt-1 truncate">{item.channel}</p>
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-400 truncate">
+                                    <span className="truncate">{item.channel}</span>
+                                    <span>•</span>
+                                    <span className="font-mono text-[10px] text-red-400 font-semibold">{item.duration}</span>
+                                  </div>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                              {/* Bottom row: Action Buttons */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1538,25 +1544,25 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                       onSelectSong(ytSongItem);
                                     }
                                   }}
-                                  className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+                                  className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                                 >
                                   <Play className="w-3.5 h-3.5 fill-current" />
-                                  <span>Reproducir</span>
+                                  <span>Reproducir Ahora</span>
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => onAddToQueue(ytSongItem)}
                                   disabled={isInQueue}
-                                  className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                                  className={`py-2 px-3.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                                     isInQueue
-                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
-                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40 shadow-sm active:scale-95'
+                                      ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 cursor-default'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40 shadow-sm active:scale-95 hover:border-cyan-400'
                                   }`}
                                   title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
                                 >
-                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5" />}
-                                  <span>{isInQueue ? 'En Cola' : 'Cola'}</span>
+                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5 text-cyan-400" />}
+                                  <span>{isInQueue ? 'En Cola' : 'Agregar a Cola'}</span>
                                 </button>
 
                                 {onToggleYouTubeFavorite && (
@@ -1575,14 +1581,14 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                         activeProfileId
                                       )
                                     }
-                                    className={`p-2 rounded-xl border transition-all cursor-pointer shrink-0 ${
+                                    className={`p-2 px-2.5 rounded-xl border transition-all cursor-pointer shrink-0 ${
                                       isFav
                                         ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-                                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-300'
+                                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-300 hover:border-slate-600'
                                     }`}
                                     title={isFav ? 'Quitar de Favoritos' : 'Guardar en Favoritos'}
                                   >
-                                    <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-current' : ''}`} />
+                                    <Star className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
                                   </button>
                                 )}
                               </div>
@@ -1603,7 +1609,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-2">
                         {filteredYouTubeFavorites.map((yt) => {
                           const prof = profiles.find((p) => p.id === yt.singerProfileId);
                           const isInQueue = queue.some(
@@ -1628,22 +1634,22 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           return (
                             <div
                               key={yt.id}
-                              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/80 border border-red-500/30 hover:border-red-500/60 transition-all gap-3 shadow-md"
+                              className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/90 border border-red-500/30 hover:border-red-500/60 transition-all gap-3 shadow-md"
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <img
                                   src={yt.thumbnail}
                                   alt={yt.title}
-                                  className="w-14 h-10 rounded-lg object-cover shrink-0 bg-slate-900"
+                                  className="w-16 h-11 rounded-xl object-cover shrink-0 bg-slate-900 border border-slate-800"
                                 />
                                 <div className="flex flex-col min-w-0">
-                                  <span className="text-xs font-bold text-white truncate">
+                                  <span className="text-xs sm:text-sm font-bold text-white truncate">
                                     {yt.title}
                                   </span>
                                   <div className="flex items-center gap-1.5 text-[10px] text-slate-400 truncate mt-0.5">
                                     <span>{yt.channel}</span>
                                     <span>·</span>
-                                    <span className="font-mono">{yt.duration}</span>
+                                    <span className="font-mono text-red-400">{yt.duration}</span>
                                     {prof && prof.id !== 'profile_all' && (
                                       <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
                                         {prof.avatar} {prof.name}
@@ -1663,7 +1669,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                       onSelectSong(ytSongItem);
                                     }
                                   }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-md shadow-red-600/30"
+                                  className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-md shadow-red-600/30"
                                   title="Reproducir ahora"
                                 >
                                   <Play className="w-3.5 h-3.5 fill-current" />
@@ -1674,7 +1680,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                   type="button"
                                   onClick={() => onAddToQueue(ytSongItem)}
                                   disabled={isInQueue}
-                                  className={`p-1.5 rounded-lg border text-xs font-bold transition-all flex items-center cursor-pointer ${
+                                  className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center cursor-pointer ${
                                     isInQueue
                                       ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
                                       : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40'
@@ -1688,7 +1694,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                   <button
                                     type="button"
                                     onClick={() => onToggleYouTubeFavorite(yt, yt.singerProfileId)}
-                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
+                                    className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
                                     title="Quitar de favoritos"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />

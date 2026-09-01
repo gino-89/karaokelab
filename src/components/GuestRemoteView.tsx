@@ -721,7 +721,7 @@ export const GuestRemoteView: React.FC = () => {
               <p className="text-xs font-medium">Buscando pistas de Karaoke en YouTube...</p>
             </div>
           ) : ytResults.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-3">
               {ytResults.map((item) => {
                 const isFav = youtubeFavorites.some(
                   (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
