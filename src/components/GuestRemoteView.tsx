@@ -50,6 +50,11 @@ export const GuestRemoteView: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
+  const [ytTrackForProfileAssign, setYtTrackForProfileAssign] = useState<{ id: string; title: string; channel: string; duration: string; thumbnail: string; url: string } | null>(null);
+  const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileAvatar, setNewProfileAvatar] = useState('🎤');
+  const [newProfileColor, setNewProfileColor] = useState('#00f0ff');
 
   // Initial mount & URL validation
   useEffect(() => {
@@ -884,13 +889,13 @@ export const GuestRemoteView: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => handleToggleYouTubeFavorite(item, activeProfileId)}
+                        onClick={() => setYtTrackForProfileAssign(item)}
                         className={`p-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
                           isFav
                             ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-[0_0_12px_rgba(245,158,11,0.4)]'
                             : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
                         }`}
-                        title={isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+                        title="Asignar favorito a cantante"
                       >
                         <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-slate-950 text-slate-950' : 'fill-amber-300 text-amber-300'}`} />
                       </button>
@@ -979,6 +984,194 @@ export const GuestRemoteView: React.FC = () => {
             onToggleYouTubeFavorite={handleToggleYouTubeFavorite}
             isGuestMode={true}
           />
+        </div>
+      )}
+
+      {/* Modal: Asignar Favorito de YouTube a Cantante */}
+      {ytTrackForProfileAssign && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
+          <div className="w-full max-w-sm bg-[#0c0d18] border border-amber-500/40 rounded-3xl p-5 flex flex-col gap-4 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                <Star className="w-4 h-4 fill-amber-400" />
+                <span>Asignar Favorito a Cantante</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setYtTrackForProfileAssign(null)}
+                className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Video preview summary */}
+            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-950 border border-slate-800">
+              <img
+                src={ytTrackForProfileAssign.thumbnail}
+                alt={ytTrackForProfileAssign.title}
+                className="w-16 h-11 rounded-lg object-cover shrink-0 bg-slate-900"
+              />
+              <div className="flex flex-col min-w-0">
+                <p className="text-xs text-white font-bold line-clamp-2 leading-snug">
+                  {ytTrackForProfileAssign.title}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                  {ytTrackForProfileAssign.channel} • {ytTrackForProfileAssign.duration}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Selecciona qué cantantes tienen este video en su repertorio favorito:
+            </p>
+
+            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
+                <div className="py-6 text-center text-slate-500 text-xs bg-slate-900/40 rounded-2xl border border-slate-800/80 p-4">
+                  <p className="mb-3 text-slate-400">Aún no has creado ningún perfil de persona.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYtTrackForProfileAssign(null);
+                      setIsCreateProfileOpen(true);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs cursor-pointer shadow-md hover:scale-105 transition-all"
+                  >
+                    + Crear Perfil (Ej: John)
+                  </button>
+                </div>
+              ) : (
+                profiles
+                  .filter((p) => p.id !== 'profile_all')
+                  .map((p) => {
+                    const isFav = youtubeFavorites.some(
+                      (fav) => fav.id === ytTrackForProfileAssign.id && fav.singerProfileId === p.id
+                    );
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleToggleYouTubeFavorite(ytTrackForProfileAssign, p.id)}
+                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
+                          isFav
+                            ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                            : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-lg">{p.avatar}</span>
+                          <span className="font-bold">{p.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Star className={`w-4 h-4 ${isFav ? 'fill-amber-400 text-amber-400' : 'text-slate-600'}`} />
+                          <span className="text-[10px] font-mono">{isFav ? 'Favorita' : 'No asignada'}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setYtTrackForProfileAssign(null);
+                  setIsCreateProfileOpen(true);
+                }}
+                className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1"
+              >
+                <span>+ Nuevo Cantante</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setYtTrackForProfileAssign(null)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black cursor-pointer shadow-md transition-all active:scale-95"
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Crear Perfil de Cantante */}
+      {isCreateProfileOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
+          <div className="w-full max-w-sm bg-[#0c0d18] border border-cyan-500/40 rounded-3xl p-5 flex flex-col gap-4 shadow-[0_0_40px_rgba(0,240,255,0.25)]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+                <span>🎤</span>
+                <span>Crear Cantante</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateProfileOpen(false)}
+                className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Nombre del Cantante</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Gino, Andrea..."
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  autoFocus
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Elige un Emoji</label>
+                <div className="flex flex-wrap gap-2">
+                  {['🎤', '🌟', '🎸', '🔥', '👑', '😎', '💃', '🚀', '🎶', '💎'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setNewProfileAvatar(emoji)}
+                      className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition-all cursor-pointer ${
+                        newProfileAvatar === emoji
+                          ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                          : 'bg-slate-950 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsCreateProfileOpen(false)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (newProfileName.trim()) {
+                    handleCreateProfile(newProfileName.trim(), newProfileAvatar, newProfileColor);
+                    setNewProfileName('');
+                    setIsCreateProfileOpen(false);
+                  }
+                }}
+                disabled={!newProfileName.trim()}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] disabled:opacity-50 text-slate-950 text-xs font-black cursor-pointer shadow-md"
+              >
+                Crear Perfil
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
