@@ -544,14 +544,54 @@ export default function App() {
             handleRemoteRequest(data);
           } else if (cmd === 'REMOVE_FROM_QUEUE') {
             if (data) {
+              const targetSongId = data.songId ? String(data.songId) : '';
+              const targetQueueItemId = data.queueItemId ? String(data.queueItemId) : '';
+              const targetTitle = (data.songTitle || '').toLowerCase().trim();
+              const targetGuest = (data.guestName || '').toLowerCase().trim();
+
               setQueue((prev) => {
                 const updated = prev.filter((q) => {
-                  if (data.queueItemId && q.id === data.queueItemId) return false;
-                  if (data.songId && q.songData?.id === data.songId && (!data.guestName || q.requestedBy === data.guestName)) return false;
+                  if (targetQueueItemId && q.id === targetQueueItemId) return false;
+                  if (targetSongId) {
+                    const qSongId = String(q.songData?.id || '');
+                    const matchId =
+                      qSongId === targetSongId ||
+                      qSongId === `yt_${targetSongId}` ||
+                      targetSongId === `yt_${qSongId}` ||
+                      q.id.includes(targetSongId) ||
+                      (q.songData?.videoBgId && q.songData.videoBgId === targetSongId);
+
+                    if (matchId) {
+                      if (!targetGuest || (q.requestedBy && q.requestedBy.toLowerCase().trim() === targetGuest)) {
+                        return false;
+                      }
+                    }
+                  }
+                  if (targetTitle) {
+                    const qTitle = (q.songData?.title || q.fileName || '').toLowerCase().trim();
+                    if (qTitle && (qTitle === targetTitle || qTitle.includes(targetTitle) || targetTitle.includes(qTitle))) {
+                      if (!targetGuest || (q.requestedBy && q.requestedBy.toLowerCase().trim() === targetGuest)) {
+                        return false;
+                      }
+                    }
+                  }
                   return true;
                 });
+
+                peerSync.broadcastQueueToGuests(
+                  updated.map((q) => ({
+                    id: q.id,
+                    requestedBy: q.requestedBy,
+                    tableNumber: q.tableNumber,
+                    songId: q.songData?.id,
+                    title: q.songData?.title || q.fileName,
+                    artist: q.songData?.artist || '',
+                  }))
+                );
+
                 return updated;
               });
+
               showAlertToast(`🗑️ Pedido cancelado por ${data.guestName || 'invitado'}`);
             }
           } else if (cmd === 'CREATE_PROFILE' || cmd === 'GUEST_INFO') {

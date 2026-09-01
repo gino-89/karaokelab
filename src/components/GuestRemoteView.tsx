@@ -108,13 +108,27 @@ export const GuestRemoteView: React.FC = () => {
     (songId: string, songTitle?: string) => {
       const name = guestName.trim().toLowerCase();
       const table = tableNumber.trim().toLowerCase();
+      const sId = String(songId || '');
+      const sTitle = (songTitle || '').toLowerCase().trim();
+
       return roomQueue.some((q) => {
         const isMine =
-          (name && q.requestedBy && q.requestedBy.toLowerCase().trim() === name) ||
+          !name ||
+          (q.requestedBy && q.requestedBy.toLowerCase().trim() === name) ||
           (table && q.tableNumber && q.tableNumber.toLowerCase().trim() === table);
         if (!isMine) return false;
-        if (q.songId === songId || q.songId === `yt_${songId}` || (q.id && q.id.includes(songId))) return true;
-        if (songTitle && q.title && q.title.toLowerCase().trim() === songTitle.toLowerCase().trim()) return true;
+
+        const qSongId = String(q.songId || q.songData?.id || '');
+        if (sId && (qSongId === sId || qSongId === `yt_${sId}` || sId === `yt_${qSongId}` || (q.id && q.id.includes(sId)))) {
+          return true;
+        }
+
+        if (sTitle) {
+          const qTitle = (q.title || q.songData?.title || q.fileName || '').toLowerCase().trim();
+          if (qTitle && (qTitle === sTitle || qTitle.includes(sTitle) || sTitle.includes(qTitle))) {
+            return true;
+          }
+        }
         return false;
       });
     },
@@ -132,6 +146,11 @@ export const GuestRemoteView: React.FC = () => {
       prev.filter((q) => {
         if (queueItemId && q.id === queueItemId) return false;
         if (songId && (q.songId === songId || q.songData?.id === songId || q.id.includes(songId))) return false;
+        if (songTitle) {
+          const qTitle = (q.title || q.songData?.title || q.fileName || '').toLowerCase().trim();
+          const targetTitle = songTitle.toLowerCase().trim();
+          if (qTitle && (qTitle === targetTitle || qTitle.includes(targetTitle))) return false;
+        }
         return true;
       })
     );
@@ -493,7 +512,20 @@ export const GuestRemoteView: React.FC = () => {
       isYouTube: isYt,
       videoId: ytVideoId,
       guestName: guestName,
+      tableNumber: tableNumber,
     };
+
+    setRoomQueue((prev) => [
+      ...prev,
+      {
+        id: `queue_opt_${song.id}_${Date.now()}`,
+        requestedBy: guestName.trim(),
+        tableNumber: tableNumber.trim(),
+        songId: song.id,
+        title: song.title,
+        artist: song.artist || '',
+      },
+    ]);
 
     const result = peerSync.sendSongRequestFromGuest(payload);
 
