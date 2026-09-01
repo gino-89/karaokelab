@@ -398,24 +398,27 @@ export default function App() {
           recentRequestsRef.set(dedupeKey, now);
         }
 
-        if (isYouTube && videoId) {
+        const isYt = isYouTube || (typeof id === 'string' && id.startsWith('yt_')) || !!data.videoBgId;
+        const effectiveVideoId = videoId || data.videoBgId || (typeof id === 'string' && id.startsWith('yt_') ? id.replace('yt_', '') : null);
+
+        if (isYt && effectiveVideoId) {
           const ytTitle = title || 'Video de YouTube';
           const ytArtist = artist || 'YouTube';
 
           setQueue((prev) => {
-            if (prev.some((q) => q.songData?.id === `yt_${videoId}` || q.songData?.videoBgId === videoId || q.id.includes(videoId))) {
+            if (prev.some((q) => q.songData?.id === `yt_${effectiveVideoId}` || q.songData?.videoBgId === effectiveVideoId || q.id.includes(effectiveVideoId))) {
               showAlertToast(`ℹ️ "${ytTitle}" ya está en la cola.`);
               return prev;
             }
 
             const newItem: QueueItem = {
-              id: `queue_yt_${videoId}_${Date.now()}`,
+              id: `queue_yt_${effectiveVideoId}_${Date.now()}`,
               fileName: `🎬 [YouTube] ${ytTitle}`,
               status: 'ready',
               progress: 100,
               requestedBy: who,
               songData: {
-                id: `yt_${videoId}`,
+                id: `yt_${effectiveVideoId}`,
                 title: ytTitle,
                 artist: ytArtist,
                 duration: 240,
@@ -423,9 +426,9 @@ export default function App() {
                 key: 'C',
                 lyrics: [],
                 originalFileName: `${ytTitle}.mp4`,
-                videoBgId: videoId,
+                videoBgId: effectiveVideoId,
                 videoBgMode: 'custom',
-                videoBgCustomUrl: `https://www.youtube.com/watch?v=${videoId}`,
+                videoBgCustomUrl: `https://www.youtube.com/watch?v=${effectiveVideoId}`,
                 createdAt: Date.now(),
               },
             };

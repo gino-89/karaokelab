@@ -229,11 +229,16 @@ export const GuestRemoteView: React.FC = () => {
   const handleRequestSong = (song: SongItem) => {
     if (kicked) return;
 
+    const isYt = song.id?.startsWith('yt_') || !!song.videoBgId || song.videoBgMode === 'custom';
+    const ytVideoId = song.videoBgId || (song.id?.startsWith('yt_') ? song.id.replace('yt_', '') : undefined);
+
     const payload = {
       requestId: `req_${song.id}_${Date.now()}`,
       id: song.id,
       title: song.title,
       artist: song.artist || '',
+      isYouTube: isYt,
+      videoId: ytVideoId,
       guestName: guestName,
     };
 
@@ -245,7 +250,10 @@ export const GuestRemoteView: React.FC = () => {
     }
 
     if (result.success || typeof window !== 'undefined') {
-      setFeedback({ type: 'success', message: `¡"${song.title}" enviada a la cola! 🎤` });
+      setFeedback({
+        type: 'success',
+        message: isYt ? `¡"${song.title}" de YouTube enviada a la cola! 🎬` : `¡"${song.title}" enviada a la cola! 🎤`,
+      });
     } else {
       setFeedback({
         type: 'error',
