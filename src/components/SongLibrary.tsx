@@ -374,6 +374,26 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         onAddToQueue(s);
       }
     });
+    const ytFavs = youtubeFavorites.filter((yt) => yt.singerProfileId === activeProfile.id);
+    ytFavs.forEach((yt) => {
+      const ytSongItem: SongItem = {
+        id: `yt_${yt.id}`,
+        title: yt.title,
+        artist: yt.channel,
+        duration: 240,
+        bpm: 120,
+        key: 'C',
+        lyrics: [],
+        originalFileName: `${yt.title}.mp4`,
+        videoBgId: yt.id,
+        videoBgMode: 'custom',
+        videoBgCustomUrl: `https://www.youtube.com/watch?v=${yt.id}`,
+        createdAt: Date.now(),
+      };
+      if (!isSongInQueue(ytSongItem.id)) {
+        onAddToQueue(ytSongItem);
+      }
+    });
   };
 
   const handleSaveNewProfile = (e: React.FormEvent) => {
@@ -978,16 +998,21 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
               <div className="flex items-center gap-1.5 text-indigo-200">
                 <span className="text-sm">{activeProfile.avatar}</span>
                 <span className="font-bold text-white text-[11px] truncate">{activeProfile.name}</span>
-                <span className="text-[10px] font-mono text-cyan-400">({activeProfile.favoriteSongIds.length} favs)</span>
+                <span className="text-[10px] font-mono text-cyan-400">
+                  ({activeProfile.favoriteSongIds.length + filteredYouTubeFavorites.length} favs
+                  {filteredYouTubeFavorites.length > 0 && (
+                    <span className="text-red-400 font-sans ml-1">• {filteredYouTubeFavorites.length} YT</span>
+                  )})
+                </span>
               </div>
               <div className="flex items-center gap-1">
-                {activeProfile.favoriteSongIds.length > 0 && (
+                {(activeProfile.favoriteSongIds.length > 0 || filteredYouTubeFavorites.length > 0) && (
                   <button
                     onClick={handleAddProfileFavoritesToQueue}
-                    className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer transition-colors shadow-sm"
-                    title={`Encolar repertorio completo de ${activeProfile.name}`}
+                    className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer transition-colors shadow-sm flex items-center gap-1"
+                    title={`Encolar todas las favoritas de ${activeProfile.name} (Locales + YouTube)`}
                   >
-                    ⚡ Encolar
+                    <span>⚡ Encolar Todo</span>
                   </button>
                 )}
                 <button
@@ -1035,6 +1060,23 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       <div className="flex flex-col gap-1.5">
                         {filteredYouTubeFavorites.map((yt) => {
                           const prof = profiles.find((p) => p.id === yt.singerProfileId);
+                          const isInQueue = queue.some(
+                            (q) => q.songData?.id === `yt_${yt.id}` || q.songData?.videoBgId === yt.id || q.id.includes(yt.id)
+                          );
+                          const ytSongItem: SongItem = {
+                            id: `yt_${yt.id}`,
+                            title: yt.title,
+                            artist: yt.channel,
+                            duration: 240,
+                            bpm: 120,
+                            key: 'C',
+                            lyrics: [],
+                            originalFileName: `${yt.title}.mp4`,
+                            videoBgId: yt.id,
+                            videoBgMode: 'custom',
+                            videoBgCustomUrl: `https://www.youtube.com/watch?v=${yt.id}`,
+                            createdAt: Date.now(),
+                          };
                           return (
                             <div
                               key={yt.id}
@@ -1066,20 +1108,49 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   type="button"
-                                  onClick={() => onOpenYouTubeEmbed ? onOpenYouTubeEmbed(yt.id) : onOpenYouTubeModal?.()}
-                                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                                  onClick={() => onAddToQueue(ytSongItem)}
+                                  disabled={isInQueue}
+                                  className={`py-1 px-2.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                    isInQueue
+                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40'
+                                  }`}
+                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
                                 >
-                                  <Play className="w-3 h-3 fill-current" />
-                                  <span>Ver Video</span>
+                                  {isInQueue ? <Check className="w-3 h-3" /> : <ListPlus className="w-3 h-3 text-cyan-400" />}
+                                  <span>{isInQueue ? 'En Cola' : 'Encolar'}</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleYouTubeFavorite?.(yt, yt.singerProfileId)}
-                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
-                                  title="Quitar de favoritos"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setYtTrackForProfileAssign({
+                                        id: yt.id,
+                                        title: yt.title,
+                                        channel: yt.channel,
+                                        duration: yt.duration,
+                                        thumbnail: yt.thumbnail,
+                                        url: yt.url,
+                                      })
+                                    }
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer"
+                                    title="Asignar a cantantes"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                  </button>
+                                )}
+
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleYouTubeFavorite?.(yt, yt.singerProfileId)}
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
+                                    title="Quitar de favoritos"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -1205,26 +1276,144 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
             </>
           ) : (
             <>
-              {/* TAB 1: LOCAL SONGS ONLY */}
+              {/* TAB 1: LOCAL SONGS (INCLUDES YOUTUBE FAVORITES WHEN FILTERING BY SINGER) */}
               {libraryTab === 'local' && (
                 <>
-                  {filteredSongs.length === 0 ? (
+                  {/* YouTube Favorites Section for Active Singer in Local Tab */}
+                  {activeProfile && activeProfile.id !== 'profile_all' && filteredYouTubeFavorites.length > 0 && (
+                    <div className="p-3 bg-gradient-to-r from-red-950/30 via-slate-900/90 to-red-950/20 border-b border-red-500/30 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-red-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                          <Youtube className="w-3.5 h-3.5 fill-current text-red-500" />
+                          <span>YouTube Favoritos de {activeProfile.name} ({filteredYouTubeFavorites.length})</span>
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {filteredYouTubeFavorites.map((yt) => {
+                          const isInQueue = queue.some(
+                            (q) => q.songData?.id === `yt_${yt.id}` || q.songData?.videoBgId === yt.id || q.id.includes(yt.id)
+                          );
+                          const ytSongItem: SongItem = {
+                            id: `yt_${yt.id}`,
+                            title: yt.title,
+                            artist: yt.channel,
+                            duration: 240,
+                            bpm: 120,
+                            key: 'C',
+                            lyrics: [],
+                            originalFileName: `${yt.title}.mp4`,
+                            videoBgId: yt.id,
+                            videoBgMode: 'custom',
+                            videoBgCustomUrl: `https://www.youtube.com/watch?v=${yt.id}`,
+                            createdAt: Date.now(),
+                          };
+                          return (
+                            <div
+                              key={yt.id}
+                              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/90 border border-red-500/30 hover:border-red-500/60 transition-all gap-3 shadow-md"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <img
+                                  src={yt.thumbnail}
+                                  alt={yt.title}
+                                  className="w-14 h-10 rounded-lg object-cover shrink-0 bg-slate-900 border border-slate-800"
+                                />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-bold text-white truncate">
+                                    {yt.title}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 truncate mt-0.5">
+                                    <span>{yt.channel}</span>
+                                    <span>·</span>
+                                    <span className="font-mono text-red-400">{yt.duration}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => onAddToQueue(ytSongItem)}
+                                  disabled={isInQueue}
+                                  className={`py-1 px-2.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                    isInQueue
+                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40'
+                                  }`}
+                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
+                                >
+                                  {isInQueue ? <Check className="w-3 h-3" /> : <ListPlus className="w-3 h-3 text-cyan-400" />}
+                                  <span>{isInQueue ? 'En Cola' : 'Encolar'}</span>
+                                </button>
+
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setYtTrackForProfileAssign({
+                                        id: yt.id,
+                                        title: yt.title,
+                                        channel: yt.channel,
+                                        duration: yt.duration,
+                                        thumbnail: yt.thumbnail,
+                                        url: yt.url,
+                                      })
+                                    }
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer"
+                                    title="Asignar a cantantes"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                  </button>
+                                )}
+
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleYouTubeFavorite(yt, yt.singerProfileId)}
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 cursor-pointer"
+                                    title="Quitar de favoritos"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredSongs.length === 0 && filteredYouTubeFavorites.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-slate-500 font-mono text-[11px] gap-2 px-4 text-center">
                       <Filter className="w-6 h-6 opacity-30 text-[#00f0ff]" />
-                      <span>No hay canciones locales que coincidan con la búsqueda</span>
-                      {filteredYouTubeFavorites.length > 0 && (
+                      <span>
+                        {activeProfile && activeProfile.id !== 'profile_all'
+                          ? `No hay canciones favoritas (ni locales ni de YouTube) asignadas a ${activeProfile.name}`
+                          : 'No hay canciones locales que coincidan con la búsqueda'}
+                      </span>
+                      {activeProfile && activeProfile.id !== 'profile_all' && (
                         <button
                           type="button"
                           onClick={() => setLibraryTab('youtube')}
                           className="mt-1 px-3 py-1.5 rounded-lg bg-red-600/30 text-red-300 hover:bg-red-600/50 border border-red-500/40 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5"
                         >
                           <Youtube className="w-3.5 h-3.5 fill-current" />
-                          <span>Ver {filteredYouTubeFavorites.length} en YouTube →</span>
+                          <span>Buscar en YouTube para {activeProfile.name} →</span>
                         </button>
                       )}
                     </div>
                   ) : (
-                    filteredSongs.map((song) => {
+                    <>
+                      {activeProfile && activeProfile.id !== 'profile_all' && filteredYouTubeFavorites.length > 0 && filteredSongs.length > 0 && (
+                        <div className="px-3 py-1.5 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-cyan-400 font-mono uppercase tracking-wider flex items-center gap-1">
+                            <Music2 className="w-3 h-3" />
+                            <span>Canciones Locales de {activeProfile.name} ({filteredSongs.length})</span>
+                          </span>
+                        </div>
+                      )}
+                      {filteredSongs.map((song) => {
                       const isSelected = currentSongId === song.id;
                       const inQueue = isSongInQueue(song.id);
                       return (
@@ -1326,7 +1515,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           </div>
                         </div>
                       );
-                    })
+                    })}
+                    </>
                   )}
                 </>
               )}
