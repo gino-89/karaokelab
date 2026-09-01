@@ -4,7 +4,7 @@ import {
   UploadCloud, Database, Trash2, Music2, Loader2, ListPlus, Check,
   AlertTriangle, Search, Filter, X, Tag, User, Play, Maximize2, Minimize2,
   Download, Edit3, ArrowUpDown, Sparkles, Layers, FileText, Clock, List, LayoutGrid,
-  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2
+  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2, RotateCcw
 } from 'lucide-react';
 import { formatLRC } from '../services/lrcParser';
 import {
@@ -361,6 +361,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
     thumbnail: string;
     url: string;
   } | null>(null);
+  const [profileToDelete, setProfileToDelete] = useState<{ id: string; name: string; avatar: string } | null>(null);
 
   const activeProfile = useMemo(() => {
     return profiles.find((p) => p.id === activeProfileId) || profiles[0];
@@ -978,15 +979,16 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 </select>
               </div>
 
-              {/* Reset Filters shortcut if active */}
+              {/* Reset Filters button - High Visibility */}
               {hasActiveFilters && (
                 <button
+                  type="button"
                   onClick={handleResetFilters}
-                  className="p-1 px-1.5 rounded-lg text-[10px] text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700 cursor-pointer flex items-center gap-0.5 shrink-0 font-medium"
-                  title="Limpiar filtros"
+                  className="py-1 px-3 rounded-lg text-xs font-black text-amber-300 bg-gradient-to-r from-amber-500/25 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/30 border border-amber-400/70 hover:border-amber-300 cursor-pointer flex items-center gap-1.5 shrink-0 transition-all shadow-[0_0_12px_rgba(245,158,11,0.3)] active:scale-95 animate-in fade-in"
+                  title="Limpiar todos los filtros y búsqueda"
                 >
-                  <X className="w-2.5 h-2.5" />
-                  <span>Limpiar</span>
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Limpiar Filtros</span>
                 </button>
               )}
             </div>
@@ -1016,11 +1018,18 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                   </button>
                 )}
                 <button
-                  onClick={() => onDeleteProfile?.(activeProfile.id)}
-                  className="p-0.5 text-slate-400 hover:text-rose-400 cursor-pointer transition-colors"
+                  type="button"
+                  onClick={() =>
+                    setProfileToDelete({
+                      id: activeProfile.id,
+                      name: activeProfile.name,
+                      avatar: activeProfile.avatar,
+                    })
+                  }
+                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md cursor-pointer transition-colors"
                   title={`Eliminar perfil de ${activeProfile.name}`}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -3079,6 +3088,52 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition-colors"
               >
                 Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CONFIRM DELETE SINGER PROFILE MODAL ─────────────────── */}
+      {profileToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-rose-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-white">¿Eliminar Cantante?</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-3">
+              <span className="text-2xl">{profileToDelete.avatar}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-white truncate">{profileToDelete.name}</span>
+                <span className="text-[10px] text-slate-400">Se eliminará este perfil de cantante y sus listas de favoritos.</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setProfileToDelete(null)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteProfile?.(profileToDelete.id);
+                  setProfileToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-rose-600/30"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Sí, Eliminar</span>
               </button>
             </div>
           </div>
