@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
 import { getSongsFromDB, getYouTubeFavoritesFromStorage, saveYouTubeFavoritesToStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
@@ -52,6 +52,75 @@ export const GuestRemoteView: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
+
+  // Pull-to-Refresh state for mobile devices
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const touchStartYRef = useRef(0);
+  const isPullingRef = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY <= 5 && !isPullRefreshing) {
+      touchStartYRef.current = e.touches[0].clientY;
+      isPullingRef.current = true;
+    } else {
+      isPullingRef.current = false;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPullingRef.current || isPullRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartYRef.current;
+
+    if (diff > 0 && window.scrollY <= 5) {
+      const distance = Math.min(85, Math.pow(diff, 0.82));
+      setPullDistance(distance);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isPullingRef.current || isPullRefreshing) return;
+    isPullingRef.current = false;
+
+    if (pullDistance >= 55) {
+      executePullRefresh();
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const executePullRefresh = () => {
+    setIsPullRefreshing(true);
+    setPullDistance(60);
+
+    // Haptic feedback if available on device
+    try {
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(40);
+      }
+    } catch (_) {}
+
+    // Clean filters & re-sync with host
+    setActiveProfileId('profile_all');
+    setCustomRequestTitle('');
+
+    const params = new URLSearchParams(window.location.search);
+    const hostParam = params.get('host');
+    if (hostParam && peerSync.getConnectionStatus() === 'connected') {
+      peerSync.sendGuestName(guestName.trim() || 'Invitado');
+    }
+
+    setFeedback({ type: 'success', message: '¡Biblioteca sincronizada y actualizada! 🔄' });
+
+    setTimeout(() => {
+      setIsPullRefreshing(false);
+      setPullDistance(0);
+      setTimeout(() => setFeedback(null), 3000);
+    }, 1000);
+  };
 
   // Initial mount & URL validation
   useEffect(() => {
@@ -649,7 +718,34 @@ export const GuestRemoteView: React.FC = () => {
 
   // ── Main Remote View ──
   return (
-    <div className="min-h-screen bg-[#080811] text-white p-3 pb-40 flex flex-col gap-3 font-sans max-w-4xl mx-auto">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className="min-h-screen bg-[#080811] text-white p-3 max-w-md mx-auto space-y-3 pb-16 font-sans select-none"
+    >
+      {/* Pull to refresh visual indicator bar */}
+      <div
+        className="overflow-hidden transition-all duration-200 ease-out flex items-center justify-center pointer-events-none select-none"
+        style={{
+          height: isPullRefreshing ? '48px' : `${pullDistance}px`,
+          opacity: pullDistance > 8 || isPullRefreshing ? 1 : 0,
+        }}
+      >
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-cyan-500/50 shadow-[0_0_15px_rgba(0,240,255,0.3)] text-cyan-300 text-xs font-bold">
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-[#00f0ff] ${isPullRefreshing ? 'animate-spin' : ''}`}
+            style={{ transform: !isPullRefreshing ? `rotate(${pullDistance * 4}deg)` : undefined }}
+          />
+          <span>
+            {isPullRefreshing
+              ? 'Sincronizando biblioteca...'
+              : pullDistance >= 55
+              ? '¡Suelta para actualizar! 🚀'
+              : 'Desliza para actualizar'}
+          </span>
+        </div>
+      </div>
       {/* Centered Modal / Overlay for Lost Connection (Media Pantalla) */}
       {connStatus === 'disconnected' && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
