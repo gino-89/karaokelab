@@ -1,4 +1,4 @@
-import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
+import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../types';
 
 const DB_NAME = 'CyberKaraokeDB';
 const DB_VERSION = 1;
@@ -249,5 +249,36 @@ export function saveYouTubeFavoritesToStorage(favorites: YouTubeFavoriteTrack[])
     localStorage.setItem('karaokelab_yt_favorites', JSON.stringify(favorites));
   } catch (err) {
     console.warn('Error saving YouTube favorites:', err);
+  }
+}
+
+// ── Room Chat Message 12-Hour TTL Storage ──
+const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+
+export function getChatMessagesFromStorage(key: string): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    const now = Date.now();
+    const valid = parsed.filter((m: ChatMessage) => m && m.timestamp && (now - m.timestamp < TWELVE_HOURS_MS));
+    if (valid.length !== parsed.length) {
+      saveChatMessagesToStorage(key, valid);
+    }
+    return valid;
+  } catch {
+    return [];
+  }
+}
+
+export function saveChatMessagesToStorage(key: string, messages: ChatMessage[]): void {
+  try {
+    const now = Date.now();
+    const valid = messages.filter((m) => m && m.timestamp && (now - m.timestamp < TWELVE_HOURS_MS));
+    localStorage.setItem(key, JSON.stringify(valid));
+  } catch (err) {
+    console.warn('Error saving chat messages:', err);
   }
 }

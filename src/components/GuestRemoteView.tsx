@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../types';
-import { getSongsFromDB, getYouTubeFavoritesFromStorage, saveYouTubeFavoritesToStorage } from '../services/db';
+import { getSongsFromDB, getYouTubeFavoritesFromStorage, saveYouTubeFavoritesToStorage, getChatMessagesFromStorage, saveChatMessagesToStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
@@ -57,11 +57,18 @@ export const GuestRemoteView: React.FC = () => {
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
 
   // Mobile Room Chat States
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
+    getChatMessagesFromStorage('karaokelab_guest_chat_messages')
+  );
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Save guest chat messages to localStorage with 12-hour auto TTL pruning
+  useEffect(() => {
+    saveChatMessagesToStorage('karaokelab_guest_chat_messages', chatMessages);
+  }, [chatMessages]);
 
   useEffect(() => {
     const unsub = peerSync.onChatMessageReceived((msg) => {

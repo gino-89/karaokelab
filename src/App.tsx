@@ -23,6 +23,8 @@ import {
   setActiveProfileIdToStorage,
   getYouTubeFavoritesFromStorage,
   saveYouTubeFavoritesToStorage,
+  getChatMessagesFromStorage,
+  saveChatMessagesToStorage,
 } from './services/db';
 import { videoRecorder } from './services/videoRecorder';
 import { analyzeSmartVocalCues, getActiveSmartCue } from './services/smartCueAnalyzer';
@@ -242,7 +244,9 @@ export default function App() {
   const [isVocalAutomationModalOpen, setIsVocalAutomationModalOpen] = useState(false);
 
   // ── Room Live Chat States ──
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
+    getChatMessagesFromStorage('karaokelab_host_chat_messages')
+  );
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [unreadByProfile, setUnreadByProfile] = useState<Record<string, number>>({});
@@ -250,6 +254,11 @@ export default function App() {
   const [liveChatBanner, setLiveChatBanner] = useState<ChatMessage | null>(null);
   const [selectedChatProfileId, setSelectedChatProfileId] = useState<string | null>(null);
   const hostChatMessagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Save chat messages to localStorage with 12-hour auto TTL pruning
+  useEffect(() => {
+    saveChatMessagesToStorage('karaokelab_host_chat_messages', chatMessages);
+  }, [chatMessages]);
 
   const handleSelectChatProfile = (profId: string) => {
     setSelectedChatProfileId(profId);
