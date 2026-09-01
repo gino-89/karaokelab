@@ -367,6 +367,9 @@ class PeerSyncService {
                 conn.send({ type: 'YT_FAVORITES_SYNC', payload: this.currentYtFavorites });
               } catch (_) {}
             }
+            if (this.onCommandCallback) {
+              this.onCommandCallback('GUEST_INFO', data.payload, conn);
+            }
           } else if (data.type === 'ADD_TO_QUEUE') {
             console.log('✓ Host received ADD_TO_QUEUE from guest:', data.payload);
             const guest = this.connectedGuests.get(conn.peer);
