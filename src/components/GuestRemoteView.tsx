@@ -1437,8 +1437,14 @@ export const GuestRemoteView: React.FC = () => {
 
       {/* ── Mobile WhatsApp / Cyberpunk Style Chat Sheet ── */}
       {isChatOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-md mx-auto bg-[#090a14] border-t border-pink-500/40 rounded-t-3xl h-[85vh] flex flex-col shadow-[0_0_50px_rgba(255,0,127,0.3)] overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200"
+          onClick={() => setIsChatOpen(false)}
+        >
+          <div
+            className="w-full max-w-md mx-auto bg-[#090a14] border-t border-pink-500/40 rounded-t-3xl h-[85vh] flex flex-col shadow-[0_0_50px_rgba(255,0,127,0.3)] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1460,9 +1466,10 @@ export const GuestRemoteView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all border border-slate-700 hover:border-rose-500 shadow-sm"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 text-rose-400" />
+                <span>Cerrar</span>
               </button>
             </div>
 
