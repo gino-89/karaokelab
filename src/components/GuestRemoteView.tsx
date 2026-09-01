@@ -58,24 +58,27 @@ export const GuestRemoteView: React.FC = () => {
     const kickedKey = localStorage.getItem('karaokelab_kicked_key');
     const kickedHost = localStorage.getItem('karaokelab_kicked_host');
 
-    // If the guest arrived with a new QR key (different from the banned one), clear the kick!
-    if (urlKey && kickedKey && urlKey !== kickedKey) {
+    // If device was kicked from this host:
+    if (kickedHost && hostParam && kickedHost === hostParam) {
+      // Must have scanned a genuine NEW QR code with a different valid key 'k'
+      if (urlKey && kickedKey && urlKey !== kickedKey) {
+        // Genuine new QR scanned with the rotated key! Unblock and clear ban
+        localStorage.removeItem('karaokelab_kicked_host');
+        localStorage.removeItem('karaokelab_kicked_key');
+        setKicked(false);
+        return false;
+      } else {
+        // Same old QR key or reload without scanning the new QR code -> STRICT BLOCK
+        setKicked(true);
+        return true;
+      }
+    } else if (kickedHost && hostParam && kickedHost !== hostParam) {
+      // Different host
       localStorage.removeItem('karaokelab_kicked_host');
       localStorage.removeItem('karaokelab_kicked_key');
       setKicked(false);
       return false;
-    } else if (kickedKey && urlKey && urlKey === kickedKey) {
-      // Still using the banned key
-      setKicked(true);
-      return true;
-    } else if (kickedHost && hostParam && kickedHost === hostParam && !urlKey) {
-      // Reloaded without scanning new QR
-      setKicked(true);
-      return true;
     } else {
-      // Fresh host or valid entry
-      localStorage.removeItem('karaokelab_kicked_host');
-      localStorage.removeItem('karaokelab_kicked_key');
       setKicked(false);
       return false;
     }
@@ -450,21 +453,6 @@ export const GuestRemoteView: React.FC = () => {
               <Camera className="w-4 h-4 text-cyan-400 animate-bounce" />
               <span className="font-semibold text-slate-300">Usa la cámara nativa de tu teléfono</span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.removeItem('karaokelab_kicked_host');
-                localStorage.removeItem('karaokelab_kicked_key');
-                setKicked(false);
-                setNameConfirmed(false);
-                window.location.reload();
-              }}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#00f0ff] to-cyan-500 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_20px_rgba(0,240,255,0.35)] flex items-center justify-center gap-2 active:scale-98 mt-1"
-            >
-              <RefreshCw className="w-4 h-4 text-slate-950" />
-              <span>Volver a Entrar a la Sala</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
