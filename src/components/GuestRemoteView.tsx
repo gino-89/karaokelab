@@ -932,7 +932,7 @@ export const GuestRemoteView: React.FC = () => {
               </div>
               <input
                 type="text"
-                placeholder="Ej. Gino, Maria..."
+                placeholder="Ej. Carlos, María..."
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 onKeyDown={(e) => {

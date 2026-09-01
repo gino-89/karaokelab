@@ -3049,7 +3049,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 <div className="flex items-center gap-1.5">
                   <input
                     type="text"
-                    placeholder="Nombre del cantante (ej: Gino)..."
+                    placeholder="Nombre del cantante (ej: Carlos)..."
                     value={quickSingerName}
                     onChange={(e) => setQuickSingerName(e.target.value)}
                     onKeyDown={(e) => {
@@ -3170,7 +3170,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 <div className="flex items-center gap-1.5">
                   <input
                     type="text"
-                    placeholder="Nombre del cantante (ej: Gino)..."
+                    placeholder="Nombre del cantante (ej: Carlos)..."
                     value={quickSingerName}
                     onChange={(e) => setQuickSingerName(e.target.value)}
                     onKeyDown={(e) => {
