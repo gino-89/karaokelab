@@ -161,6 +161,8 @@ export interface SingerProfile {
   color: string;  // Hex color or theme
   favoriteSongIds: string[]; // List of SongItem ids favorited by this singer
   tableNumber?: string;
+  pin?: string;   // 4-digit PIN for profile recovery & unique ownership
+  deviceId?: string;
   createdAt: number;
 }
 

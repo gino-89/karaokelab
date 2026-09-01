@@ -29,6 +29,8 @@ import {
   Send,
   MessageCircle,
   Trash2,
+  Lock,
+  KeyRound,
 } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
@@ -36,6 +38,14 @@ const GUEST_ACTIVE_PROFILE_KEY = 'karaokelab_guest_active_profile';
 
 export const GuestRemoteView: React.FC = () => {
   const [guestName, setGuestName] = useState('');
+  const [guestPin, setGuestPin] = useState<string>(() => localStorage.getItem('karaokelab_guest_pin') || '');
+  const [inputPin, setInputPin] = useState<string>('');
+  const [pinChallengeModal, setPinChallengeModal] = useState<{
+    show: boolean;
+    existingProfile?: SingerProfile;
+    targetName: string;
+    errorMsg?: string;
+  } | null>(null);
   const [nameConfirmed, setNameConfirmed] = useState(false);
   const [kicked, setKicked] = useState(false);
   const [connStatus, setConnStatus] = useState<ConnectionStatus>('reconnecting');
@@ -465,37 +475,64 @@ export const GuestRemoteView: React.FC = () => {
     }
   }, [nameConfirmed, guestName, profiles]);
 
-  const handleConfirmName = () => {
-    const trimmed = guestName.trim() || 'Invitado';
-    setGuestName(trimmed);
-    localStorage.setItem('karaokelab_guest_name', trimmed);
-    setNameConfirmed(true);
-    peerSync.sendGuestName(trimmed);
+  const handleConfirmName = (overrideName?: string, overridePin?: string) => {
+    const trimmed = (overrideName || guestName).trim() || 'Invitado';
+    const savedPin = localStorage.getItem('karaokelab_guest_pin') || '';
+    const pinToUse = (overridePin !== undefined ? overridePin : (inputPin || guestPin || savedPin)).trim() || Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Auto-link personal singer profile in background while keeping library clean on "profile_all"
-    setActiveProfileId('profile_all');
+    // Check if profile with this name already exists in room
     const existing = profiles.find(
       (p) => p.name.toLowerCase().trim() === trimmed.toLowerCase().trim() && p.id !== 'profile_all'
     );
+
     if (existing) {
+      const activePin = pinToUse || savedPin;
+      if (existing.pin && existing.pin !== activePin && savedPin !== existing.pin) {
+        setPinChallengeModal({
+          show: true,
+          existingProfile: existing,
+          targetName: trimmed,
+          errorMsg: `🔒 El nombre "${trimmed}" ya pertenece a otro cliente. Ingresa tu PIN de 4 dígitos para recuperar el perfil o elige otro nombre.`,
+        });
+        return;
+      }
+
+      setGuestName(trimmed);
+      setGuestPin(existing.pin || activePin);
+      localStorage.setItem('karaokelab_guest_name', trimmed);
+      localStorage.setItem('karaokelab_guest_pin', existing.pin || activePin);
       setMyProfileId(existing.id);
       localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
-    } else {
-      const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      const newProf: SingerProfile = {
-        id: newProfId,
-        name: trimmed,
-        avatar: '🎤',
-        color: '#00f0ff',
-        favoriteSongIds: [],
-        createdAt: Date.now(),
-      };
-      const updated = [...profiles, newProf];
-      saveGuestProfiles(updated);
-      setMyProfileId(newProfId);
-      localStorage.setItem('karaokelab_guest_my_profile_id', newProfId);
-      peerSync.sendCreateProfileFromGuest(newProf);
+      setNameConfirmed(true);
+      peerSync.sendGuestName(trimmed);
+      setPinChallengeModal(null);
+      return;
     }
+
+    setGuestName(trimmed);
+    setGuestPin(pinToUse);
+    localStorage.setItem('karaokelab_guest_name', trimmed);
+    localStorage.setItem('karaokelab_guest_pin', pinToUse);
+    setNameConfirmed(true);
+    peerSync.sendGuestName(trimmed);
+    setPinChallengeModal(null);
+
+    const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newProf: SingerProfile = {
+      id: newProfId,
+      name: trimmed,
+      avatar: '🎤',
+      color: '#00f0ff',
+      favoriteSongIds: [],
+      tableNumber: tableNumber,
+      pin: pinToUse,
+      createdAt: Date.now(),
+    };
+    const updated = [...profiles, newProf];
+    saveGuestProfiles(updated);
+    setMyProfileId(newProfId);
+    localStorage.setItem('karaokelab_guest_my_profile_id', newProfId);
+    peerSync.sendCreateProfileFromGuest(newProf);
   };
 
   const handleRequestSong = (song: SongItem) => {
@@ -882,6 +919,28 @@ export const GuestRemoteView: React.FC = () => {
                   if (e.key === 'Enter') handleConfirmName();
                 }}
                 className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:shadow-[0_0_15px_rgba(255,0,127,0.2)] transition-all"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-slate-300">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <KeyRound className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">PIN de 4 Dígitos</span>
+                </div>
+                <span className="text-[10px] text-amber-300/80 font-mono">(Protege tu perfil)</span>
+              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Ej. 1234 (opcional)"
+                value={guestPin}
+                onChange={(e) => setGuestPin(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmName();
+                }}
+                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 font-mono tracking-widest text-center focus:outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all"
               />
             </div>
 
@@ -1648,6 +1707,84 @@ export const GuestRemoteView: React.FC = () => {
                 className="flex-1 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black text-xs cursor-pointer shadow-md"
               >
                 Guardar 🪑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PIN Challenge / Name Conflict Modal ── */}
+      {pinChallengeModal?.show && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#0c0d1b] border border-amber-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_0_50px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider font-mono">
+                <Lock className="w-4 h-4" />
+                <span>Perfil Existente Protegido</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPinChallengeModal(null)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              El nombre <strong className="text-white">"{pinChallengeModal.targetName}"</strong> ya pertenece a otro cliente registrado en la sala.
+            </p>
+
+            <div className="flex flex-col gap-1.5 bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1 font-mono uppercase">
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Ingresa tu PIN de 4 dígitos para recuperar el perfil</span>
+              </label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="****"
+                value={inputPin}
+                onChange={(e) => setInputPin(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (pinChallengeModal.existingProfile?.pin === inputPin.trim()) {
+                      handleConfirmName(pinChallengeModal.targetName, inputPin.trim());
+                    } else {
+                      setFeedback({ type: 'error', message: '❌ PIN incorrecto. Si eres otro cliente, ingresa con otro nombre (ej. Juan P., Juan Mesa 5).' });
+                    }
+                  }
+                }}
+                className="w-full text-center tracking-[0.5em] text-lg font-mono py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (pinChallengeModal.existingProfile?.pin === inputPin.trim() || !pinChallengeModal.existingProfile?.pin) {
+                    handleConfirmName(pinChallengeModal.targetName, inputPin.trim());
+                  } else {
+                    setFeedback({ type: 'error', message: '❌ PIN incorrecto. Si eres otro cliente, ingresa con otro nombre (ej. Juan P., Juan Mesa 5).' });
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs cursor-pointer shadow-md transition-all"
+              >
+                🔓 Validar PIN y Recuperar Perfil
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const suggested = `${pinChallengeModal.targetName} ${tableNumber}`;
+                  setPinChallengeModal(null);
+                  setGuestName(suggested);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs cursor-pointer transition-all border border-slate-700"
+              >
+                ✏️ Usar Otro Nombre (ej. {pinChallengeModal.targetName} {tableNumber})
               </button>
             </div>
           </div>

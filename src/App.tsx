@@ -603,16 +603,32 @@ export default function App() {
                 color: data.color || '#00f0ff',
                 favoriteSongIds: data.favoriteSongIds || [],
                 tableNumber: data.tableNumber,
+                pin: data.pin || undefined,
                 createdAt: data.createdAt || Date.now(),
               };
               setProfiles((prev) => {
-                const exists = prev.some((p) => p.id === newProfile.id || p.name.toLowerCase() === newProfile.name.toLowerCase());
-                const updated = exists
-                  ? prev.map((p) => (p.id === newProfile.id || p.name.toLowerCase() === newProfile.name.toLowerCase() ? { ...p, ...newProfile } : p))
-                  : [...prev, newProfile];
-                saveProfilesToStorage(updated);
-                peerSync.broadcastProfilesToGuests(updated);
-                return updated;
+                const existing = prev.find(
+                  (p) => p.id === newProfile.id || (p.id !== 'profile_all' && p.name.toLowerCase().trim() === newProfile.name.toLowerCase().trim())
+                );
+                if (existing) {
+                  const updatedProfile: SingerProfile = {
+                    ...existing,
+                    ...newProfile,
+                    id: existing.id,
+                    pin: existing.pin || newProfile.pin,
+                    favoriteSongIds: Array.from(new Set([...(existing.favoriteSongIds || []), ...(newProfile.favoriteSongIds || [])])),
+                    tableNumber: newProfile.tableNumber || existing.tableNumber,
+                  };
+                  const updated = prev.map((p) => (p.id === existing.id ? updatedProfile : p));
+                  saveProfilesToStorage(updated);
+                  peerSync.broadcastProfilesToGuests(updated);
+                  return updated;
+                } else {
+                  const updated = [...prev, newProfile];
+                  saveProfilesToStorage(updated);
+                  peerSync.broadcastProfilesToGuests(updated);
+                  return updated;
+                }
               });
               if (cmd === 'CREATE_PROFILE') {
                 showAlertToast(`👤 Perfil desde móvil: "${data.name}" ${data.tableNumber ? `(🪑 ${data.tableNumber})` : ''}`);

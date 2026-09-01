@@ -802,13 +802,15 @@ class PeerSyncService {
           this._setConnectionStatus('connected');
 
           const savedName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
+          const savedPin = localStorage.getItem('karaokelab_guest_pin') || '';
+          const savedTable = localStorage.getItem('karaokelab_guest_table_number') || '';
           const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
           const urlQrKey = params ? params.get('k') || '' : '';
           const deviceFp = await getDeviceFingerprint();
 
           conn.send({
             type: 'GUEST_INFO',
-            payload: { name: savedName, qrKey: urlQrKey, fingerprint: deviceFp },
+            payload: { name: savedName, pin: savedPin, tableNumber: savedTable, qrKey: urlQrKey, fingerprint: deviceFp },
           });
 
           // Start Heartbeat monitor on Guest: check every 3s
