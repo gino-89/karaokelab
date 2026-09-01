@@ -120,6 +120,7 @@ export interface QueueItem {
   errorMsg?: string;
   songData?: SongItem;
   requestedBy?: string;
+  tableNumber?: string;
 }
 
 export interface AudioEngineTelemetry {
@@ -159,6 +160,7 @@ export interface SingerProfile {
   avatar: string; // Emoji avatar e.g. 🎤, 🌟, 👑, 🎸, 💃
   color: string;  // Hex color or theme
   favoriteSongIds: string[]; // List of SongItem ids favorited by this singer
+  tableNumber?: string;
   createdAt: number;
 }
 
@@ -167,6 +169,7 @@ export interface ChatMessage {
   senderName: string;
   senderProfileId?: string;
   targetProfileId?: string;
+  tableNumber?: string;
   text: string;
   timestamp: number;
   avatar?: string;

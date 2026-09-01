@@ -10,6 +10,7 @@ export interface PeerMessage {
 export interface ConnectedGuest {
   peerId: string;
   name: string;
+  tableNumber?: string;
   connectedAt: number;
   fingerprint?: string;
 }
@@ -872,13 +873,14 @@ class PeerSyncService {
     }
   }
 
-  // Send guest name to host
-  public sendGuestName(name: string) {
+  // Send guest name & table to host
+  public sendGuestName(name: string, tableNumber?: string) {
     if (this.hostConnection && this.hostConnection.open) {
       try {
+        const savedTable = tableNumber || localStorage.getItem('karaokelab_guest_table_number') || '';
         this.hostConnection.send({
           type: 'GUEST_INFO',
-          payload: { name },
+          payload: { name, tableNumber: savedTable },
         });
       } catch (_) {}
     }
@@ -890,6 +892,7 @@ class PeerSyncService {
     title: string;
     artist?: string;
     singerName?: string;
+    tableNumber?: string;
     isYouTube?: boolean;
     videoId?: string;
     thumbnail?: string;
@@ -897,9 +900,10 @@ class PeerSyncService {
     if (this.hostConnection && this.hostConnection.open) {
       try {
         const guestName = localStorage.getItem('karaokelab_guest_name') || 'Invitado';
+        const savedTable = songData.tableNumber || localStorage.getItem('karaokelab_guest_table_number') || '';
         this.hostConnection.send({
           type: 'ADD_TO_QUEUE',
-          payload: { ...songData, guestName },
+          payload: { ...songData, guestName, tableNumber: savedTable },
         });
         console.log('✓ Song request sent to host:', songData.title);
         return { success: true };

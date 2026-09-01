@@ -445,8 +445,9 @@ export default function App() {
 
       const handleRemoteRequest = (data: any) => {
         if (!data) return;
-        const { id, title, artist, isYouTube, videoId, guestName, requestId } = data;
+        const { id, title, artist, isYouTube, videoId, guestName, tableNumber: reqTable, requestId } = data;
         const who = guestName || 'Invitado';
+        const table = reqTable || '';
         const dedupeKey = requestId || (isYouTube ? `yt_${videoId}` : (id || title));
         const now = Date.now();
 
@@ -480,6 +481,7 @@ export default function App() {
               status: 'ready',
               progress: 100,
               requestedBy: who,
+              tableNumber: table,
               songData: {
                 id: `yt_${effectiveVideoId}`,
                 title: ytTitle,
@@ -496,7 +498,7 @@ export default function App() {
               },
             };
 
-            showAlertToast(`🎬 ${who} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
+            showAlertToast(`🎬 ${who}${table ? ` (${table})` : ''} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
             return [...prev, newItem];
           });
           return;
@@ -524,14 +526,15 @@ export default function App() {
               status: 'ready',
               progress: 100,
               requestedBy: who,
+              tableNumber: table,
               songData: matchedSong,
             };
 
-            showAlertToast(`🎤 ${who} pidió "${matchedSong.title}" · Agregada a la cola`);
+            showAlertToast(`🎤 ${who}${table ? ` (${table})` : ''} pidió "${matchedSong.title}" · Agregada a la cola`);
             return [...prev, newItem];
           });
         } else {
-          showAlertToast(`⚠️ ${who} pidió "${title || 'Desconocida'}" · No encontrada en la biblioteca`);
+          showAlertToast(`⚠️ ${who}${table ? ` (${table})` : ''} pidió "${title || 'Desconocida'}" · No encontrada en la biblioteca`);
         }
       };
 
@@ -2584,9 +2587,16 @@ export default function App() {
                           </div>
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-1">
-                              <span className={`text-xs truncate ${hasUnread ? 'font-black text-pink-200' : 'font-bold text-slate-200'}`}>
-                                {prof.name}
-                              </span>
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span className={`text-xs truncate ${hasUnread ? 'font-black text-pink-200' : 'font-bold text-slate-200'}`}>
+                                  {prof.name}
+                                </span>
+                                {prof.tableNumber && (
+                                  <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 border border-pink-500/40 text-[8.5px] font-black shrink-0">
+                                    🪑 {prof.tableNumber}
+                                  </span>
+                                )}
+                              </div>
                               {hasUnread ? (
                                 <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono text-[9px] font-black shadow-md animate-bounce shrink-0">
                                   {unreadCount} nuevo{unreadCount > 1 ? 's' : ''}

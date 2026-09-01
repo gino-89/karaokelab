@@ -170,10 +170,15 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                     {item.requestedBy && (
                       <span
                         className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded-full border border-cyan-500/40 shrink-0 shadow-sm"
-                        title={`Canción pedida por ${item.requestedBy}`}
+                        title={`Canción pedida por ${item.requestedBy}${item.tableNumber ? ` (${item.tableNumber})` : ''}`}
                       >
                         <span className="text-[10px]">🎤</span>
                         <span>{item.requestedBy}</span>
+                        {item.tableNumber && (
+                          <span className="px-1.5 py-0.2 rounded bg-pink-500/30 text-pink-300 border border-pink-500/50 text-[8.5px] font-black ml-0.5">
+                            🪑 {item.tableNumber}
+                          </span>
+                        )}
                       </span>
                     )}
                   </div>

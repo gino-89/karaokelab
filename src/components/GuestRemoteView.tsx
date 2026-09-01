@@ -56,6 +56,23 @@ export const GuestRemoteView: React.FC = () => {
   const [customRequestTitle, setCustomRequestTitle] = useState('');
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
 
+  // Table System State
+  const [tableNumber, setTableNumber] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTable = params.get('table');
+      if (urlTable) {
+        const formatted = urlTable.toLowerCase().startsWith('mesa') ? urlTable : `Mesa ${urlTable}`;
+        localStorage.setItem('karaokelab_guest_table_number', formatted);
+        return formatted;
+      }
+      return localStorage.getItem('karaokelab_guest_table_number') || 'Mesa 1';
+    }
+    return 'Mesa 1';
+  });
+  const [isEditTableOpen, setIsEditTableOpen] = useState(false);
+  const [tempTableNumber, setTempTableNumber] = useState('');
+
   // Mobile Room Chat States
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
     getChatMessagesFromStorage('karaokelab_guest_chat_messages')
@@ -740,27 +757,48 @@ export const GuestRemoteView: React.FC = () => {
           </div>
 
           <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-cyan-300">
-              <UserRound className="w-5 h-5" />
-              <span className="text-sm font-bold">¿Cómo te llamas?</span>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 text-cyan-300">
+                <UserRound className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Tu Nombre / Cantante</span>
+              </div>
+              <input
+                type="text"
+                placeholder="Ej. Gino, Maria..."
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmName();
+                }}
+                autoFocus
+                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all"
+              />
             </div>
 
-            <input
-              type="text"
-              placeholder="Escribe tu nombre..."
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleConfirmName();
-              }}
-              autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all"
-            />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-slate-300">
+                <div className="flex items-center gap-2 text-pink-400">
+                  <span className="text-sm">🪑</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Nº de Mesa / Ubicación</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">(Opcional)</span>
+              </div>
+              <input
+                type="text"
+                placeholder="Ej. Mesa 5, Barra 2, VIP..."
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmName();
+                }}
+                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:shadow-[0_0_15px_rgba(255,0,127,0.2)] transition-all"
+              />
+            </div>
 
             <button
               type="button"
-              onClick={handleConfirmName}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-sm cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+              onClick={() => handleConfirmName()}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-sm cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all mt-1"
             >
               Entrar al Karaoke 🎶
             </button>
@@ -872,9 +910,21 @@ export const GuestRemoteView: React.FC = () => {
               <h1 className="text-sm font-black italic uppercase tracking-wider text-white">
                 KaraokeLab Remote
               </h1>
-              <p className="text-[9px] text-cyan-400 font-mono">
-                Conectado: <span className="text-white font-bold">{guestName}</span>
-              </p>
+              <div className="flex items-center gap-1.5 text-[9px] text-cyan-400 font-mono">
+                <span>Conectado: <strong className="text-white">{guestName}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempTableNumber(tableNumber);
+                    setIsEditTableOpen(true);
+                  }}
+                  className="px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/40 text-[9px] font-black flex items-center gap-1 hover:bg-pink-500/40 cursor-pointer transition-all shadow-sm"
+                  title="Cambiar de Mesa"
+                >
+                  <span>🪑 {tableNumber}</span>
+                  <span className="text-[8px] text-pink-400">✏️</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1365,6 +1415,82 @@ export const GuestRemoteView: React.FC = () => {
                   <Send className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Table Modal Overlay ── */}
+      {isEditTableOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xs bg-[#0c0d1b] border border-pink-500/40 rounded-2xl p-4 flex flex-col gap-3 shadow-[0_0_40px_rgba(255,0,127,0.35)] animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-1.5 text-pink-400 font-bold text-xs">
+                <span>🪑</span>
+                <span>Cambiar de Mesa</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditTableOpen(false)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-snug">
+              ¿Te mudaste de mesa? Ingresa tu nueva ubicación:
+            </p>
+            <input
+              type="text"
+              placeholder="Ej. Mesa 7, VIP 2, Barra..."
+              value={tempTableNumber}
+              onChange={(e) => setTempTableNumber(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && tempTableNumber.trim()) {
+                  const formatted = tempTableNumber.trim().toLowerCase().startsWith('mesa')
+                    ? tempTableNumber.trim()
+                    : `Mesa ${tempTableNumber.trim()}`;
+                  setTableNumber(formatted);
+                  localStorage.setItem('karaokelab_guest_table_number', formatted);
+                  setIsEditTableOpen(false);
+                  if (peerSync.getConnectionStatus() === 'connected') {
+                    peerSync.sendGuestName(guestName.trim(), formatted);
+                  }
+                  setFeedback({ type: 'success', message: `¡Ubicación actualizada a ${formatted}! 🪑` });
+                  setTimeout(() => setFeedback(null), 3000);
+                }
+              }}
+              autoFocus
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+            />
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsEditTableOpen(false)}
+                className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!tempTableNumber.trim()) return;
+                  const formatted = tempTableNumber.trim().toLowerCase().startsWith('mesa')
+                    ? tempTableNumber.trim()
+                    : `Mesa ${tempTableNumber.trim()}`;
+                  setTableNumber(formatted);
+                  localStorage.setItem('karaokelab_guest_table_number', formatted);
+                  setIsEditTableOpen(false);
+                  if (peerSync.getConnectionStatus() === 'connected') {
+                    peerSync.sendGuestName(guestName.trim(), formatted);
+                  }
+                  setFeedback({ type: 'success', message: `¡Ubicación actualizada a ${formatted}! 🪑` });
+                  setTimeout(() => setFeedback(null), 3000);
+                }}
+                className="flex-1 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black text-xs cursor-pointer shadow-md"
+              >
+                Guardar 🪑
+              </button>
             </div>
           </div>
         </div>

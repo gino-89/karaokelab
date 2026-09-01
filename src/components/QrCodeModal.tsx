@@ -14,7 +14,9 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   const [blockedDevices, setBlockedDevices] = useState<BlockedGuestDevice[]>([]);
   const [qrKey, setQrKey] = useState<string>(peerSync.getQrKey());
   const [currentHostId, setCurrentHostId] = useState<string>(hostPeerId || peerSync.getHostId());
-  const [modalTab, setModalTab] = useState<'qr' | 'connected' | 'blocked'>('qr');
+  const [modalTab, setModalTab] = useState<'qr' | 'tables' | 'connected' | 'blocked'>('qr');
+  const [selectedTable, setSelectedTable] = useState<number>(1);
+  const [tableCopyStatus, setTableCopyStatus] = useState<boolean>(false);
 
   // Subscribe to guest connection changes & refresh QR key and host ID
   useEffect(() => {
@@ -100,44 +102,57 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
         </div>
 
         {/* Modal Navigation Tabs */}
-        <div className="flex items-center border-b border-slate-800 bg-slate-950/70 p-1.5 gap-1.5">
+        <div className="flex items-center border-b border-slate-800 bg-slate-950/70 p-1.5 gap-1.5 overflow-x-auto">
           <button
             type="button"
             onClick={() => setModalTab('qr')}
-            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
               modalTab === 'qr'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
             }`}
           >
-            <QrCode className="w-4 h-4" />
-            <span>Código QR</span>
+            <QrCode className="w-3.5 h-3.5" />
+            <span>QR General</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setModalTab('tables')}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+              modalTab === 'tables'
+                ? 'bg-pink-500/20 text-pink-300 border border-pink-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+            }`}
+          >
+            <span>🪑</span>
+            <span>QRs por Mesa</span>
           </button>
 
           <button
             type="button"
             onClick={() => setModalTab('connected')}
-            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
               modalTab === 'connected'
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-3.5 h-3.5" />
             <span>En Vivo ({connectedGuests.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setModalTab('blocked')}
-            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
               modalTab === 'blocked'
                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
             }`}
           >
-            <Ban className="w-4 h-4" />
-            <span>Bloqueados ({blockedDevices.length})</span>
+            <Ban className="w-3.5 h-3.5" />
+            <span>Bloqueados</span>
           </button>
         </div>
 
@@ -188,6 +203,79 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
                 <span>{copied ? 'Copiado' : 'Copiar'}</span>
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Tab 2: QRs por Mesa (Bar / Pub) */}
+        {modalTab === 'tables' && (
+          <div className="h-[520px] p-5 flex flex-col items-center justify-between animate-in fade-in duration-150">
+            <div className="w-full flex items-center justify-between bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+              <span className="text-xs font-bold text-pink-300 flex items-center gap-1.5">
+                <span>🪑</span>
+                <span>Selecciona Nº de Mesa:</span>
+              </span>
+              <select
+                value={selectedTable}
+                onChange={(e) => setSelectedTable(Number(e.target.value))}
+                className="bg-slate-950 border border-pink-500/50 text-white font-bold font-mono text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-pink-400 cursor-pointer"
+              >
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    Mesa {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Table QR Image */}
+            {(() => {
+              const tableGuestUrl = `${guestUrl}&table=Mesa%20${selectedTable}`;
+              const tableQrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(tableGuestUrl)}&color=ff007f&bgcolor=080811`;
+              return (
+                <>
+                  <div className="p-3.5 bg-[#080811] border-2 border-pink-500/50 rounded-2xl shadow-[0_0_40px_rgba(255,0,127,0.35)] flex items-center justify-center">
+                    <img
+                      key={tableQrImgUrl}
+                      src={tableQrImgUrl}
+                      alt={`QR para Mesa ${selectedTable}`}
+                      className="w-56 h-56 sm:w-64 sm:h-64 rounded-xl object-contain bg-slate-950 shadow-inner"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1 text-center">
+                    <h4 className="text-sm font-black text-white">
+                      Código QR para <span className="text-pink-400">Mesa {selectedTable}</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400 max-w-xs leading-tight">
+                      Al escanear este QR, el celular del cliente ingresa pre-configurado para la <strong>Mesa {selectedTable}</strong>.
+                    </p>
+                  </div>
+
+                  <div className="w-full flex items-center gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+                    <input
+                      type="text"
+                      readOnly
+                      value={tableGuestUrl}
+                      className="w-full bg-transparent px-2 text-[11px] font-mono text-pink-300 focus:outline-none truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(tableGuestUrl);
+                          setTableCopyStatus(true);
+                          setTimeout(() => setTableCopyStatus(false), 2500);
+                        } catch (_) {}
+                      }}
+                      className="px-3 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95"
+                    >
+                      {tableCopyStatus ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      <span>{tableCopyStatus ? 'Copiado' : 'Copiar'}</span>
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
