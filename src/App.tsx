@@ -248,6 +248,15 @@ export default function App() {
   const [hostChatText, setHostChatText] = useState('');
   const [liveChatBanner, setLiveChatBanner] = useState<ChatMessage | null>(null);
   const [selectedChatProfileId, setSelectedChatProfileId] = useState<string | null>(null);
+  const hostChatMessagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isChatOpen && selectedChatProfileId) {
+      setTimeout(() => {
+        hostChatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    }
+  }, [chatMessages, isChatOpen, selectedChatProfileId]);
 
   const handleSendHostChatMessage = (text: string, targetProfId?: string) => {
     if (!text.trim()) return;
@@ -554,7 +563,10 @@ export default function App() {
                 color: data.color || '#00f0ff',
                 isHost: !!data.isHost,
               };
-              setChatMessages((prev) => [...prev, msg]);
+              setChatMessages((prev) => {
+                if (prev.some((m) => m.id === msg.id)) return prev;
+                return [...prev, msg];
+              });
               setLiveChatBanner(msg);
               setTimeout(() => setLiveChatBanner((curr) => (curr?.id === msg.id ? null : curr)), 6000);
               setUnreadChatCount((prev) => prev + 1);
@@ -2652,6 +2664,7 @@ export default function App() {
                     ));
                   })()
                 )}
+                <div ref={hostChatMessagesEndRef} />
               </div>
 
               {/* Input Bar */}

@@ -61,16 +61,29 @@ export const GuestRemoteView: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const unsub = peerSync.onChatMessageReceived((msg) => {
-      setChatMessages((prev) => [...prev, msg]);
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       if (!isChatOpen) {
         setUnreadChatCount((prev) => prev + 1);
       }
     });
     return () => unsub();
   }, [isChatOpen]);
+
+  // Auto scroll to bottom of chat when new messages arrive or chat opens
+  useEffect(() => {
+    if (isChatOpen) {
+      setTimeout(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    }
+  }, [chatMessages, isChatOpen]);
 
   const handleSendGuestChatMessage = (text: string) => {
     if (!text.trim()) return;
@@ -1305,6 +1318,7 @@ export const GuestRemoteView: React.FC = () => {
                   );
                 });
               })()}
+              <div ref={chatMessagesEndRef} />
             </div>
 
             {/* Quick Emojis & Input Bar */}
