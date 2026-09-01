@@ -2749,6 +2749,27 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* ── Floating Main Host Chat Button (Bottom-Left) ── */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsChatOpen((prev) => !prev);
+          setUnreadChatCount(0);
+        }}
+        className={`fixed bottom-6 left-6 z-40 w-13 h-13 rounded-full flex items-center justify-center border transition-all cursor-pointer shadow-xl hover:scale-110 active:scale-95 ${
+          unreadChatCount > 0
+            ? 'bg-gradient-to-tr from-pink-600 via-purple-600 to-pink-500 text-white border-pink-400 shadow-[0_0_30px_rgba(255,0,127,0.75)] animate-pulse ring-4 ring-pink-500/40'
+            : 'bg-[#0a0b18]/90 text-pink-300 border-pink-500/50 hover:border-pink-400 hover:text-white shadow-[0_0_20px_rgba(255,0,127,0.25)] backdrop-blur-md'
+        }`}
+        title="Abrir Chat de la Sala"
+      >
+        <MessageSquare className={`w-6 h-6 ${unreadChatCount > 0 ? 'animate-bounce text-white' : 'text-pink-400'}`} />
+        {unreadChatCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-pink-500 text-white font-mono text-[10px] font-black flex items-center justify-center animate-bounce border-2 border-slate-950 shadow-md">
+            {unreadChatCount}
+          </span>
+        )}
+      </button>
     </div>
   );
 }
