@@ -76,7 +76,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   uploadFileName = '',
   uploadCurrentIndex = 1,
   uploadTotalCount = 1,
-  profiles = [{ id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 }],
+  profiles = [{ id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 }] as SingerProfile[],
   activeProfileId = 'profile_all',
   onSelectProfile,
   onCreateProfile,
@@ -1651,14 +1651,21 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             key={p.id}
                             type="button"
                             onClick={() => onSelectProfile?.(p.id)}
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                               activeProfileId === p.id
                                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
                                 : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
                             }`}
                           >
                             <span>{p.avatar}</span>
-                            <span>{p.name}</span>
+                            <div className="flex flex-col text-left leading-tight">
+                              <span>{p.name}</span>
+                              {p.tableNumber && (
+                                <span className={`text-[8.5px] font-black ${activeProfileId === p.id ? 'text-slate-900' : 'text-pink-300'}`}>
+                                  🪑 {p.tableNumber}
+                                </span>
+                              )}
+                            </div>
                           </button>
                         ))}
                       </div>

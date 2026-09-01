@@ -2587,16 +2587,9 @@ export default function App() {
                           </div>
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1 min-w-0">
-                                <span className={`text-xs truncate ${hasUnread ? 'font-black text-pink-200' : 'font-bold text-slate-200'}`}>
-                                  {prof.name}
-                                </span>
-                                {prof.tableNumber && (
-                                  <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 border border-pink-500/40 text-[8.5px] font-black shrink-0">
-                                    🪑 {prof.tableNumber}
-                                  </span>
-                                )}
-                              </div>
+                              <span className={`text-xs truncate ${hasUnread ? 'font-black text-pink-200' : 'font-bold text-slate-200'}`}>
+                                {prof.name}
+                              </span>
                               {hasUnread ? (
                                 <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono text-[9px] font-black shadow-md animate-bounce shrink-0">
                                   {unreadCount} nuevo{unreadCount > 1 ? 's' : ''}
@@ -2607,6 +2600,11 @@ export default function App() {
                                 </span>
                               ) : null}
                             </div>
+                            {prof.tableNumber && (
+                              <span className="text-[9.5px] font-black text-pink-300 flex items-center gap-1 mt-0.5">
+                                <span>🪑 {prof.tableNumber}</span>
+                              </span>
+                            )}
                             <p className={`text-[10.5px] truncate mt-0.5 ${hasUnread ? 'font-semibold text-pink-300' : 'text-slate-400'}`}>
                               {lastMsg ? lastMsg.text : 'Sin mensajes'}
                             </p>
