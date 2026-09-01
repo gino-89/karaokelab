@@ -611,6 +611,10 @@ export default function App() {
                   (p) => p.id === newProfile.id || (p.id !== 'profile_all' && p.name.toLowerCase().trim() === newProfile.name.toLowerCase().trim())
                 );
                 if (existing) {
+                  if (existing.pin && newProfile.pin && existing.pin !== newProfile.pin) {
+                    console.warn(`[Host Reject] PIN mismatch for profile "${existing.name}". Existing PIN: ${existing.pin}, Received: ${newProfile.pin}. Rejecting profile merge.`);
+                    return prev;
+                  }
                   const updatedProfile: SingerProfile = {
                     ...existing,
                     ...newProfile,

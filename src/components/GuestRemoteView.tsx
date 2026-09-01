@@ -497,12 +497,12 @@ export const GuestRemoteView: React.FC = () => {
     );
 
     if (existing) {
-      if (existing.pin && existing.pin !== pinToUse && savedPin !== existing.pin) {
+      if (existing.pin && existing.pin !== pinToUse) {
         setPinChallengeModal({
           show: true,
           existingProfile: existing,
           targetName: trimmed,
-          errorMsg: `🔒 El nombre "${trimmed}" ya pertenece a otro cliente registrado en la sala y el PIN no coincide.`,
+          errorMsg: `🔒 El nombre "${trimmed}" ya pertenece a otro cliente registrado en la sala y el PIN ingresado no coincide.`,
         });
         setFeedback({ type: 'error', message: `❌ El PIN ingresado no coincide con el perfil "${trimmed}". Si eres otro cliente, elige un nombre diferente.` });
         setTimeout(() => setFeedback(null), 4500);
