@@ -168,6 +168,17 @@ export default function App() {
     }
   };
 
+  const handleUpdateProfilePin = (profileId: string, newPin: string) => {
+    setProfiles((prev) => {
+      const updated = prev.map((p) => (p.id === profileId ? { ...p, pin: newPin } : p));
+      saveProfilesToStorage(updated);
+      peerSync.broadcastProfilesToGuests(updated);
+      return updated;
+    });
+    const target = profiles.find((p) => p.id === profileId);
+    showAlertToast(`🔑 PIN de "${target?.name || 'cantante'}" actualizado a ${newPin}`);
+  };
+
   const handleToggleFavoriteSong = (profileId: string, songId: string) => {
     setProfiles((prev) => {
       const updated = prev.map((p) => {
@@ -2375,6 +2386,7 @@ export default function App() {
               onSelectProfile={handleSelectProfile}
               onCreateProfile={handleCreateProfile}
               onDeleteProfile={handleDeleteProfile}
+              onUpdateProfilePin={handleUpdateProfilePin}
               onToggleFavoriteSong={handleToggleFavoriteSong}
               onOpenYouTubeModal={handleOpenYouTubeModalCallback}
               youtubeFavorites={youtubeFavorites}

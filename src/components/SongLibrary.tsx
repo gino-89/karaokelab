@@ -4,7 +4,8 @@ import {
   UploadCloud, Database, Trash2, Music2, Loader2, ListPlus, Check,
   AlertTriangle, Search, Filter, X, Tag, User, Play, Maximize2, Minimize2,
   Download, Edit3, ArrowUpDown, Sparkles, Layers, FileText, Clock, List, LayoutGrid,
-  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2, RotateCcw, UserPlus
+  Star, FolderDown, FolderUp, Youtube, Menu, ExternalLink, Share2, RotateCcw, UserPlus,
+  Lock, KeyRound, Users, UserRound
 } from 'lucide-react';
 import { formatLRC } from '../services/lrcParser';
 import {
@@ -47,6 +48,7 @@ interface SongLibraryProps {
   onSelectProfile?: (profileId: string) => void;
   onCreateProfile?: (name: string, avatar: string, color: string) => void;
   onDeleteProfile?: (profileId: string) => void;
+  onUpdateProfilePin?: (profileId: string, newPin: string) => void;
   onToggleFavoriteSong?: (profileId: string, songId: string) => void;
   /** When true: hides host-only controls (delete, import, etc.) — used in guest QR remote view */
   isGuestMode?: boolean;
@@ -81,6 +83,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   onSelectProfile,
   onCreateProfile,
   onDeleteProfile,
+  onUpdateProfilePin,
   onToggleFavoriteSong,
   isGuestMode = false,
   guestRestrictedProfileId,
@@ -380,6 +383,9 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
     url: string;
   } | null>(null);
   const [profileToDelete, setProfileToDelete] = useState<{ id: string; name: string; avatar: string } | null>(null);
+  const [isManageProfilesOpen, setIsManageProfilesOpen] = useState(false);
+  const [editingPinProfile, setEditingPinProfile] = useState<SingerProfile | null>(null);
+  const [newPinInput, setNewPinInput] = useState('');
 
   const activeProfile = useMemo(() => {
     return profiles.find((p) => p.id === activeProfileId) || profiles[0];
@@ -1072,11 +1078,18 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
               <div className="flex items-center gap-1.5 text-indigo-200">
                 <span className="text-sm">{activeProfile.avatar}</span>
                 <span className="font-bold text-white text-[11px] truncate">{activeProfile.name}</span>
+                {activeProfile.tableNumber && (
+                  <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 text-[9px] font-bold border border-pink-500/30">
+                    🪑 {activeProfile.tableNumber}
+                  </span>
+                )}
+                {!isGuestMode && (
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9.5px] font-mono font-bold flex items-center gap-0.5">
+                    🔑 PIN: {activeProfile.pin || '1234'}
+                  </span>
+                )}
                 <span className="text-[10px] font-mono text-cyan-400">
-                  ({activeProfile.favoriteSongIds.length + filteredYouTubeFavorites.length} favs
-                  {filteredYouTubeFavorites.length > 0 && (
-                    <span className="text-red-400 font-sans ml-1">• {filteredYouTubeFavorites.length} YT</span>
-                  )})
+                  ({activeProfile.favoriteSongIds.length + filteredYouTubeFavorites.length} favs)
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -1087,6 +1100,20 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                     title={`Encolar todas las favoritas de ${activeProfile.name} (Locales + YouTube)`}
                   >
                     <span>⚡ Encolar Todo</span>
+                  </button>
+                )}
+                {!isGuestMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPinProfile(activeProfile);
+                      setNewPinInput(activeProfile.pin || '1234');
+                    }}
+                    className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1"
+                    title={`Resetear PIN de ${activeProfile.name}`}
+                  >
+                    <KeyRound className="w-3 h-3" />
+                    <span>Resetear PIN</span>
                   </button>
                 )}
                 {(!isGuestMode || (guestRestrictedProfileId && activeProfile.id === guestRestrictedProfileId)) && (
@@ -2090,31 +2117,48 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
                 {/* Singer Profile Filter Dropdown (Host Mode Only) */}
                 {!isGuestMode && (
-                  <select
-                    value={activeProfileId}
-                    onChange={(e) => {
-                      if (e.target.value === '__new_profile__') {
-                        setIsCreateProfileOpen(true);
-                      } else {
-                        onSelectProfile?.(e.target.value);
-                      }
-                    }}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-cyan-300 font-bold focus:outline-none cursor-pointer"
-                  >
-                    <option value="profile_all" className="bg-slate-900 text-cyan-400 font-bold">
-                      👥 Perfil: Todos ({savedSongs.length})
-                    </option>
-                    {profiles
-                      .filter((p) => p.id !== 'profile_all')
-                      .map((p) => (
-                        <option key={p.id} value={p.id} className="bg-slate-900 text-white font-medium">
-                          {p.avatar} Cantante: {p.name} ({p.favoriteSongIds.length})
-                        </option>
-                      ))}
-                    <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
-                      ➕ + Nuevo Perfil...
-                    </option>
-                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={activeProfileId}
+                      onChange={(e) => {
+                        if (e.target.value === '__new_profile__') {
+                          setIsCreateProfileOpen(true);
+                        } else if (e.target.value === '__manage_profiles__') {
+                          setIsManageProfilesOpen(true);
+                        } else {
+                          onSelectProfile?.(e.target.value);
+                        }
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-cyan-300 font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="profile_all" className="bg-slate-900 text-cyan-400 font-bold">
+                        👥 Perfil: Todos ({savedSongs.length})
+                      </option>
+                      {profiles
+                        .filter((p) => p.id !== 'profile_all')
+                        .map((p) => (
+                          <option key={p.id} value={p.id} className="bg-slate-900 text-white font-medium">
+                            {p.avatar} Cantante: {p.name} {p.pin ? `(🔑 ${p.pin})` : ''}
+                          </option>
+                        ))}
+                      <option value="__manage_profiles__" className="bg-slate-900 text-amber-300 font-bold">
+                        ⚙️ Gestor de Cantantes y PINs...
+                      </option>
+                      <option value="__new_profile__" className="bg-slate-900 text-cyan-400 font-bold">
+                        ➕ + Nuevo Perfil...
+                      </option>
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsManageProfilesOpen(true)}
+                      className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-slate-800 transition-all shrink-0"
+                      title="Ver todos los cantantes y resetear PINs"
+                    >
+                      <Users className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="hidden sm:inline">Gestor PINs</span>
+                    </button>
+                  </div>
                 )}
 
                 {/* Artist Filter */}
@@ -3376,6 +3420,182 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors disabled:opacity-40"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MANAGE SINGER PROFILES & PINS MODAL (DJ HOST) ─────────────────── */}
+      {isManageProfilesOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#0c0e18] border border-cyan-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_0_50px_rgba(0,240,255,0.25)] animate-in fade-in zoom-in-95 duration-150 max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                  <UserRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Gestionar Cantantes y PINs (DJ)</h3>
+                  <p className="text-[10px] text-slate-400">Ver, cambiar PIN de 4 dígitos o borrar perfiles de la sala</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManageProfilesOpen(false)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 overflow-y-auto pr-1 max-h-[50vh] divide-y divide-slate-800/60">
+              {profiles
+                .filter((p) => p.id !== 'profile_all')
+                .map((p) => (
+                  <div key={p.id} className="pt-2.5 first:pt-0 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xl">{p.avatar}</span>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                          {p.tableNumber && (
+                            <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 text-[9px] font-bold border border-pink-500/30">
+                              🪑 {p.tableNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                          <span className="text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/30 flex items-center gap-0.5">
+                            🔑 PIN: {p.pin || '1234'}
+                          </span>
+                          <span>• {p.favoriteSongIds?.length || 0} favs</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPinProfile(p);
+                          setNewPinInput(p.pin || '1234');
+                        }}
+                        className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1"
+                        title="Resetear o Cambiar PIN de 4 dígitos"
+                      >
+                        <KeyRound className="w-3 h-3" />
+                        <span>Resetear PIN</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileToDelete({ id: p.id, name: p.name, avatar: p.avatar });
+                        }}
+                        className="p-1 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 cursor-pointer transition-colors"
+                        title="Borrar Perfil de Cantante"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+              {profiles.filter((p) => p.id !== 'profile_all').length === 0 && (
+                <p className="text-xs text-slate-500 text-center py-6">
+                  No hay perfiles de cantantes registrados aún en la sala.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManageProfilesOpen(false);
+                  setIsCreateProfileOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-cyan-600/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold hover:bg-cyan-600/30 cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <span>➕ Crear Nuevo Perfil</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsManageProfilesOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT / RESET PROFILE PIN MODAL ─────────────────── */}
+      {editingPinProfile && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-amber-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider font-mono">
+                <KeyRound className="w-4 h-4" />
+                <span>Resetear PIN de {editingPinProfile.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPinProfile(null)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Ingresa el nuevo PIN de 4 dígitos para el perfil <strong className="text-white">"{editingPinProfile.name}"</strong>:
+            </p>
+
+            <div className="flex flex-col gap-1.5 bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={newPinInput}
+                onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="Ej. 1234"
+                className="w-full text-center tracking-[0.5em] text-xl font-mono py-2 bg-slate-900 border border-slate-700 rounded-lg text-amber-300 font-bold focus:outline-none focus:border-amber-400"
+              />
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                <span>PIN actual: {editingPinProfile.pin || 'Sin PIN'}</span>
+                <button
+                  type="button"
+                  onClick={() => setNewPinInput(Math.floor(1000 + Math.random() * 9000).toString())}
+                  className="text-cyan-400 font-bold hover:underline cursor-pointer"
+                >
+                  🎲 Generar PIN aleatorio
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingPinProfile(null)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (newPinInput.trim().length !== 4) return;
+                  onUpdateProfilePin?.(editingPinProfile.id, newPinInput.trim());
+                  setEditingPinProfile(null);
+                }}
+                disabled={newPinInput.trim().length !== 4}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 text-slate-950 font-black text-xs cursor-pointer transition-all shadow-md"
+              >
+                Guardar PIN 🔑
               </button>
             </div>
           </div>
