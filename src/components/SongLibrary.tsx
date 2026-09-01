@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useCallback } from 'react';
 import { SongItem, QueueItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
 import {
   UploadCloud, Database, Trash2, Music2, Loader2, ListPlus, Check,
@@ -50,6 +50,7 @@ interface SongLibraryProps {
   onToggleFavoriteSong?: (profileId: string, songId: string) => void;
   /** When true: hides host-only controls (delete, import, etc.) — used in guest QR remote view */
   isGuestMode?: boolean;
+  guestRestrictedProfileId?: string;
 }
 
 export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
@@ -82,6 +83,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   onDeleteProfile,
   onToggleFavoriteSong,
   isGuestMode = false,
+  guestRestrictedProfileId,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const expandedFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -368,6 +370,66 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const activeProfile = useMemo(() => {
     return profiles.find((p) => p.id === activeProfileId) || profiles[0];
   }, [profiles, activeProfileId]);
+
+  const targetPersonalProfileId = useMemo(() => {
+    if (isGuestMode) {
+      return guestRestrictedProfileId || (activeProfile?.id !== 'profile_all' ? activeProfile?.id : profiles.find((p) => p.id !== 'profile_all')?.id);
+    }
+    return activeProfile && activeProfile.id !== 'profile_all' ? activeProfile.id : null;
+  }, [isGuestMode, guestRestrictedProfileId, activeProfile, profiles]);
+
+  const getIsSongFavorite = useCallback(
+    (songId: string) => {
+      if (targetPersonalProfileId) {
+        const prof = profiles.find((p) => p.id === targetPersonalProfileId);
+        return prof ? prof.favoriteSongIds.includes(songId) : false;
+      }
+      return profiles.some((p) => p.id !== 'profile_all' && p.favoriteSongIds.includes(songId));
+    },
+    [profiles, targetPersonalProfileId]
+  );
+
+  const handleStarClick = useCallback(
+    (e: React.MouseEvent, song: SongItem) => {
+      e.stopPropagation();
+      if (isGuestMode) {
+        if (targetPersonalProfileId) {
+          onToggleFavoriteSong?.(targetPersonalProfileId, song.id);
+        }
+      } else if (activeProfile && activeProfile.id !== 'profile_all') {
+        onToggleFavoriteSong?.(activeProfile.id, song.id);
+      } else {
+        setSongForProfileAssign(song);
+      }
+    },
+    [isGuestMode, targetPersonalProfileId, activeProfile, onToggleFavoriteSong]
+  );
+
+  const getIsYouTubeFavorite = useCallback(
+    (ytId: string) => {
+      if (targetPersonalProfileId) {
+        return youtubeFavorites.some((f) => f.id === ytId && f.singerProfileId === targetPersonalProfileId);
+      }
+      return youtubeFavorites.some((f) => f.id === ytId);
+    },
+    [youtubeFavorites, targetPersonalProfileId]
+  );
+
+  const handleYouTubeStarClick = useCallback(
+    (e: React.MouseEvent, yt: any) => {
+      e.stopPropagation();
+      if (isGuestMode) {
+        if (targetPersonalProfileId) {
+          onToggleYouTubeFavorite?.(yt, targetPersonalProfileId);
+        }
+      } else if (activeProfile && activeProfile.id !== 'profile_all') {
+        onToggleYouTubeFavorite?.(yt, activeProfile.id);
+      } else {
+        setYtTrackForProfileAssign(yt);
+      }
+    },
+    [isGuestMode, targetPersonalProfileId, activeProfile, onToggleYouTubeFavorite]
+  );
 
   const handleAddProfileFavoritesToQueue = () => {
     if (!activeProfile || activeProfile.id === 'profile_all') return;
@@ -1085,26 +1147,19 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
                         <div className="flex items-center gap-1 shrink-0">
                           {(() => {
-                            const isFav = activeProfile && activeProfile.id !== 'profile_all'
-                              ? activeProfile.favoriteSongIds.includes(song.id)
-                              : profiles.some((p) => p.id !== 'profile_all' && p.favoriteSongIds.includes(song.id));
+                            const isFav = getIsSongFavorite(song.id);
                             return (
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (activeProfile && activeProfile.id !== 'profile_all') {
-                                    onToggleFavoriteSong?.(activeProfile.id, song.id);
-                                  } else {
-                                    setSongForProfileAssign(song);
-                                  }
-                                }}
+                                onClick={(e) => handleStarClick(e, song)}
                                 className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
                                   ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
                                   : 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
                                   }`}
                                 title={
-                                  activeProfile && activeProfile.id !== 'profile_all'
+                                  isGuestMode
+                                    ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
+                                    : activeProfile && activeProfile.id !== 'profile_all'
                                     ? isFav
                                       ? `Quitar de favoritas de ${activeProfile.name}`
                                       : `Añadir a favoritas de ${activeProfile.name}`
@@ -1328,26 +1383,19 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             <div className="flex items-center gap-1 shrink-0">
                               {/* Favorite Star Button */}
                               {(() => {
-                                const isFav = activeProfile && activeProfile.id !== 'profile_all'
-                                  ? activeProfile.favoriteSongIds.includes(song.id)
-                                  : profiles.some((p) => p.id !== 'profile_all' && p.favoriteSongIds.includes(song.id));
+                                const isFav = getIsSongFavorite(song.id);
                                 return (
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (activeProfile && activeProfile.id !== 'profile_all') {
-                                        onToggleFavoriteSong?.(activeProfile.id, song.id);
-                                      } else {
-                                        setSongForProfileAssign(song);
-                                      }
-                                    }}
+                                    onClick={(e) => handleStarClick(e, song)}
                                     className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
                                       ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
                                       : 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
                                       }`}
                                     title={
-                                      activeProfile && activeProfile.id !== 'profile_all'
+                                      isGuestMode
+                                        ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
+                                        : activeProfile && activeProfile.id !== 'profile_all'
                                         ? isFav
                                           ? `Quitar de favoritas de ${activeProfile.name}`
                                           : `Añadir a favoritas de ${activeProfile.name}`
@@ -1751,22 +1799,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                 {onToggleYouTubeFavorite && (
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setYtTrackForProfileAssign({
-                                        id: item.id,
-                                        title: item.title,
-                                        channel: item.channel,
-                                        duration: item.duration,
-                                        thumbnail: item.thumbnail,
-                                        url: item.url,
-                                      })
-                                    }
+                                    onClick={(e) => handleYouTubeStarClick(e, item)}
                                     className={`p-2.5 px-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
                                       isFav
                                         ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
                                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-300 hover:border-slate-600'
                                     }`}
-                                    title="Asignar video a perfil de cantante"
+                                    title={isGuestMode ? (isFav ? 'Quitar de mis favoritos' : 'Guardar en mis favoritos') : 'Asignar video a perfil de cantante'}
                                   >
                                     <Star className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
                                   </button>
@@ -2221,25 +2260,18 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         <div className="flex items-center gap-1 shrink-0">
                           {/* Favorite Star Button */}
                           {(() => {
-                            const isFav = activeProfile && activeProfile.id !== 'profile_all'
-                              ? activeProfile.favoriteSongIds.includes(song.id)
-                              : profiles.some((p) => p.id !== 'profile_all' && p.favoriteSongIds.includes(song.id));
+                            const isFav = getIsSongFavorite(song.id);
                             return (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (activeProfile && activeProfile.id !== 'profile_all') {
-                                    onToggleFavoriteSong?.(activeProfile.id, song.id);
-                                  } else {
-                                    setSongForProfileAssign(song);
-                                  }
-                                }}
+                                onClick={(e) => handleStarClick(e, song)}
                                 className={`p-1.5 rounded-lg border text-[11px] font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
                                   ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
                                   : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
                                   }`}
                                 title={
-                                  activeProfile && activeProfile.id !== 'profile_all'
+                                  isGuestMode
+                                    ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
+                                    : activeProfile && activeProfile.id !== 'profile_all'
                                     ? isFav
                                       ? `Quitar de favoritas de ${activeProfile.name}`
                                       : `Añadir a favoritas de ${activeProfile.name}`
@@ -2414,27 +2446,27 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
                           <div className="flex items-center gap-0.5 text-slate-400">
                             {/* Favorite Star Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (activeProfile && activeProfile.id !== 'profile_all') {
-                                  onToggleFavoriteSong?.(activeProfile.id, song.id);
-                                } else {
-                                  setSongForProfileAssign(song);
-                                }
-                              }}
-                              className={`p-1 rounded cursor-pointer transition-colors ${isFav ? 'text-amber-400' : 'text-slate-500 hover:text-amber-300'
-                                }`}
-                              title={
-                                activeProfile && activeProfile.id !== 'profile_all'
-                                  ? isFav
-                                    ? `Quitar de favoritas de ${activeProfile.name}`
-                                    : `Añadir a favoritas de ${activeProfile.name}`
-                                  : 'Asignar a perfil de cantante'
-                              }
-                            >
-                              <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400' : ''}`} />
-                            </button>
+                            {(() => {
+                              const isFav = getIsSongFavorite(song.id);
+                              return (
+                                <button
+                                  onClick={(e) => handleStarClick(e, song)}
+                                  className={`p-1 rounded cursor-pointer transition-colors ${isFav ? 'text-amber-400' : 'text-slate-500 hover:text-amber-300'
+                                    }`}
+                                  title={
+                                    isGuestMode
+                                      ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
+                                      : activeProfile && activeProfile.id !== 'profile_all'
+                                      ? isFav
+                                        ? `Quitar de favoritas de ${activeProfile.name}`
+                                        : `Añadir a favoritas de ${activeProfile.name}`
+                                      : 'Asignar a perfil de cantante'
+                                  }
+                                >
+                                  <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400' : ''}`} />
+                                </button>
+                              );
+                            })()}
 
                             {/* Reanalyze DSP Button */}
                             <button
@@ -2906,8 +2938,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         </div>
       )}
 
-      {/* ── ASSIGN SONG TO SINGER PROFILES MODAL ─────────────────── */}
-      {songForProfileAssign && (
+      {/* ── ASSIGN SONG TO SINGER PROFILES MODAL (HOST ONLY) ─────────────────── */}
+      {!isGuestMode && songForProfileAssign && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -3016,8 +3048,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         </div>
       )}
 
-      {/* ── ASSIGN YOUTUBE TRACK TO SINGER PROFILES MODAL ─────────────────── */}
-      {ytTrackForProfileAssign && (
+      {/* ── ASSIGN YOUTUBE TRACK TO SINGER PROFILES MODAL (HOST ONLY) ─────────────────── */}
+      {!isGuestMode && ytTrackForProfileAssign && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">

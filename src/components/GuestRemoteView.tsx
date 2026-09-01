@@ -48,10 +48,10 @@ export const GuestRemoteView: React.FC = () => {
     { id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 },
   ]);
   const [activeProfileId, setActiveProfileId] = useState('profile_all');
+  const [myProfileId, setMyProfileId] = useState<string>(() => localStorage.getItem('karaokelab_guest_my_profile_id') || '');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
-  const [ytTrackForProfileAssign, setYtTrackForProfileAssign] = useState<{ id: string; title: string; channel: string; duration: string; thumbnail: string; url: string } | null>(null);
   const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileAvatar, setNewProfileAvatar] = useState('🎤');
@@ -225,6 +225,34 @@ export const GuestRemoteView: React.FC = () => {
     localStorage.setItem('karaokelab_guest_name', trimmed);
     setNameConfirmed(true);
     peerSync.sendGuestName(trimmed);
+
+    // Auto-link or auto-create personal singer profile for this guest
+    const existing = profiles.find(
+      (p) => p.name.toLowerCase().trim() === trimmed.toLowerCase().trim() && p.id !== 'profile_all'
+    );
+    if (existing) {
+      setMyProfileId(existing.id);
+      localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
+      setActiveProfileId(existing.id);
+      localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, existing.id);
+    } else {
+      const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newProf: SingerProfile = {
+        id: newProfId,
+        name: trimmed,
+        avatar: '🎤',
+        color: '#00f0ff',
+        favoriteSongIds: [],
+        createdAt: Date.now(),
+      };
+      const updated = [...profiles, newProf];
+      saveGuestProfiles(updated);
+      setMyProfileId(newProfId);
+      localStorage.setItem('karaokelab_guest_my_profile_id', newProfId);
+      setActiveProfileId(newProfId);
+      localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, newProfId);
+      peerSync.sendCreateProfileFromGuest(newProf);
+    }
   };
 
   const handleRequestSong = (song: SongItem) => {
@@ -342,13 +370,15 @@ export const GuestRemoteView: React.FC = () => {
     track: { id: string; title: string; channel: string; duration: string; thumbnail: string; url: string },
     singerProfileId?: string
   ) => {
-    const profId = singerProfileId || activeProfileId;
+    const profId = myProfileId || singerProfileId || activeProfileId;
+    if (!profId || profId === 'profile_all') return;
+
     setYoutubeFavorites((prev) => {
-      const exists = prev.some((fav) => fav.id === track.id && (fav.singerProfileId === profId || profId === 'profile_all'));
+      const exists = prev.some((fav) => fav.id === track.id && fav.singerProfileId === profId);
       let updated: YouTubeFavoriteTrack[];
       if (exists) {
-        updated = prev.filter((fav) => !(fav.id === track.id && (fav.singerProfileId === profId || profId === 'profile_all')));
-        setFeedback({ type: 'success', message: `¡"${track.title}" quitada de favoritos! ⭐` });
+        updated = prev.filter((fav) => !(fav.id === track.id && fav.singerProfileId === profId));
+        setFeedback({ type: 'success', message: `¡"${track.title}" quitada de tus favoritos! ⭐` });
       } else {
         const newItem: YouTubeFavoriteTrack = {
           id: track.id,
@@ -361,8 +391,7 @@ export const GuestRemoteView: React.FC = () => {
           createdAt: Date.now(),
         };
         updated = [newItem, ...prev];
-        const profName = profiles.find((p) => p.id === profId)?.name || 'cantante';
-        setFeedback({ type: 'success', message: `¡"${track.title}" guardada en favoritos de ${profName}! ⭐` });
+        setFeedback({ type: 'success', message: `¡"${track.title}" guardada en tus favoritos! ⭐` });
       }
       saveYouTubeFavoritesToStorage(updated);
       peerSync.sendToggleYouTubeFavoriteFromGuest(track, profId);
@@ -383,6 +412,8 @@ export const GuestRemoteView: React.FC = () => {
     };
     const updated = [...profiles, newProfile];
     saveGuestProfiles(updated);
+    setMyProfileId(newProfile.id);
+    localStorage.setItem('karaokelab_guest_my_profile_id', newProfile.id);
     setActiveProfileId(newProfile.id);
     localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, newProfile.id);
 
@@ -409,17 +440,21 @@ export const GuestRemoteView: React.FC = () => {
   };
 
   const handleToggleFavoriteSong = (profileId: string, songId: string) => {
-    const updated = profiles.map((p) => {
-      if (p.id !== profileId) return p;
-      const favs = p.favoriteSongIds.includes(songId)
-        ? p.favoriteSongIds.filter((id) => id !== songId)
-        : [...p.favoriteSongIds, songId];
-      return { ...p, favoriteSongIds: favs };
-    });
-    saveGuestProfiles(updated);
+    const targetProfId = myProfileId || profileId || activeProfileId;
+    if (!targetProfId || targetProfId === 'profile_all') return;
 
-    // Sync favorite toggle to host
-    peerSync.sendToggleFavoriteFromGuest(profileId, songId);
+    setProfiles((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id !== targetProfId) return p;
+        const favs = p.favoriteSongIds.includes(songId)
+          ? p.favoriteSongIds.filter((id) => id !== songId)
+          : [...p.favoriteSongIds, songId];
+        return { ...p, favoriteSongIds: favs };
+      });
+      saveGuestProfiles(updated);
+      peerSync.sendToggleFavoriteFromGuest(targetProfId, songId);
+      return updated;
+    });
   };
 
   // ── KICKED / EXPELLED / EXPIRED QR / BANNED SCREEN ──
@@ -856,7 +891,7 @@ export const GuestRemoteView: React.FC = () => {
             <div className="flex flex-col gap-3">
               {ytResults.map((item) => {
                 const isFav = youtubeFavorites.some(
-                  (fav) => fav.id === item.id && (fav.singerProfileId === activeProfileId || activeProfileId === 'profile_all')
+                  (fav) => fav.id === item.id && fav.singerProfileId === (myProfileId || activeProfileId)
                 );
                 return (
                   <div
@@ -898,13 +933,13 @@ export const GuestRemoteView: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => setYtTrackForProfileAssign(item)}
+                        onClick={() => handleToggleYouTubeFavorite(item, myProfileId || activeProfileId)}
                         className={`p-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
                           isFav
                             ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-[0_0_12px_rgba(245,158,11,0.4)]'
                             : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
                         }`}
-                        title="Asignar favorito a cantante"
+                        title={isFav ? 'Quitar de mis favoritos' : 'Guardar en mis favoritos'}
                       >
                         <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-slate-950 text-slate-950' : 'fill-amber-300 text-amber-300'}`} />
                       </button>
@@ -992,152 +1027,8 @@ export const GuestRemoteView: React.FC = () => {
             youtubeFavorites={youtubeFavorites}
             onToggleYouTubeFavorite={handleToggleYouTubeFavorite}
             isGuestMode={true}
+            guestRestrictedProfileId={myProfileId}
           />
-        </div>
-      )}
-
-      {/* Modal: Asignar Favorito de YouTube a Cantante */}
-      {ytTrackForProfileAssign && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
-          <div className="w-full max-w-sm bg-[#0c0d18] border border-amber-500/40 rounded-3xl p-5 flex flex-col gap-4 shadow-[0_0_40px_rgba(245,158,11,0.25)]">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                <Star className="w-4 h-4 fill-amber-400" />
-                <span>Asignar Favorito a Cantante</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setYtTrackForProfileAssign(null)}
-                className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Video preview summary */}
-            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-950 border border-slate-800">
-              <img
-                src={ytTrackForProfileAssign.thumbnail}
-                alt={ytTrackForProfileAssign.title}
-                className="w-16 h-11 rounded-lg object-cover shrink-0 bg-slate-900"
-              />
-              <div className="flex flex-col min-w-0">
-                <p className="text-xs text-white font-bold line-clamp-2 leading-snug">
-                  {ytTrackForProfileAssign.title}
-                </p>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                  {ytTrackForProfileAssign.channel} • {ytTrackForProfileAssign.duration}
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Selecciona qué cantantes tienen este video en su repertorio favorito:
-            </p>
-
-            {/* Quick Inline Singer Creation */}
-            <div className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 shadow-inner">
-              <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
-                <UserPlus className="w-3 h-3 text-amber-400" />
-                <span>¿No ves al cantante? Créalo y asígnalo aquí:</span>
-              </span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  placeholder="Nombre del cantante (ej: Gino)..."
-                  value={newProfileName}
-                  onChange={(e) => setNewProfileName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newProfileName.trim()) {
-                      handleCreateProfile(newProfileName.trim(), newProfileAvatar, newProfileColor);
-                      setNewProfileName('');
-                    }
-                  }}
-                  className="flex-1 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (newProfileName.trim()) {
-                      handleCreateProfile(newProfileName.trim(), newProfileAvatar, newProfileColor);
-                      setNewProfileName('');
-                    }
-                  }}
-                  disabled={!newProfileName.trim()}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 disabled:opacity-40 text-slate-950 text-xs font-black cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center gap-1"
-                >
-                  + Crear
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
-                <div className="py-6 text-center text-slate-500 text-xs bg-slate-900/40 rounded-2xl border border-slate-800/80 p-4">
-                  <p className="mb-3 text-slate-400">Aún no has creado ningún perfil de persona.</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setYtTrackForProfileAssign(null);
-                      setIsCreateProfileOpen(true);
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs cursor-pointer shadow-md hover:scale-105 transition-all"
-                  >
-                    + Crear Perfil (Ej: John)
-                  </button>
-                </div>
-              ) : (
-                profiles
-                  .filter((p) => p.id !== 'profile_all')
-                  .map((p) => {
-                    const isFav = youtubeFavorites.some(
-                      (fav) => fav.id === ytTrackForProfileAssign.id && fav.singerProfileId === p.id
-                    );
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleToggleYouTubeFavorite(ytTrackForProfileAssign, p.id)}
-                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
-                          isFav
-                            ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-                            : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:bg-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-lg">{p.avatar}</span>
-                          <span className="font-bold">{p.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Star className={`w-4 h-4 ${isFav ? 'fill-amber-400 text-amber-400' : 'text-slate-600'}`} />
-                          <span className="text-[10px] font-mono">{isFav ? 'Favorita' : 'No asignada'}</span>
-                        </div>
-                      </button>
-                    );
-                  })
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setYtTrackForProfileAssign(null);
-                  setIsCreateProfileOpen(true);
-                }}
-                className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1"
-              >
-                <span>+ Nuevo Cantante</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setYtTrackForProfileAssign(null)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black cursor-pointer shadow-md transition-all active:scale-95"
-              >
-                Listo
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
