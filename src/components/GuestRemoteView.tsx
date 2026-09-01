@@ -117,6 +117,7 @@ export const GuestRemoteView: React.FC = () => {
       id: `msg_guest_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       senderName: myName,
       senderProfileId: myProfileId,
+      tableNumber: tableNumber,
       text: text.trim(),
       timestamp: Date.now(),
       avatar: myProf?.avatar || '🎤',

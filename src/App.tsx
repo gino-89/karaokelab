@@ -542,7 +542,7 @@ export default function App() {
         (cmd, data) => {
           if (cmd === 'ADD_TO_QUEUE') {
             handleRemoteRequest(data);
-          } else if (cmd === 'CREATE_PROFILE') {
+          } else if (cmd === 'CREATE_PROFILE' || cmd === 'GUEST_INFO') {
             if (data?.name) {
               const newProfile: SingerProfile = {
                 id: data.id || `profile_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -550,18 +550,21 @@ export default function App() {
                 avatar: data.avatar || '🎤',
                 color: data.color || '#00f0ff',
                 favoriteSongIds: data.favoriteSongIds || [],
+                tableNumber: data.tableNumber,
                 createdAt: data.createdAt || Date.now(),
               };
               setProfiles((prev) => {
-                const exists = prev.some((p) => p.id === newProfile.id);
+                const exists = prev.some((p) => p.id === newProfile.id || p.name.toLowerCase() === newProfile.name.toLowerCase());
                 const updated = exists
-                  ? prev.map((p) => (p.id === newProfile.id ? newProfile : p))
+                  ? prev.map((p) => (p.id === newProfile.id || p.name.toLowerCase() === newProfile.name.toLowerCase() ? { ...p, ...newProfile } : p))
                   : [...prev, newProfile];
                 saveProfilesToStorage(updated);
                 peerSync.broadcastProfilesToGuests(updated);
                 return updated;
               });
-              showAlertToast(`👤 Perfil creado desde móvil: "${data.name}"`);
+              if (cmd === 'CREATE_PROFILE') {
+                showAlertToast(`👤 Perfil desde móvil: "${data.name}" ${data.tableNumber ? `(🪑 ${data.tableNumber})` : ''}`);
+              }
             }
           } else if (cmd === 'DELETE_PROFILE') {
             if (data?.profileId) {
@@ -585,12 +588,34 @@ export default function App() {
                 id: data.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
                 senderName: data.senderName || 'Invitado',
                 senderProfileId: data.senderProfileId,
+                tableNumber: data.tableNumber,
                 text: data.text.trim(),
                 timestamp: data.timestamp || Date.now(),
                 avatar: data.avatar || '💬',
                 color: data.color || '#00f0ff',
                 isHost: !!data.isHost,
               };
+
+              if (data.tableNumber) {
+                setProfiles((prev) => {
+                  let changed = false;
+                  const updated = prev.map((p) => {
+                    if ((data.senderProfileId && p.id === data.senderProfileId) || (data.senderName && p.name === data.senderName)) {
+                      if (p.tableNumber !== data.tableNumber) {
+                        changed = true;
+                        return { ...p, tableNumber: data.tableNumber };
+                      }
+                    }
+                    return p;
+                  });
+                  if (changed) {
+                    saveProfilesToStorage(updated);
+                    peerSync.broadcastProfilesToGuests(updated);
+                  }
+                  return updated;
+                });
+              }
+
               setChatMessages((prev) => {
                 if (prev.some((m) => m.id === msg.id)) return prev;
                 return [...prev, msg];
