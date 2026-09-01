@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Tv, FolderUp, Radio, QrCode } from 'lucide-react';
+import { Tv, FolderUp, Radio, QrCode, MessageSquare } from 'lucide-react';
 
 interface HeaderProps {
   onOpenAboutModal?: () => void;
@@ -7,6 +7,8 @@ interface HeaderProps {
   onOpenVideoStudio?: () => void;
   onOpenCastModal?: () => void;
   onOpenQrModal?: () => void;
+  onOpenChatModal?: () => void;
+  unreadChatCount?: number;
   onOpenDspSettings?: () => void;
   onOpenPublishModal?: () => void;
   onOpenShareModal?: () => void;
@@ -31,6 +33,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onOpenVideoStudio,
   onOpenCastModal,
   onOpenQrModal,
+  onOpenChatModal,
+  unreadChatCount,
   onOpenDspSettings,
   onOpenPublishModal,
   onOpenShareModal,
@@ -166,6 +170,24 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             >
               <QrCode className="w-3.5 h-3.5 text-indigo-400" />
               <span>QR Biblioteca</span>
+            </button>
+          )}
+
+          {/* Live Room Chat Button */}
+          {onOpenChatModal && (
+            <button
+              id="btn-chat-modal"
+              onClick={onOpenChatModal}
+              className="relative px-2.5 py-1 rounded-xl border border-pink-500/60 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95"
+              title="Abrir Chat de la Sala en Vivo"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-pink-400" />
+              <span>Chat de la Sala</span>
+              {unreadChatCount && unreadChatCount > 0 ? (
+                <span className="w-4 h-4 rounded-full bg-pink-500 text-white text-[9px] font-mono font-black flex items-center justify-center -mr-1 animate-pulse shadow-md">
+                  {unreadChatCount}
+                </span>
+              ) : null}
             </button>
           )}
 

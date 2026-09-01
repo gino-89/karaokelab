@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
+import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../types';
 import { getSongsFromDB, getYouTubeFavoritesFromStorage, saveYouTubeFavoritesToStorage } from '../services/db';
 import { tvBroadcast } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
@@ -25,6 +25,9 @@ import {
   X,
   Star,
   UserPlus,
+  MessageSquare,
+  Send,
+  MessageCircle,
 } from 'lucide-react';
 
 const GUEST_PROFILE_KEY = 'karaokelab_guest_profiles';
@@ -52,6 +55,41 @@ export const GuestRemoteView: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
   const [kickReason, setKickReason] = useState<'kicked' | 'expired_qr' | string>('kicked');
+
+  // Mobile Room Chat States
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInputText, setChatInputText] = useState('');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  useEffect(() => {
+    const unsub = peerSync.onChatMessageReceived((msg) => {
+      setChatMessages((prev) => [...prev, msg]);
+      if (!isChatOpen) {
+        setUnreadChatCount((prev) => prev + 1);
+      }
+    });
+    return () => unsub();
+  }, [isChatOpen]);
+
+  const handleSendGuestChatMessage = (text: string) => {
+    if (!text.trim()) return;
+    const myName = guestName.trim() || 'Invitado';
+    const myProf = profiles.find((p) => p.id === myProfileId);
+    const msg: ChatMessage = {
+      id: `msg_guest_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      senderName: myName,
+      senderProfileId: myProfileId,
+      text: text.trim(),
+      timestamp: Date.now(),
+      avatar: myProf?.avatar || '🎤',
+      color: myProf?.color || '#00f0ff',
+      isHost: false,
+    };
+    setChatMessages((prev) => [...prev, msg]);
+    peerSync.sendChatMessageFromGuest(msg);
+    setChatInputText('');
+  };
 
   // Pull-to-Refresh state for mobile devices
   const [pullDistance, setPullDistance] = useState(0);
@@ -1102,38 +1140,39 @@ export const GuestRemoteView: React.FC = () => {
       {/* TAB 2: LOCAL LIBRARY VIEW */}
       {remoteTab === 'library' && (
         <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-          {/* Quick Custom Song Request Bar */}
-          <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/40 flex flex-col gap-2 shadow-lg">
-            <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
-              <span>🎤</span>
-              <span>¿No ves tu canción? Pídela directamente:</span>
-            </span>
+          {/* Quick Room Chat Bar */}
+          <div
+            onClick={() => {
+              setIsChatOpen(true);
+              setUnreadChatCount(0);
+            }}
+            className="p-3 rounded-2xl bg-slate-900/90 border border-pink-500/40 hover:border-pink-400 flex items-center justify-between shadow-lg cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] group"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-xs font-black shadow-md group-hover:scale-110 transition-transform">
+                💬
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-white group-hover:text-pink-300 transition-colors">
+                  Chat de la Sala & Saludos 💬
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {chatMessages.length > 0
+                    ? `Último: "${chatMessages[chatMessages.length - 1].text}"`
+                    : 'Envía dedicatorias o mensajes a la pantalla principal'}
+                </span>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
-              <input
-                type="search"
-                enterKeyHint="send"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="Escribe el nombre de la canción o artista..."
-                value={customRequestTitle}
-                onChange={(e) => setCustomRequestTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && customRequestTitle.trim()) {
-                    (e.target as HTMLInputElement).blur();
-                    handleRequestCustomSong(customRequestTitle.trim());
-                  }
-                }}
-                className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f0ff]"
-              />
-              <button
-                type="button"
-                onClick={() => customRequestTitle.trim() && handleRequestCustomSong(customRequestTitle.trim())}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#bd00ff] text-slate-950 font-black text-xs shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
-              >
-                <ListPlus className="w-3.5 h-3.5" />
-                <span>Pedir</span>
-              </button>
+              {unreadChatCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-pink-500 text-white font-mono text-[10px] font-black animate-pulse shadow-md">
+                  {unreadChatCount} nuevo{unreadChatCount > 1 ? 's' : ''}
+                </span>
+              )}
+              <span className="px-3 py-1.5 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-bold group-hover:bg-pink-500 group-hover:text-white transition-all">
+                Abrir Chat
+              </span>
             </div>
           </div>
 
@@ -1156,6 +1195,145 @@ export const GuestRemoteView: React.FC = () => {
             isGuestMode={true}
             guestRestrictedProfileId={myProfileId}
           />
+        </div>
+      )}
+
+      {/* ── Floating Mobile Chat Button (Bottom-Right) ── */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsChatOpen(true);
+          setUnreadChatCount(0);
+        }}
+        className="fixed bottom-5 right-5 z-40 w-13 h-13 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white flex items-center justify-center shadow-[0_0_25px_rgba(255,0,127,0.5)] border border-pink-400/50 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+        title="Abrir Chat de la Sala"
+      >
+        <MessageSquare className="w-6 h-6" />
+        {unreadChatCount > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white font-mono text-[10px] font-black flex items-center justify-center animate-bounce border border-slate-950 shadow-md">
+            {unreadChatCount}
+          </span>
+        )}
+      </button>
+
+      {/* ── Mobile WhatsApp / Cyberpunk Style Chat Sheet ── */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-md mx-auto bg-[#090a14] border-t border-pink-500/40 rounded-t-3xl h-[85vh] flex flex-col shadow-[0_0_50px_rgba(255,0,127,0.3)] overflow-hidden">
+            {/* Header */}
+            <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-base font-black shadow-md">
+                  💬
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                    Chat de la Sala
+                  </h3>
+                  <p className="text-[10px] text-pink-400 font-mono">
+                    Conectado como: <span className="text-white font-bold">{guestName}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(false)}
+                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Message List */}
+            <div className="flex-1 p-3.5 overflow-y-auto space-y-3 scrollbar-thin">
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2 p-4">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 text-xl">
+                    💬
+                  </div>
+                  <p className="text-xs font-bold text-slate-300">Chat de la Sala Karaoke</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs">
+                    Escribe un saludo, dedicatoria o pide una canción especial directamente a la pantalla del Karaoke.
+                  </p>
+                </div>
+              ) : (
+                chatMessages.map((msg) => {
+                  const isMe = msg.senderProfileId === myProfileId || msg.senderName === guestName;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${msg.isHost ? 'items-start' : isMe ? 'items-end' : 'items-start'}`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1 px-1">
+                        <span className="text-xs">{msg.avatar || (msg.isHost ? '🎧' : '🎤')}</span>
+                        <span
+                          className={`text-[10px] font-bold ${
+                            msg.isHost ? 'text-pink-400' : isMe ? 'text-cyan-300' : 'text-purple-300'
+                          }`}
+                        >
+                          {msg.isHost ? 'Host / DJ 🎧' : isMe ? 'Tú' : msg.senderName}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-mono">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      <div
+                        className={`px-3.5 py-2 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md ${
+                          msg.isHost
+                            ? 'bg-gradient-to-r from-pink-700 to-purple-800 text-white rounded-tl-none border border-pink-500/40'
+                            : isMe
+                            ? 'bg-cyan-600 text-slate-950 font-semibold rounded-tr-none shadow-[0_0_15px_rgba(0,240,255,0.2)]'
+                            : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Quick Emojis & Input Bar */}
+            <div className="p-3 border-t border-slate-800 bg-[#0d0e1d] flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '⚡'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => handleSendGuestChatMessage(`${emoji}`)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-pink-500/50 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Escribe un mensaje o pedido..."
+                  value={chatInputText}
+                  onChange={(e) => setChatInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && chatInputText.trim()) {
+                      handleSendGuestChatMessage(chatInputText);
+                    }
+                  }}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSendGuestChatMessage(chatInputText)}
+                  disabled={!chatInputText.trim()}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white text-xs font-black cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

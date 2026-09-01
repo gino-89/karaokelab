@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { SongItem, QueueItem, LyricLine, SingerProfile, YouTubeFavoriteTrack, VideoBackgroundConfig, VocalAutomationConfig } from './types';
+import { SongItem, QueueItem, LyricLine, SingerProfile, YouTubeFavoriteTrack, VideoBackgroundConfig, VocalAutomationConfig, ChatMessage } from './types';
 import { VocalAutomationModal } from './components/VocalAutomationModal';
 import { audioEngine, audioBufferToWavBlob } from './services/audioEngine';
 import { separateAudioStems } from './services/stemSeparator';
@@ -27,7 +27,7 @@ import {
 import { videoRecorder } from './services/videoRecorder';
 import { analyzeSmartVocalCues, getActiveSmartCue } from './services/smartCueAnalyzer';
 import { Header } from './components/Header';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, MessageSquare, Send, MessageCircle } from 'lucide-react';
 import { KaraokeDisplay } from './components/KaraokeDisplay';
 import { MixerDeck } from './components/MixerDeck';
 import { SongQueue } from './components/SongQueue';
@@ -240,6 +240,29 @@ export default function App() {
   const [hostPeerId, setHostPeerId] = useState<string | null>(null);
   const [isDspModalOpen, setIsDspModalOpen] = useState(false);
   const [isVocalAutomationModalOpen, setIsVocalAutomationModalOpen] = useState(false);
+
+  // ── Room Live Chat States ──
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [hostChatText, setHostChatText] = useState('');
+  const [liveChatBanner, setLiveChatBanner] = useState<ChatMessage | null>(null);
+
+  const handleSendHostChatMessage = (text: string) => {
+    if (!text.trim()) return;
+    const msg: ChatMessage = {
+      id: `msg_host_${Date.now()}`,
+      senderName: 'Host / DJ 🎧',
+      text: text.trim(),
+      timestamp: Date.now(),
+      avatar: '🎧',
+      color: '#ff007f',
+      isHost: true,
+    };
+    setChatMessages((prev) => [...prev, msg]);
+    peerSync.broadcastChatMessageToGuests(msg);
+    setHostChatText('');
+  };
 
   // ── 1-Click Silent Folder / USB Player Sync States ──
   const [syncTargetFolder, setSyncTargetFolder] = useState<string>(getSavedSyncFolderPath());
@@ -515,6 +538,24 @@ export default function App() {
               if (prof && prof.id !== 'profile_all') {
                 showAlertToast(`⭐ "${data.track.title}" asignado a ${prof.name}`);
               }
+            }
+          } else if (cmd === 'CHAT_MESSAGE') {
+            if (data?.text) {
+              const msg: ChatMessage = {
+                id: data.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+                senderName: data.senderName || 'Invitado',
+                senderProfileId: data.senderProfileId,
+                text: data.text.trim(),
+                timestamp: data.timestamp || Date.now(),
+                avatar: data.avatar || '💬',
+                color: data.color || '#00f0ff',
+                isHost: !!data.isHost,
+              };
+              setChatMessages((prev) => [...prev, msg]);
+              setLiveChatBanner(msg);
+              setTimeout(() => setLiveChatBanner((curr) => (curr?.id === msg.id ? null : curr)), 6000);
+              setUnreadChatCount((prev) => prev + 1);
+              peerSync.broadcastChatMessageToGuests(msg);
             }
           }
         },
@@ -1890,6 +1931,11 @@ export default function App() {
         onOpenVideoStudio={handleOpenVideoStudio}
         onOpenCastModal={handleOpenCastModal}
         onOpenQrModal={handleOpenQrModal}
+        onOpenChatModal={() => {
+          setIsChatOpen(true);
+          setUnreadChatCount(0);
+        }}
+        unreadChatCount={unreadChatCount}
         onOpenDspSettings={handleOpenDspSettings}
         onOpenShareModal={handleOpenShareModalCallback}
         onOpenPublishModal={handleOpenShareModalCallback}
@@ -2387,6 +2433,156 @@ export default function App() {
             >
               <X className="w-3.5 h-3.5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Live Room Chat Pop-up Toast Banner ── */}
+      {liveChatBanner && (
+        <div className="fixed top-16 right-6 z-50 animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-auto">
+          <div
+            onClick={() => {
+              setIsChatOpen(true);
+              setUnreadChatCount(0);
+              setLiveChatBanner(null);
+            }}
+            className="px-4 py-3 rounded-2xl bg-[#0c0d1a]/95 border border-pink-500/60 shadow-[0_0_30px_rgba(255,0,127,0.35)] flex items-center gap-3 max-w-sm backdrop-blur-md cursor-pointer hover:scale-105 transition-all"
+          >
+            <span className="text-2xl shrink-0">{liveChatBanner.avatar || '💬'}</span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-pink-300 truncate">
+                  {liveChatBanner.senderName}
+                </span>
+                <span className="text-[9px] text-slate-400 font-mono shrink-0">
+                  {new Date(liveChatBanner.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-xs text-white font-medium line-clamp-2 leading-snug mt-0.5">
+                {liveChatBanner.text}
+              </p>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLiveChatBanner(null);
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── WhatsApp / Cyberpunk Room Chat Side Drawer ── */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#090a14] border-l border-pink-500/40 h-full flex flex-col shadow-[0_0_50px_rgba(255,0,127,0.25)]">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-lg font-black shadow-md">
+                  💬
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    Chat & Saludos de la Sala
+                  </h3>
+                  <p className="text-[10px] text-pink-400 font-mono">
+                    {chatMessages.length} mensaje{chatMessages.length !== 1 ? 's' : ''} en vivo
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Message List */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 scrollbar-thin">
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 gap-2">
+                  <MessageSquare className="w-10 h-10 text-pink-500/30" />
+                  <p className="text-xs font-bold text-slate-400">Aún no hay mensajes en el chat</p>
+                  <p className="text-[11px] text-slate-500 max-w-xs">
+                    Los invitados pueden enviar mensajes o dedicatorias desde el control remoto de su celular.
+                  </p>
+                </div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${msg.isHost ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1 px-1">
+                      <span className="text-xs">{msg.avatar || (msg.isHost ? '🎧' : '🎤')}</span>
+                      <span
+                        className={`text-[10px] font-bold ${
+                          msg.isHost ? 'text-pink-400' : 'text-cyan-300'
+                        }`}
+                      >
+                        {msg.senderName}
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-mono">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md ${
+                        msg.isHost
+                          ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-tr-none'
+                          : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Quick Emojis & Host Input Bar */}
+            <div className="p-3 border-t border-slate-800 bg-[#0d0e1d] flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '🎧', '⚡'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleSendHostChatMessage(`${emoji}`)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-pink-500/50 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Escribe un anuncio o respuesta como Host/DJ..."
+                  value={hostChatText}
+                  onChange={(e) => setHostChatText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && hostChatText.trim()) {
+                      handleSendHostChatMessage(hostChatText);
+                    }
+                  }}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSendHostChatMessage(hostChatText)}
+                  disabled={!hostChatText.trim()}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white text-xs font-black cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

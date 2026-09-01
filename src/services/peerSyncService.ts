@@ -1,9 +1,9 @@
 import Peer, { DataConnection } from 'peerjs';
-import { SongItem, SingerProfile, YouTubeFavoriteTrack } from '../types';
+import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../types';
 import { getDeviceFingerprint } from './deviceFingerprint';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'CHAT_MESSAGE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
   payload?: any;
 }
 
@@ -48,9 +48,15 @@ class PeerSyncService {
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
   private onYtFavoritesReceivedCallback: ((favorites: YouTubeFavoriteTrack[]) => void) | null = null;
+  private onChatMessageReceivedCallback: ((msg: ChatMessage) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
   private onKickedCallback: ((reason?: string, message?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
+
+  public onChatMessageReceived(callback: (msg: ChatMessage) => void): () => void {
+    this.onChatMessageReceivedCallback = callback;
+    return () => { this.onChatMessageReceivedCallback = null; };
+  }
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -385,6 +391,10 @@ class PeerSyncService {
           } else if (data.type === 'TOGGLE_YT_FAVORITE') {
             if (this.onCommandCallback) {
               this.onCommandCallback('TOGGLE_YT_FAVORITE', data.payload);
+            }
+          } else if (data.type === 'CHAT_MESSAGE') {
+            if (this.onCommandCallback) {
+              this.onCommandCallback('CHAT_MESSAGE', data.payload);
             }
           } else if (data.type === 'TV_DISPLAY_JOIN') {
             console.log('✓ Smart TV display connected via WebRTC:', conn.peer);
@@ -800,6 +810,10 @@ class PeerSyncService {
             if (this.onYtFavoritesReceivedCallback) {
               this.onYtFavoritesReceivedCallback(data.payload);
             }
+          } else if (data.type === 'CHAT_MESSAGE' && data.payload) {
+            if (this.onChatMessageReceivedCallback) {
+              this.onChatMessageReceivedCallback(data.payload);
+            }
           } else if (data.type === 'KICK') {
             const reason = data.payload?.reason || 'kicked';
             const message = data.payload?.message || '';
@@ -953,6 +967,32 @@ class PeerSyncService {
         console.warn('Error sending toggle YouTube favorite to host:', e);
       }
     }
+  }
+  public sendChatMessageFromGuest(msg: ChatMessage): { success: boolean; error?: string } {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'CHAT_MESSAGE',
+          payload: msg,
+        });
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: 'Error al enviar mensaje' };
+      }
+    }
+    return { success: false, error: 'Sin conexión con el anfitrión.' };
+  }
+
+  // Broadcast Chat message from host to all connected guest mobile devices
+  public broadcastChatMessageToGuests(msg: ChatMessage) {
+    if (!this.isHost) return;
+    this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'CHAT_MESSAGE', payload: msg });
+        } catch (_) {}
+      }
+    });
   }
 }
 

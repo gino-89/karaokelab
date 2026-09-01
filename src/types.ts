@@ -162,3 +162,14 @@ export interface SingerProfile {
   createdAt: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderName: string;
+  senderProfileId?: string;
+  text: string;
+  timestamp: number;
+  avatar?: string;
+  color?: string;
+  isHost?: boolean;
+}
+
