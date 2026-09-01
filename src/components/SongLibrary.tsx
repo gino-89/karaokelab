@@ -1073,20 +1073,22 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                     <span>⚡ Encolar Todo</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setProfileToDelete({
-                      id: activeProfile.id,
-                      name: activeProfile.name,
-                      avatar: activeProfile.avatar,
-                    })
-                  }
-                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md cursor-pointer transition-colors"
-                  title={`Eliminar perfil de ${activeProfile.name}`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {(!isGuestMode || (guestRestrictedProfileId && activeProfile.id === guestRestrictedProfileId)) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProfileToDelete({
+                        id: activeProfile.id,
+                        name: activeProfile.name,
+                        avatar: activeProfile.avatar,
+                      })
+                    }
+                    className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md cursor-pointer transition-colors"
+                    title={`Eliminar mi perfil de ${activeProfile.name}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           )}

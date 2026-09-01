@@ -459,13 +459,22 @@ export const GuestRemoteView: React.FC = () => {
 
   const handleDeleteProfile = (profileId: string) => {
     if (profileId === 'profile_all') return;
+    if (myProfileId && profileId !== myProfileId) {
+      setFeedback({ type: 'error', message: '⚠️ Solo puedes eliminar tu propio perfil de cantante.' });
+      setTimeout(() => setFeedback(null), 3500);
+      return;
+    }
     const updated = profiles.filter((p) => p.id !== profileId);
     saveGuestProfiles(updated.length > 0 ? updated : [{ id: 'profile_all', name: 'Todos', avatar: '👥', color: '#00f0ff', favoriteSongIds: [], createdAt: 0 }]);
     setActiveProfileId('profile_all');
     localStorage.setItem(GUEST_ACTIVE_PROFILE_KEY, 'profile_all');
+    setMyProfileId('');
+    localStorage.removeItem('karaokelab_guest_my_profile_id');
 
     // Notify Host to delete profile
     peerSync.sendDeleteProfileFromGuest(profileId);
+    setFeedback({ type: 'success', message: 'Tu perfil de cantante ha sido eliminado.' });
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   const handleSelectProfile = (profileId: string) => {
