@@ -88,30 +88,46 @@ export const TvStandaloneDisplay: React.FC = () => {
     return () => { isMounted = false; };
   }, [tvState?.songTitle, tvState?.songArtist, videoBgConfig.enabled, videoBgConfig.mode, tvState?.videoBgConfig, tvState?.youTubeEmbedId]);
 
-  // Synchronize Host isPlaying and Seeking directly to the TV's YouTube player
+  // Synchronize Host isPlaying and Seeking directly to the TV's YouTube player with millimetric precision
   const ytTvIframeRef = useRef<HTMLIFrameElement>(null);
   const lastSyncTimeRef = useRef<number>(0);
 
+  // Clean and extract standard YouTube video ID
+  const cleanYoutubeId = (() => {
+    const raw = tvState?.youTubeEmbedId || '';
+    if (!raw) return '';
+    const trimmed = raw.trim().replace(/^yt_/, '');
+    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    if (match && match[1]) return match[1];
+    const simpleMatch = trimmed.match(/^[\w-]{11}$/);
+    if (simpleMatch) return simpleMatch[0];
+    return trimmed;
+  })();
+
+  // Instant Play / Pause lockstep synchronization (Seek to exact timestamp + trigger Play/Pause command)
   useEffect(() => {
-    if (!tvState?.youTubeEmbedId) return;
+    if (!cleanYoutubeId) return;
 
     try {
       const win = ytTvIframeRef.current?.contentWindow;
       if (win) {
-        if (tvState.isPlaying) {
+        if (tvState?.currentTime !== undefined) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [tvState.currentTime, true] }), '*');
+        }
+        if (tvState?.isPlaying) {
           win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
         } else {
           win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
         }
       }
     } catch (_) {}
-  }, [tvState?.isPlaying, tvState?.youTubeEmbedId]);
+  }, [tvState?.isPlaying, cleanYoutubeId]);
 
+  // Live seek synchronization when host scrubs timeline
   useEffect(() => {
-    if (!tvState?.youTubeEmbedId || tvState.currentTime === undefined) return;
+    if (!cleanYoutubeId || tvState?.currentTime === undefined) return;
     const diff = Math.abs(tvState.currentTime - lastSyncTimeRef.current);
-    // If time jumps by more than 3 seconds (host user scrubbed the timeline), seek TV player to match
-    if (diff > 3) {
+    if (diff > 1.5) {
       lastSyncTimeRef.current = tvState.currentTime;
       try {
         const win = ytTvIframeRef.current?.contentWindow;
@@ -122,7 +138,7 @@ export const TvStandaloneDisplay: React.FC = () => {
     } else {
       lastSyncTimeRef.current = tvState.currentTime;
     }
-  }, [tvState?.currentTime, tvState?.youTubeEmbedId]);
+  }, [tvState?.currentTime, cleanYoutubeId]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -248,19 +264,7 @@ export const TvStandaloneDisplay: React.FC = () => {
   const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
-  // Clean and extract standard YouTube video ID
-  const cleanYoutubeId = (() => {
-    const raw = youTubeEmbedId || '';
-    if (!raw) return '';
-    const trimmed = raw.trim().replace(/^yt_/, '');
-    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-    if (match && match[1]) return match[1];
-    const simpleMatch = trimmed.match(/^[\w-]{11}$/);
-    if (simpleMatch) return simpleMatch[0];
-    return trimmed;
-  })();
-
-  // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV ──
+  // ── Fullscreen Edge-to-Edge Distraction-Free Cinema YouTube Video Mode for TV ──
   if (cleanYoutubeId) {
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
@@ -269,7 +273,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           key={`yt_tv_${cleanYoutubeId}`}
           src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0"
+          className="w-full h-full border-0 scale-[1.05]"
           style={{ width: '100vw', height: '100vh' }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -278,13 +282,13 @@ export const TvStandaloneDisplay: React.FC = () => {
               const win = ytTvIframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
-                win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 if (currentTime && currentTime > 1) {
-                  setTimeout(() => {
-                    try {
-                      win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
-                    } catch (_) {}
-                  }, 500);
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
+                }
+                if (tvState.isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
                 }
               }
             } catch (_) {}
