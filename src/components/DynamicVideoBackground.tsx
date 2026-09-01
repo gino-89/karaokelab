@@ -45,7 +45,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     lastVideoIdRef.current = config.videoId;
     const startSec = Math.max(0, Math.floor(currentTime || 0));
     const startParam = startSec > 0 ? `&start=${startSec}` : '';
-    embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
+    embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1${startParam}`;
   }
 
   // Sync Play / Pause command when playback state changes
