@@ -331,10 +331,14 @@ export const GuestRemoteView: React.FC = () => {
     }
 
     if (!isExpiredLock) {
-      const saved = localStorage.getItem('karaokelab_guest_name');
-      if (saved) {
-        setGuestName(saved);
+      const savedName = localStorage.getItem('karaokelab_guest_name');
+      const savedPin = localStorage.getItem('karaokelab_guest_pin');
+      if (savedName && savedPin && savedPin.length === 4) {
+        setGuestName(savedName);
+        setGuestPin(savedPin);
         setNameConfirmed(true);
+      } else {
+        setNameConfirmed(false);
       }
     }
 
@@ -525,7 +529,7 @@ export const GuestRemoteView: React.FC = () => {
       setMyProfileId(existing.id);
       localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
       setNameConfirmed(true);
-      peerSync.sendGuestName(trimmed);
+      peerSync.sendGuestName(trimmed, tableNumber, existing.pin || pinToUse);
       setPinChallengeModal(null);
       return;
     }
@@ -535,7 +539,7 @@ export const GuestRemoteView: React.FC = () => {
     localStorage.setItem('karaokelab_guest_name', trimmed);
     localStorage.setItem('karaokelab_guest_pin', pinToUse);
     setNameConfirmed(true);
-    peerSync.sendGuestName(trimmed);
+    peerSync.sendGuestName(trimmed, tableNumber, pinToUse);
     setPinChallengeModal(null);
 
     const newProfId = `profile_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;

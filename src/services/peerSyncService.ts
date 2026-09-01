@@ -945,14 +945,15 @@ class PeerSyncService {
     }
   }
 
-  // Send guest name & table to host
-  public sendGuestName(name: string, tableNumber?: string) {
+  // Send guest name & table & pin to host
+  public sendGuestName(name: string, tableNumber?: string, pin?: string) {
     if (this.hostConnection && this.hostConnection.open) {
       try {
         const savedTable = tableNumber || localStorage.getItem('karaokelab_guest_table_number') || '';
+        const savedPin = pin || localStorage.getItem('karaokelab_guest_pin') || '';
         this.hostConnection.send({
           type: 'GUEST_INFO',
-          payload: { name, tableNumber: savedTable },
+          payload: { name, tableNumber: savedTable, pin: savedPin },
         });
       } catch (_) {}
     }
