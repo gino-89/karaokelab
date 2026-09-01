@@ -1281,11 +1281,23 @@ export const GuestRemoteView: React.FC = () => {
           {/* Main Song Library Component (Guest Mode: no delete buttons, with profile management and YouTube favorites) */}
           <SongLibrary
             savedSongs={savedSongs}
-            queue={[]}
+            queue={roomQueue}
             onFilesSelected={() => {}}
-            onSelectSong={handleRequestSong}
+            onSelectSong={(song) => {
+              if (isSongInMyQueue(song.id, song.title)) {
+                handleCancelQueueItem(song.id, undefined, song.title);
+              } else {
+                handleRequestSong(song);
+              }
+            }}
             onDeleteSong={() => {}}
-            onAddToQueue={handleRequestSong}
+            onAddToQueue={(song) => {
+              if (isSongInMyQueue(song.id, song.title)) {
+                handleCancelQueueItem(song.id, undefined, song.title);
+              } else {
+                handleRequestSong(song);
+              }
+            }}
             profiles={profiles}
             activeProfileId={activeProfileId}
             onSelectProfile={handleSelectProfile}

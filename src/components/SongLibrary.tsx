@@ -2315,14 +2315,26 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
                           <button
                             onClick={() => onAddToQueue(song)}
-                            className={`p-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${inQueue
-                              ? 'border-[#00ff9d]/40 bg-[#00ff9d]/10 text-[#00ff9d]'
-                              : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
-                              }`}
-                            title="Agregar a la cola"
+                            className={`p-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                              inQueue
+                                ? isGuestMode
+                                  ? 'border-rose-500/80 bg-rose-950/80 text-rose-200 hover:bg-rose-900 shadow-[0_0_12px_rgba(244,63,94,0.35)] animate-pulse'
+                                  : 'border-[#00ff9d]/40 bg-[#00ff9d]/10 text-[#00ff9d]'
+                                : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
+                            }`}
+                            title={inQueue ? (isGuestMode ? 'Toca para cancelar pedido' : 'Ya está en la cola') : 'Agregar a la cola'}
                           >
-                            {inQueue ? <Check className="w-3 h-3" /> : <ListPlus className="w-3 h-3 text-[#00f0ff]" />}
-                            <span className="hidden sm:inline">{inQueue ? 'En cola' : 'Cola'}</span>
+                            {inQueue ? (
+                              isGuestMode ? <X className="w-3 h-3 text-rose-300" /> : <Check className="w-3 h-3" />
+                            ) : (
+                              <ListPlus className="w-3 h-3 text-[#00f0ff]" />
+                            )}
+                            <span className="hidden sm:inline">
+                              {inQueue ? (isGuestMode ? '✓ En Cola (Cancelar ❌)' : 'En cola') : 'Cola'}
+                            </span>
+                            <span className="sm:hidden font-black">
+                              {inQueue ? (isGuestMode ? '✓ En Cola ❌' : 'En cola') : '+ Cola'}
+                            </span>
                           </button>
 
                           {/* RE-ANALYZE BPM & KEY (DSP) BUTTON */}
