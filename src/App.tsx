@@ -1862,7 +1862,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#080811] text-slate-100 flex flex-col bg-grid-cyber selection:bg-[#ff007f] selection:text-white relative overflow-x-hidden">
       {/* Persistent Dynamic Video Background for Fullscreen Party Mode */}
-      {isPartyMode && isPlaying && currentSong && videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId && (
+      {isPartyMode && currentSong && videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId && (
         <DynamicVideoBackground
           config={videoBgConfig}
           isPlaying={isPlaying}
