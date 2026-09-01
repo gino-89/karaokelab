@@ -843,61 +843,6 @@ export const GuestRemoteView: React.FC = () => {
           </span>
         </div>
       </div>
-      {/* Centered Modal / Overlay for Lost Connection (Media Pantalla) */}
-      {connStatus === 'disconnected' && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
-          <div className="w-full max-w-sm bg-[#0d0914] border-2 border-rose-500/60 rounded-3xl shadow-[0_0_60px_rgba(244,63,94,0.4)] p-6 flex flex-col items-center gap-5 text-center relative animate-in zoom-in-95 duration-200">
-            {/* Glowing Icon */}
-            <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-950/60 border border-rose-500/60 flex items-center justify-center shadow-[0_0_35px_rgba(244,63,94,0.35)] animate-pulse">
-                <WifiOff className="w-10 h-10 text-rose-400" />
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shadow">
-                ⚠️
-              </div>
-            </div>
-
-            {/* Title & Description */}
-            <div className="flex flex-col gap-1.5">
-              <h2 className="text-lg font-black uppercase tracking-wider text-rose-300">
-                Conexión Perdida
-              </h2>
-              <p className="text-xs text-slate-300 leading-relaxed max-w-xs">
-                Se perdió la sincronización en vivo con la pantalla del karaoke.
-              </p>
-              <p className="text-[11px] text-slate-400 leading-snug mt-1">
-                El sistema está intentando reconectar. Si el anfitrión reinició la sala, por favor escanea el nuevo código QR.
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className="w-full flex flex-col gap-2.5 pt-2 border-t border-slate-800/80">
-              <button
-                type="button"
-                onClick={() => peerSync.reconnectGuest()}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_20px_rgba(244,63,94,0.35)] flex items-center justify-center gap-2 active:scale-95"
-              >
-                <RefreshCw className="w-4 h-4 text-white" />
-                <span>Reconectar Ahora</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="w-full py-2 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-bold cursor-pointer transition-all border border-slate-700/60 flex items-center justify-center gap-1.5"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Recargar Página</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
-              <Wifi className="w-3 h-3 text-rose-500 animate-pulse" />
-              <span>Intentando reconectar automáticamente...</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Sticky Header & Navigation for Mobile Phones */}
       <div className="sticky top-0 z-30 bg-[#080811]/95 backdrop-blur-md pb-2 pt-1 space-y-2">
@@ -1502,6 +1447,62 @@ export const GuestRemoteView: React.FC = () => {
               >
                 Guardar 🪑
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Top-Layer Overlay for Lost Connection (Overlays Chat, Edit Table, & All Screens) ── */}
+      {(connStatus === 'disconnected' || connStatus === 'failed') && (
+        <div className="fixed inset-0 z-[999999] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
+          <div className="w-full max-w-sm bg-[#0d0914] border-2 border-rose-500/80 rounded-3xl shadow-[0_0_80px_rgba(244,63,94,0.5)] p-6 flex flex-col items-center gap-5 text-center relative animate-in zoom-in-95 duration-200">
+            {/* Glowing Icon */}
+            <div className="relative">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-950/60 border border-rose-500/80 flex items-center justify-center shadow-[0_0_40px_rgba(244,63,94,0.4)] animate-pulse">
+                <WifiOff className="w-10 h-10 text-rose-400" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shadow">
+                ⚠️
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-lg font-black uppercase tracking-wider text-rose-300">
+                Conexión Perdida
+              </h2>
+              <p className="text-xs text-slate-200 leading-relaxed max-w-xs font-medium">
+                Se perdió la sincronización en vivo con la pantalla del karaoke.
+              </p>
+              <p className="text-[11px] text-slate-400 leading-snug mt-1">
+                El sistema está intentando reconectar. Si el anfitrión reinició la sala, por favor escanea el nuevo código QR.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="w-full flex flex-col gap-2.5 pt-2 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => peerSync.reconnectGuest()}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_20px_rgba(244,63,94,0.35)] flex items-center justify-center gap-2 active:scale-95"
+              >
+                <RefreshCw className="w-4 h-4 text-white" />
+                <span>Reconectar Ahora</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white text-[11px] font-bold cursor-pointer transition-all border border-slate-700/60 flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Recargar Página</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
+              <Wifi className="w-3 h-3 text-rose-500 animate-pulse" />
+              <span>Intentando reconectar automáticamente...</span>
             </div>
           </div>
         </div>
