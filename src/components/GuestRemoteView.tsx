@@ -1438,7 +1438,7 @@ export const GuestRemoteView: React.FC = () => {
       {/* ── Mobile WhatsApp / Cyberpunk Style Chat Sheet ── */}
       {isChatOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200"
+          className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200"
           onClick={() => setIsChatOpen(false)}
         >
           <div
@@ -1588,7 +1588,7 @@ export const GuestRemoteView: React.FC = () => {
 
       {/* ── Mis Pedidos / Mi Fila Modal ── */}
       {isMyQueueOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200">
           <div className="w-full max-w-md mx-auto bg-[#090a14] border-t border-indigo-500/40 rounded-t-3xl h-[75vh] flex flex-col shadow-[0_0_50px_rgba(99,102,241,0.35)] overflow-hidden">
             {/* Header */}
             <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">
@@ -1665,7 +1665,7 @@ export const GuestRemoteView: React.FC = () => {
 
       {/* ── Edit Table Modal Overlay ── */}
       {isEditTableOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-xs bg-[#0c0d1b] border border-pink-500/40 rounded-2xl p-4 flex flex-col gap-3 shadow-[0_0_40px_rgba(255,0,127,0.35)] animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-1.5 text-pink-400 font-bold text-xs">
@@ -1741,7 +1741,7 @@ export const GuestRemoteView: React.FC = () => {
 
       {/* ── PIN Challenge / Name Conflict Modal ── */}
       {pinChallengeModal?.show && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#0c0d1b] border border-amber-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_0_50px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider font-mono">
