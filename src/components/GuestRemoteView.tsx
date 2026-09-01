@@ -476,9 +476,20 @@ export const GuestRemoteView: React.FC = () => {
   }, [nameConfirmed, guestName, profiles]);
 
   const handleConfirmName = (overrideName?: string, overridePin?: string) => {
-    const trimmed = (overrideName || guestName).trim() || 'Invitado';
+    const trimmed = (overrideName || guestName).trim();
+    if (!trimmed) {
+      setFeedback({ type: 'error', message: '⚠️ Debes ingresar tu nombre de cantante para entrar.' });
+      setTimeout(() => setFeedback(null), 3500);
+      return;
+    }
+
     const savedPin = localStorage.getItem('karaokelab_guest_pin') || '';
-    const pinToUse = (overridePin !== undefined ? overridePin : (inputPin || guestPin || savedPin)).trim() || Math.floor(1000 + Math.random() * 9000).toString();
+    const pinToUse = (overridePin !== undefined ? overridePin : (guestPin || inputPin || savedPin)).trim();
+    if (!pinToUse || pinToUse.length !== 4) {
+      setFeedback({ type: 'error', message: '⚠️ Debes ingresar un PIN obligatorio de 4 dígitos para proteger tu perfil (ej. 1234).' });
+      setTimeout(() => setFeedback(null), 4000);
+      return;
+    }
 
     // Check if profile with this name already exists in room
     const existing = profiles.find(
@@ -486,21 +497,22 @@ export const GuestRemoteView: React.FC = () => {
     );
 
     if (existing) {
-      const activePin = pinToUse || savedPin;
-      if (existing.pin && existing.pin !== activePin && savedPin !== existing.pin) {
+      if (existing.pin && existing.pin !== pinToUse && savedPin !== existing.pin) {
         setPinChallengeModal({
           show: true,
           existingProfile: existing,
           targetName: trimmed,
-          errorMsg: `🔒 El nombre "${trimmed}" ya pertenece a otro cliente. Ingresa tu PIN de 4 dígitos para recuperar el perfil o elige otro nombre.`,
+          errorMsg: `🔒 El nombre "${trimmed}" ya pertenece a otro cliente registrado en la sala y el PIN no coincide.`,
         });
+        setFeedback({ type: 'error', message: `❌ El PIN ingresado no coincide con el perfil "${trimmed}". Si eres otro cliente, elige un nombre diferente.` });
+        setTimeout(() => setFeedback(null), 4500);
         return;
       }
 
       setGuestName(trimmed);
-      setGuestPin(existing.pin || activePin);
+      setGuestPin(existing.pin || pinToUse);
       localStorage.setItem('karaokelab_guest_name', trimmed);
-      localStorage.setItem('karaokelab_guest_pin', existing.pin || activePin);
+      localStorage.setItem('karaokelab_guest_pin', existing.pin || pinToUse);
       setMyProfileId(existing.id);
       localStorage.setItem('karaokelab_guest_my_profile_id', existing.id);
       setNameConfirmed(true);
@@ -924,23 +936,23 @@ export const GuestRemoteView: React.FC = () => {
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-slate-300">
-                <div className="flex items-center gap-2 text-amber-400">
+                <div className="flex items-center gap-2 text-amber-400 font-bold">
                   <KeyRound className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">PIN de 4 Dígitos</span>
+                  <span className="text-xs uppercase tracking-wider">PIN de 4 Dígitos</span>
                 </div>
-                <span className="text-[10px] text-amber-300/80 font-mono">(Protege tu perfil)</span>
+                <span className="text-[10px] text-amber-300 font-mono font-bold">(Requerido 🔒)</span>
               </div>
               <input
-                type="text"
+                type="password"
                 inputMode="numeric"
                 maxLength={4}
-                placeholder="Ej. 1234 (opcional)"
+                placeholder="**** (Obligatorio 4 dígitos)"
                 value={guestPin}
                 onChange={(e) => setGuestPin(e.target.value.replace(/\D/g, ''))}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleConfirmName();
                 }}
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 font-mono tracking-widest text-center focus:outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 font-mono tracking-widest text-center focus:outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all font-bold"
               />
             </div>
 
@@ -1174,23 +1186,16 @@ export const GuestRemoteView: React.FC = () => {
               ))}
             </div>
             {/* Singer Profile Active Indicator in YouTube Tab */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs border-t border-slate-800/80">
-              <span className="text-[10px] text-slate-400 font-mono shrink-0">Cantante activo:</span>
-              {profiles.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleSelectProfile(p.id)}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
-                    activeProfileId === p.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
-                  }`}
-                >
-                  <span>{p.avatar}</span>
-                  <span>{p.name}</span>
-                </button>
-              ))}
+            <div className="flex items-center justify-between pb-1 pt-1.5 text-xs border-t border-slate-800/80">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">Cantante activo:</span>
+                <span className="px-2.5 py-0.5 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/40 text-pink-300 font-black text-[11px] flex items-center gap-1">
+                  <span>🎤</span>
+                  <span>{guestName}</span>
+                  <span className="text-[9px] text-pink-400 font-mono">({tableNumber})</span>
+                </span>
+              </div>
+              <span className="text-[9px] text-slate-500 font-mono">🔒 Perfil Personal</span>
             </div>
           </div>
 

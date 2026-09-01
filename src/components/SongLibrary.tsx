@@ -2088,34 +2088,34 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                   )}
                 </div>
 
-                {/* Singer Profile Filter Dropdown */}
-                <select
-                  value={activeProfileId}
-                  onChange={(e) => {
-                    if (e.target.value === '__new_profile__') {
-                      setIsCreateProfileOpen(true);
-                    } else {
-                      onSelectProfile?.(e.target.value);
-                    }
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-cyan-300 font-bold focus:outline-none cursor-pointer"
-                >
-                  <option value="profile_all" className="bg-slate-900 text-cyan-400 font-bold">
-                    👥 Perfil: Todos ({savedSongs.length})
-                  </option>
-                  {profiles
-                    .filter((p) => p.id !== 'profile_all')
-                    .map((p) => (
-                      <option key={p.id} value={p.id} className="bg-slate-900 text-white font-medium">
-                        {p.avatar} Cantante: {p.name} ({p.favoriteSongIds.length})
-                      </option>
-                    ))}
-                  {!isGuestMode && (
+                {/* Singer Profile Filter Dropdown (Host Mode Only) */}
+                {!isGuestMode && (
+                  <select
+                    value={activeProfileId}
+                    onChange={(e) => {
+                      if (e.target.value === '__new_profile__') {
+                        setIsCreateProfileOpen(true);
+                      } else {
+                        onSelectProfile?.(e.target.value);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-cyan-300 font-bold focus:outline-none cursor-pointer"
+                  >
+                    <option value="profile_all" className="bg-slate-900 text-cyan-400 font-bold">
+                      👥 Perfil: Todos ({savedSongs.length})
+                    </option>
+                    {profiles
+                      .filter((p) => p.id !== 'profile_all')
+                      .map((p) => (
+                        <option key={p.id} value={p.id} className="bg-slate-900 text-white font-medium">
+                          {p.avatar} Cantante: {p.name} ({p.favoriteSongIds.length})
+                        </option>
+                      ))}
                     <option value="__new_profile__" className="bg-slate-900 text-amber-400 font-bold">
                       ➕ + Nuevo Perfil...
                     </option>
-                  )}
-                </select>
+                  </select>
+                )}
 
                 {/* Artist Filter */}
                 <select
