@@ -2560,8 +2560,8 @@ export default function App() {
 
       {/* ── Modal de Confirmación de Limpieza de Caché ── */}
       {isClearCacheModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-auto">
-          <div className="w-full max-w-md bg-slate-900 border border-rose-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(244,63,94,0.3)] flex flex-col gap-4 text-center">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-auto" onClick={() => setIsClearCacheModalOpen(false)}>
+          <div className="w-full max-w-md bg-slate-900 border border-rose-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(244,63,94,0.3)] flex flex-col gap-4 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto text-2xl border border-rose-500/40">
               🗑️
             </div>
@@ -2663,8 +2663,8 @@ export default function App() {
 
       {/* ── WhatsApp / Cyberpunk Room Chat Side Drawer (Private 1-on-1 Chats) ── */}
       {isChatOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-[#090a14] border-l border-pink-500/40 h-full flex shadow-[0_0_50px_rgba(255,0,127,0.25)] overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200" onClick={() => setIsChatOpen(false)}>
+          <div className="w-full max-w-2xl bg-[#090a14] border-l border-pink-500/40 h-full flex shadow-[0_0_50px_rgba(255,0,127,0.25)] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Left Column: Contact / Conversation Threads List */}
             <div className="w-64 border-r border-slate-800 bg-[#0c0d1b] flex flex-col h-full shrink-0">
               <div className="p-3.5 border-b border-slate-800 bg-[#0e0f21] flex items-center justify-between">

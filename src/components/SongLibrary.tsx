@@ -2587,8 +2587,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── Edit Metadata Modal ─────────────────── */}
       {songToEdit && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSongToEdit(null)}>
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-amber-400" />
@@ -2804,8 +2804,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── Song Click Action Prompt Modal (Reproducir vs Agregar a Cola) ─────────────────── */}
       {songActionTarget && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSongActionTarget(null)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#ff007f]/30 to-[#00f0ff]/30 border border-slate-700 flex items-center justify-center shrink-0">
                 <Music2 className="w-5 h-5 text-white" />
@@ -2884,8 +2884,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── Delete Confirmation Warning Modal ─────────────────── */}
       {songToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSongToDelete(null)}>
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#ff007f]/20 border border-[#ff007f]/40 flex items-center justify-center shrink-0 text-[#ff007f]">
                 <AlertTriangle className="w-5 h-5" />
@@ -2923,8 +2923,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── CREATE SINGER PROFILE MODAL ─────────────────── */}
       {isCreateProfileOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsCreateProfileOpen(false)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🎤</span>
@@ -3015,8 +3015,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── ASSIGN SONG TO SINGER PROFILES MODAL (HOST ONLY) ─────────────────── */}
       {!isGuestMode && songForProfileAssign && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSongForProfileAssign(null)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
@@ -3125,8 +3125,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── ASSIGN YOUTUBE TRACK TO SINGER PROFILES MODAL (HOST ONLY) ─────────────────── */}
       {!isGuestMode && ytTrackForProfileAssign && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setYtTrackForProfileAssign(null)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
@@ -3248,8 +3248,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── CONFIRM DELETE SINGER PROFILE MODAL ─────────────────── */}
       {profileToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-rose-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setProfileToDelete(null)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-rose-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -3294,8 +3294,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── Export Options Modal (Full Audio ZIP vs Metadata JSON) ─────────────────── */}
       {isExportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#0c0e17] border border-slate-700/80 rounded-2xl p-6 flex flex-col gap-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4" onClick={() => !isExportingAudioZip && setIsExportModalOpen(false)}>
+          <div className="w-full max-w-lg bg-[#0c0e17] border border-slate-700/80 rounded-2xl p-6 flex flex-col gap-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-3">
@@ -3423,8 +3423,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── MANAGE SINGER PROFILES & PINS MODAL (DJ HOST) ─────────────────── */}
       {isManageProfilesOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0c0e18] border border-cyan-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_0_50px_rgba(0,240,255,0.25)] animate-in fade-in zoom-in-95 duration-150 max-h-[85vh]">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setIsManageProfilesOpen(false)}>
+          <div className="w-full max-w-md bg-[#0c0e18] border border-cyan-500/40 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_0_50px_rgba(0,240,255,0.25)] animate-in fade-in zoom-in-95 duration-150 max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
@@ -3530,8 +3530,8 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── EDIT / RESET PROFILE PIN MODAL ─────────────────── */}
       {editingPinProfile && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-amber-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setEditingPinProfile(null)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-amber-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider font-mono">
                 <KeyRound className="w-4 h-4" />
