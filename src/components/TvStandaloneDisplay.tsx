@@ -260,6 +260,13 @@ export const TvStandaloneDisplay: React.FC = () => {
     return trimmed;
   })();
 
+  // Track initial start second once per YouTube video ID to start exactly at host playback time without restarting from 0s
+  const initialStartMapRef = useRef<Record<string, number>>({});
+  if (cleanYoutubeId && initialStartMapRef.current[cleanYoutubeId] === undefined) {
+    initialStartMapRef.current[cleanYoutubeId] = Math.max(0, Math.floor(currentTime || 0));
+  }
+  const startSec = cleanYoutubeId ? (initialStartMapRef.current[cleanYoutubeId] || 0) : 0;
+
   // ── Fullscreen Edge-to-Edge Cinema YouTube Video Mode for TV ──
   if (cleanYoutubeId) {
     return (
@@ -267,7 +274,7 @@ export const TvStandaloneDisplay: React.FC = () => {
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${cleanYoutubeId}`}
-          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0`}
+          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0${startSec > 0 ? `&start=${startSec}` : ''}`}
           title="YouTube Karaoke TV"
           className="w-full h-full border-0"
           style={{ width: '100vw', height: '100vh' }}
@@ -278,7 +285,14 @@ export const TvStandaloneDisplay: React.FC = () => {
               const win = ytTvIframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
-                win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                if (startSec > 0) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [startSec, true] }), '*');
+                }
+                if (tvState.isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+                }
               }
             } catch (_) {}
           }}
