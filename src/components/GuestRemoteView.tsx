@@ -908,6 +908,20 @@ export const GuestRemoteView: React.FC = () => {
             <p className="text-xs text-slate-400 font-mono">Control Remoto en Vivo</p>
           </div>
 
+          {/* Feedback / Error Alert Banner */}
+          {feedback && (
+            <div
+              className={`w-full p-3.5 rounded-xl border text-xs font-bold flex items-start gap-2.5 shadow-lg animate-in slide-in-from-top-2 duration-200 ${
+                feedback.type === 'error'
+                  ? 'bg-rose-950/95 border-rose-500/80 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.35)]'
+                  : 'bg-emerald-950/95 border-emerald-500/80 text-emerald-200 shadow-[0_0_25px_rgba(52,211,153,0.35)]'
+              }`}
+            >
+              <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${feedback.type === 'error' ? 'text-rose-400' : 'text-emerald-400'}`} />
+              <span className="leading-relaxed flex-1 font-sans">{feedback.message}</span>
+            </div>
+          )}
+
           <div className="w-full p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 text-cyan-300">
