@@ -353,6 +353,14 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const [newProfileAvatar, setNewProfileAvatar] = useState('🎤');
   const [newProfileColor, setNewProfileColor] = useState('#00f0ff');
   const [songForProfileAssign, setSongForProfileAssign] = useState<SongItem | null>(null);
+  const [ytTrackForProfileAssign, setYtTrackForProfileAssign] = useState<{
+    id: string;
+    title: string;
+    channel: string;
+    duration: string;
+    thumbnail: string;
+    url: string;
+  } | null>(null);
 
   const activeProfile = useMemo(() => {
     return profiles.find((p) => p.id === activeProfileId) || profiles[0];
@@ -1563,24 +1571,21 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      onToggleYouTubeFavorite(
-                                        {
-                                          id: item.id,
-                                          title: item.title,
-                                          channel: item.channel,
-                                          duration: item.duration,
-                                          thumbnail: item.thumbnail,
-                                          url: item.url,
-                                        },
-                                        activeProfileId
-                                      )
+                                      setYtTrackForProfileAssign({
+                                        id: item.id,
+                                        title: item.title,
+                                        channel: item.channel,
+                                        duration: item.duration,
+                                        thumbnail: item.thumbnail,
+                                        url: item.url,
+                                      })
                                     }
                                     className={`p-2.5 px-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
                                       isFav
                                         ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
                                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-300 hover:border-slate-600'
                                     }`}
-                                    title={isFav ? 'Quitar de Favoritos' : 'Guardar en Favoritos'}
+                                    title="Asignar video a perfil de cantante"
                                   >
                                     <Star className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
                                   </button>
@@ -1653,7 +1658,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => onAddToQueue(ytSongItem)}
@@ -1669,19 +1674,25 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                   <span>{isInQueue ? 'En Cola' : 'Encolar'}</span>
                                 </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => onAddToQueue(ytSongItem)}
-                                  disabled={isInQueue}
-                                  className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center cursor-pointer ${
-                                    isInQueue
-                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
-                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40'
-                                  }`}
-                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
-                                >
-                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5" />}
-                                </button>
+                                {onToggleYouTubeFavorite && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setYtTrackForProfileAssign({
+                                        id: yt.id,
+                                        title: yt.title,
+                                        channel: yt.channel,
+                                        duration: yt.duration,
+                                        thumbnail: yt.thumbnail,
+                                        url: yt.url,
+                                      })
+                                    }
+                                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer"
+                                    title="Asignar a cantantes"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                  </button>
+                                )}
 
                                 {onToggleYouTubeFavorite && (
                                   <button
@@ -2787,6 +2798,101 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
             <div className="flex items-center justify-end pt-2 border-t border-slate-800">
               <button
                 onClick={() => setSongForProfileAssign(null)}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition-colors"
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ASSIGN YOUTUBE TRACK TO SINGER PROFILES MODAL ─────────────────── */}
+      {ytTrackForProfileAssign && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <h3 className="text-sm font-bold text-white">Favoritos de YouTube por Cantante</h3>
+              </div>
+              <button
+                onClick={() => setYtTrackForProfileAssign(null)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+              <img
+                src={ytTrackForProfileAssign.thumbnail}
+                alt={ytTrackForProfileAssign.title}
+                className="w-16 h-11 rounded-lg object-cover shrink-0 bg-slate-900"
+              />
+              <div className="flex flex-col min-w-0">
+                <p className="text-xs text-white font-bold line-clamp-2 leading-snug">
+                  {ytTrackForProfileAssign.title}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                  {ytTrackForProfileAssign.channel} • {ytTrackForProfileAssign.duration}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400">
+              Selecciona qué cantantes tienen este video en su repertorio favorito:
+            </p>
+
+            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+              {profiles.filter((p) => p.id !== 'profile_all').length === 0 ? (
+                <div className="py-6 text-center text-slate-500 text-xs">
+                  <p className="mb-2">Aún no has creado ningún perfil de persona.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYtTrackForProfileAssign(null);
+                      setIsCreateProfileOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 cursor-pointer"
+                  >
+                    + Crear Perfil (Ej: John)
+                  </button>
+                </div>
+              ) : (
+                profiles
+                  .filter((p) => p.id !== 'profile_all')
+                  .map((p) => {
+                    const isFav = youtubeFavorites.some(
+                      (fav) => fav.id === ytTrackForProfileAssign.id && fav.singerProfileId === p.id
+                    );
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => onToggleYouTubeFavorite?.(ytTrackForProfileAssign, p.id)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${isFav
+                          ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
+                          }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{p.avatar}</span>
+                          <span>{p.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Star className={`w-4 h-4 ${isFav ? 'fill-amber-400 text-amber-400' : 'text-slate-600'}`} />
+                          <span className="text-[10px] font-mono">{isFav ? 'Favorita' : 'No asignada'}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+              )}
+            </div>
+
+            <div className="flex items-center justify-end pt-2 border-t border-slate-800">
+              <button
+                onClick={() => setYtTrackForProfileAssign(null)}
                 className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition-colors"
               >
                 Listo
