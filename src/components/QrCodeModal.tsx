@@ -72,8 +72,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, hostPeerId, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#0b0d17] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(0,240,255,0.3)] overflow-hidden flex flex-col text-center relative z-50">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="w-full max-w-md bg-[#0b0d17] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(0,240,255,0.3)] overflow-hidden flex flex-col text-center relative z-50" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <div className="px-6 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">

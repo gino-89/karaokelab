@@ -114,8 +114,8 @@ export function PublishWebPlayerModal({ song, lyrics, onClose }: PublishWebPlaye
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-700/60 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-700/60 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800 bg-zinc-900/80">
           <div className="flex items-center space-x-3">
