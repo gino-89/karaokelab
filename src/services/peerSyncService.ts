@@ -325,11 +325,8 @@ class PeerSyncService {
 
       setTimeout(() => {
         try { conn.close(); } catch (_) {}
-      }, 600);
+      }, 500);
     }
-
-    // Rotate QR key so any NEW camera scan has a fresh unbanned key
-    this.rotateQrKey();
 
     this.guestConnections.delete(peerId);
     this.connectedGuests.delete(peerId);
@@ -596,14 +593,7 @@ class PeerSyncService {
               this.onYtFavoritesReceivedCallback(data.payload);
             }
           } else if (data.type === 'KICK') {
-            const kickedKey = data.payload?.kickedKey || '';
-            const hostId = data.payload?.hostId || targetHostId;
-
             try {
-              if (kickedKey) {
-                localStorage.setItem('karaokelab_kicked_key', kickedKey);
-              }
-              localStorage.setItem('karaokelab_kicked_host', hostId);
               localStorage.removeItem('karaokelab_guest_name');
             } catch (_) {}
 
@@ -613,7 +603,7 @@ class PeerSyncService {
             this._setConnectionStatus('disconnected');
 
             if (this.onKickedCallback) {
-              this.onKickedCallback(kickedKey);
+              this.onKickedCallback();
             }
           }
         });

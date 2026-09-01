@@ -50,46 +50,10 @@ export const GuestRemoteView: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
-  // Check and validate kick state against current URL and stored QR key
-  const checkKickState = useCallback(() => {
-    const params = new URLSearchParams(window.location.search);
-    const hostParam = params.get('host') || '';
-    const urlKey = params.get('k') || '';
-    const kickedKey = localStorage.getItem('karaokelab_kicked_key');
-    const kickedHost = localStorage.getItem('karaokelab_kicked_host');
-
-    // If device was kicked from this host:
-    if (kickedHost && hostParam && kickedHost === hostParam) {
-      // Must have scanned a genuine NEW QR code with a different valid key 'k'
-      if (urlKey && kickedKey && urlKey !== kickedKey) {
-        // Genuine new QR scanned with the rotated key! Unblock and clear ban
-        localStorage.removeItem('karaokelab_kicked_host');
-        localStorage.removeItem('karaokelab_kicked_key');
-        setKicked(false);
-        return false;
-      } else {
-        // Same old QR key or reload without scanning the new QR code -> STRICT BLOCK
-        setKicked(true);
-        return true;
-      }
-    } else if (kickedHost && hostParam && kickedHost !== hostParam) {
-      // Different host
-      localStorage.removeItem('karaokelab_kicked_host');
-      localStorage.removeItem('karaokelab_kicked_key');
-      setKicked(false);
-      return false;
-    } else {
-      setKicked(false);
-      return false;
-    }
-  }, []);
-
   // Initial mount & URL validation
   useEffect(() => {
-    const isCurrentlyKicked = checkKickState();
-
     const saved = localStorage.getItem('karaokelab_guest_name');
-    if (saved && !isCurrentlyKicked) {
+    if (saved) {
       setGuestName(saved);
       setNameConfirmed(true);
     }
@@ -109,10 +73,7 @@ export const GuestRemoteView: React.FC = () => {
     setActiveProfileId(activeId);
 
     // Real-time listener: host kicked this device
-    const unsubKick = peerSync.onKicked((kickedKey) => {
-      if (kickedKey) {
-        try { localStorage.setItem('karaokelab_kicked_key', kickedKey); } catch (_) {}
-      }
+    const unsubKick = peerSync.onKicked(() => {
       setKicked(true);
       setNameConfirmed(false);
     });
@@ -122,20 +83,11 @@ export const GuestRemoteView: React.FC = () => {
       setConnStatus(status);
     });
 
-    // Listen for URL changes when phone camera or browser navigates
-    const handleUrlChange = () => {
-      checkKickState();
-    };
-    window.addEventListener('popstate', handleUrlChange);
-    window.addEventListener('hashchange', handleUrlChange);
-
     return () => {
       unsubKick();
       unsubConn();
-      window.removeEventListener('popstate', handleUrlChange);
-      window.removeEventListener('hashchange', handleUrlChange);
     };
-  }, [checkKickState]);
+  }, []);
 
   // Save profiles to localStorage whenever they change
   const saveGuestProfiles = useCallback((updatedProfiles: SingerProfile[]) => {
