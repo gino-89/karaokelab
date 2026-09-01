@@ -88,6 +88,8 @@ export default function App() {
   }, [lyrics]);
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const queueRef = useRef<QueueItem[]>(queue);
+  queueRef.current = queue;
   const [savedSongs, setSavedSongs] = useState<SongItem[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [directUploadProgress, setDirectUploadProgress] = useState<{
@@ -1497,15 +1499,33 @@ export default function App() {
 
   // Play next song in queue (skip current song and load next ready track)
   const handleNextInQueue = useCallback(() => {
-    const curId = currentSong?.id;
-    const cleanCurId = curId ? curId.replace('yt_', '') : null;
+    const curSong = currentSong;
+    const curId = curSong?.id;
+    const cleanCurId = curId ? curId.replace(/^yt_/, '') : null;
 
-    const nextItem = queue.find((q) => {
+    const currentQueue = queueRef.current;
+
+    // Find the first ready item in queue that is NOT the finished song
+    const nextItem = currentQueue.find((q) => {
       if (q.status !== 'ready' || !q.songData) return false;
       if (!cleanCurId) return true;
-      const cleanQId = q.songData.id.replace('yt_', '');
+      const cleanQId = q.songData.id.replace(/^yt_/, '');
       return cleanQId !== cleanCurId && q.id !== curId && q.songData.id !== curId;
     });
+
+    // Remove the finished song and next song from the queue immediately
+    setQueue((prevQueue) =>
+      prevQueue.filter((q) => {
+        const qClean = q.songData?.id ? q.songData.id.replace(/^yt_/, '') : q.id.replace(/^yt_/, '');
+        if (cleanCurId && (q.id === curId || q.songData?.id === curId || qClean === cleanCurId)) {
+          return false;
+        }
+        if (nextItem && (q.id === nextItem.id || q.songData?.id === nextItem.songData?.id)) {
+          return false;
+        }
+        return true;
+      })
+    );
 
     if (!nextItem || !nextItem.songData) {
       console.log('No next item in queue, clearing player');
@@ -1513,28 +1533,11 @@ export default function App() {
       return;
     }
 
-    const nextSongData = nextItem.songData;
-    const cleanNextId = nextSongData.id.replace('yt_', '');
-
-    // Remove BOTH previous song and next song from the waiting queue
-    setQueue((prevQueue) =>
-      prevQueue.filter((q) => {
-        const qClean = q.songData?.id ? q.songData.id.replace('yt_', '') : q.id.replace('yt_', '');
-        if (q.id === nextItem.id || q.songData?.id === nextSongData.id || qClean === cleanNextId) {
-          return false;
-        }
-        if (cleanCurId && (q.id === curId || q.songData?.id === curId || qClean === cleanCurId)) {
-          return false;
-        }
-        return true;
-      })
-    );
-
     // Stop current track and load next song
     audioEngine.stop();
     setYouTubeEmbedId(null);
-    loadSongIntoEngine(nextSongData, true);
-  }, [queue, currentSong]);
+    loadSongIntoEngine(nextItem.songData, true);
+  }, [currentSong]);
 
   // Auto-play next song in queue with Score & Countdown Intermission when track ends
   useEffect(() => {
@@ -1543,16 +1546,15 @@ export default function App() {
       const finishedSong = currentSong;
       if (!finishedSong) return;
 
-      setQueue((prevQueue) => {
-        // Find if finished song is in queue and remove it
-        const finishedIdx = prevQueue.findIndex(
-          (q) => (q.songData && q.songData.id === finishedSong.id) || q.id === finishedSong.id
-        );
+      const curId = finishedSong.id;
+      const cleanCurId = curId.replace(/^yt_/, '');
 
-        let nextQueue = [...prevQueue];
-        if (finishedIdx >= 0) {
-          nextQueue.splice(finishedIdx, 1);
-        }
+      setQueue((prevQueue) => {
+        // Completely purge finished song from queue
+        let nextQueue = prevQueue.filter((q) => {
+          const qClean = q.songData?.id ? q.songData.id.replace(/^yt_/, '') : q.id.replace(/^yt_/, '');
+          return q.id !== curId && q.songData?.id !== curId && qClean !== cleanCurId;
+        });
 
         // Find next ready song in queue
         const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
