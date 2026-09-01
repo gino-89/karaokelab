@@ -570,29 +570,58 @@ export const GuestRemoteView: React.FC = () => {
   // ── Main Remote View ──
   return (
     <div className="min-h-screen bg-[#080811] text-white p-3 pb-40 flex flex-col gap-3 font-sans max-w-4xl mx-auto">
-      {/* Disconnection Warning Banner */}
+      {/* Centered Modal / Overlay for Lost Connection (Media Pantalla) */}
       {connStatus === 'disconnected' && (
-        <div className="p-3 rounded-2xl bg-rose-950/90 border border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2 text-rose-200">
-            <WifiOff className="w-5 h-5 text-rose-400 shrink-0 animate-pulse" />
-            <div className="flex flex-col">
-              <span className="text-xs font-black uppercase tracking-wide text-rose-300">
-                Conexión Perdida con el Anfitrión
-              </span>
-              <span className="text-[11px] text-rose-200/80 leading-snug">
-                El equipo principal no responde o inició una nueva sesión. Pide escanear el QR nuevo.
-              </span>
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
+          <div className="w-full max-w-sm bg-[#0d0914] border-2 border-rose-500/60 rounded-3xl shadow-[0_0_60px_rgba(244,63,94,0.4)] p-6 flex flex-col items-center gap-5 text-center relative animate-in zoom-in-95 duration-200">
+            {/* Glowing Icon */}
+            <div className="relative">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-500/20 via-rose-600/30 to-red-950/60 border border-rose-500/60 flex items-center justify-center shadow-[0_0_35px_rgba(244,63,94,0.35)] animate-pulse">
+                <WifiOff className="w-10 h-10 text-rose-400" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shadow">
+                ⚠️
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-            <button
-              type="button"
-              onClick={() => peerSync.reconnectGuest()}
-              className="px-3 py-1.5 rounded-xl bg-rose-800 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 border border-rose-400/40"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reconectar</span>
-            </button>
+
+            {/* Title & Description */}
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-lg font-black uppercase tracking-wider text-rose-300">
+                Conexión Perdida
+              </h2>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-xs">
+                Se perdió la sincronización en vivo con la pantalla del karaoke.
+              </p>
+              <p className="text-[11px] text-slate-400 leading-snug mt-1">
+                El sistema está intentando reconectar. Si el anfitrión reinició la sala, por favor escanea el nuevo código QR.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="w-full flex flex-col gap-2.5 pt-2 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => peerSync.reconnectGuest()}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_20px_rgba(244,63,94,0.35)] flex items-center justify-center gap-2 active:scale-95"
+              >
+                <RefreshCw className="w-4 h-4 text-white" />
+                <span>Reconectar Ahora</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full py-2 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-bold cursor-pointer transition-all border border-slate-700/60 flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Recargar Página</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
+              <Wifi className="w-3 h-3 text-rose-500 animate-pulse" />
+              <span>Intentando reconectar automáticamente...</span>
+            </div>
           </div>
         </div>
       )}
