@@ -505,6 +505,10 @@ export default function App() {
           } else if (cmd === 'TOGGLE_YT_FAVORITE') {
             if (data?.track) {
               handleToggleYouTubeFavorite(data.track, data.profileId);
+              const prof = profiles.find((p) => p.id === data.profileId);
+              if (prof && prof.id !== 'profile_all') {
+                showAlertToast(`⭐ "${data.track.title}" asignado a ${prof.name}`);
+              }
             }
           }
         },

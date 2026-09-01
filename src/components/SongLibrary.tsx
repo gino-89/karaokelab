@@ -469,9 +469,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
         if (!matchTitle && !matchChannel) return false;
       }
       if (activeProfile && activeProfile.id !== 'profile_all') {
-        if (yt.singerProfileId && yt.singerProfileId !== activeProfile.id) {
-          return false;
-        }
+        return yt.singerProfileId === activeProfile.id;
       }
       return true;
     });
