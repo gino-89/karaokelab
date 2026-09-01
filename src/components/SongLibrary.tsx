@@ -1537,32 +1537,26 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                               <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (onOpenYouTubeEmbed) {
-                                      onOpenYouTubeEmbed(item.id);
-                                    } else {
-                                      onSelectSong(ytSongItem);
-                                    }
-                                  }}
-                                  className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-md shadow-red-600/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-                                >
-                                  <Play className="w-3.5 h-3.5 fill-current" />
-                                  <span>Reproducir Ahora</span>
-                                </button>
-
-                                <button
-                                  type="button"
                                   onClick={() => onAddToQueue(ytSongItem)}
                                   disabled={isInQueue}
-                                  className={`py-2 px-3.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                                  className={`flex-1 py-2.5 px-4 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95 ${
                                     isInQueue
-                                      ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 cursor-default'
-                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40 shadow-sm active:scale-95 hover:border-cyan-400'
+                                      ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 cursor-default shadow-none'
+                                      : 'bg-gradient-to-r from-cyan-500/20 via-blue-600/20 to-cyan-500/20 hover:from-cyan-500/30 hover:to-blue-600/30 text-cyan-300 border-cyan-500/50 hover:border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.15)]'
                                   }`}
-                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
+                                  title={isInQueue ? 'Ya está en la cola de reproducción' : 'Agregar a la cola de reproducción'}
                                 >
-                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5 text-cyan-400" />}
-                                  <span>{isInQueue ? 'En Cola' : 'Agregar a Cola'}</span>
+                                  {isInQueue ? (
+                                    <>
+                                      <Check className="w-4 h-4 text-emerald-400" />
+                                      <span>Ya en Cola</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ListPlus className="w-4 h-4 text-cyan-400" />
+                                      <span>+ Agregar a la Cola</span>
+                                    </>
+                                  )}
                                 </button>
 
                                 {onToggleYouTubeFavorite && (
@@ -1581,7 +1575,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                         activeProfileId
                                       )
                                     }
-                                    className={`p-2 px-2.5 rounded-xl border transition-all cursor-pointer shrink-0 ${
+                                    className={`p-2.5 px-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
                                       isFav
                                         ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
                                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-300 hover:border-slate-600'
@@ -1659,21 +1653,20 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (onOpenYouTubeEmbed) {
-                                      onOpenYouTubeEmbed(yt.id);
-                                    } else {
-                                      onSelectSong(ytSongItem);
-                                    }
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-md shadow-red-600/30"
-                                  title="Reproducir ahora"
+                                  onClick={() => onAddToQueue(ytSongItem)}
+                                  disabled={isInQueue}
+                                  className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    isInQueue
+                                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300 cursor-default'
+                                      : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/40'
+                                  }`}
+                                  title={isInQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
                                 >
-                                  <Play className="w-3.5 h-3.5 fill-current" />
-                                  <span>Ver</span>
+                                  {isInQueue ? <Check className="w-3.5 h-3.5" /> : <ListPlus className="w-3.5 h-3.5 text-cyan-400" />}
+                                  <span>{isInQueue ? 'En Cola' : 'Encolar'}</span>
                                 </button>
 
                                 <button
