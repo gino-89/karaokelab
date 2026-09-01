@@ -128,8 +128,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
       {/* Scaled & Centered 16:9 Frame - Hardware accelerated with 3D transform */}
       <div
-        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-300 ${
-          isVideoVisible ? (isPlaying ? 'opacity-100' : 'opacity-25') : 'opacity-0'
+        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-700 ${
+          isVideoVisible ? 'opacity-100' : 'opacity-0'
         }`}
         style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
       >
@@ -173,7 +173,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       <div
         className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
         style={{
-          backgroundColor: isPlaying ? `rgba(4, 6, 12, ${overlayOpacity})` : 'rgba(4, 6, 12, 0.94)',
+          backgroundColor: `rgba(4, 6, 12, ${overlayOpacity})`,
           transform: 'translateZ(0)',
         }}
       />
