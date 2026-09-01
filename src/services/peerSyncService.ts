@@ -45,7 +45,7 @@ class PeerSyncService {
   private hostId: string | null = null;
   private isHost: boolean = false;
   private currentQrKey: string = '';
-  private onCommandCallback: ((cmd: string, data?: any) => void) | null = null;
+  private onCommandCallback: ((cmd: string, data?: any, conn?: DataConnection) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
   private onYtFavoritesReceivedCallback: ((favorites: YouTubeFavoriteTrack[]) => void) | null = null;
@@ -54,6 +54,7 @@ class PeerSyncService {
   private onKickedCallback: ((reason?: string, message?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
   private onQueueReceivedCallback: ((queue: any[]) => void) | null = null;
+  private onProfileRejectedCallback: ((payload: { name: string; reason: string }) => void) | null = null;
 
   public onChatMessageReceived(callback: (msg: ChatMessage) => void): () => void {
     this.onChatMessageReceivedCallback = callback;
@@ -232,7 +233,7 @@ class PeerSyncService {
 
   // Initialize Host session on Mac/PC player
   public initHost(
-    onCommand: (cmd: string, data?: any) => void,
+    onCommand: (cmd: string, data?: any, conn?: DataConnection) => void,
     onPeerIdReady?: (peerId: string) => void
   ) {
     this.isHost = true;
@@ -394,7 +395,7 @@ class PeerSyncService {
             }
           } else if (data.type === 'CREATE_PROFILE') {
             if (this.onCommandCallback) {
-              this.onCommandCallback('CREATE_PROFILE', data.payload);
+              this.onCommandCallback('CREATE_PROFILE', data.payload, conn);
             }
           } else if (data.type === 'DELETE_PROFILE') {
             if (this.onCommandCallback) {
@@ -864,6 +865,11 @@ class PeerSyncService {
             if (this.onChatMessageReceivedCallback) {
               this.onChatMessageReceivedCallback(data.payload);
             }
+          } else if (data.type === 'PROFILE_REJECTED' && data.payload) {
+            console.warn('⚠️ Profile creation/claim rejected by Host:', data.payload);
+            if (this.onProfileRejectedCallback) {
+              this.onProfileRejectedCallback(data.payload);
+            }
           } else if (data.type === 'KICK') {
             const reason = data.payload?.reason || 'kicked';
             const message = data.payload?.message || '';
@@ -909,6 +915,13 @@ class PeerSyncService {
       console.warn('Guest PeerJS init exception:', e);
       this._setConnectionStatus('disconnected');
     }
+  }
+
+  public onProfileRejected(callback: (payload: { name: string; reason: string }) => void) {
+    this.onProfileRejectedCallback = callback;
+    return () => {
+      this.onProfileRejectedCallback = null;
+    };
   }
 
   // Reconnect guest on demand

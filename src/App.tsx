@@ -539,7 +539,7 @@ export default function App() {
       };
 
       peerSync.initHost(
-        (cmd, data) => {
+        (cmd, data, conn) => {
           if (cmd === 'ADD_TO_QUEUE') {
             handleRemoteRequest(data);
           } else if (cmd === 'REMOVE_FROM_QUEUE') {
@@ -611,8 +611,16 @@ export default function App() {
                   (p) => p.id === newProfile.id || (p.id !== 'profile_all' && p.name.toLowerCase().trim() === newProfile.name.toLowerCase().trim())
                 );
                 if (existing) {
-                  if (existing.pin && newProfile.pin && existing.pin !== newProfile.pin) {
-                    console.warn(`[Host Reject] PIN mismatch for profile "${existing.name}". Existing PIN: ${existing.pin}, Received: ${newProfile.pin}. Rejecting profile merge.`);
+                  if (existing.pin && data.pin && existing.pin !== data.pin) {
+                    console.warn(`[Host Reject] PIN mismatch for profile "${existing.name}". Existing PIN: ${existing.pin}, Received: ${data.pin}. Rejecting profile merge.`);
+                    if (conn) {
+                      try {
+                        conn.send({
+                          type: 'PROFILE_REJECTED',
+                          payload: { name: existing.name, reason: 'NAME_TAKEN_PIN_MISMATCH' },
+                        });
+                      } catch (_) {}
+                    }
                     return prev;
                   }
                   const updatedProfile: SingerProfile = {

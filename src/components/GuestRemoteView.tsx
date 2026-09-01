@@ -104,6 +104,19 @@ export const GuestRemoteView: React.FC = () => {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const unsub = peerSync.onProfileRejected((payload) => {
+      setNameConfirmed(false);
+      localStorage.removeItem('karaokelab_guest_name');
+      setFeedback({
+        type: 'error',
+        message: `⚠️ El nombre "${payload.name}" ya pertenece a otro cliente registrado en la sala con otro PIN. Por favor usa tu PIN correcto o ingresa un nombre diferente (ej. ${payload.name} P., ${payload.name} ${tableNumber}).`,
+      });
+      setTimeout(() => setFeedback(null), 7000);
+    });
+    return () => unsub();
+  }, [tableNumber]);
+
   const myQueueItems = useMemo(() => {
     const name = guestName.trim().toLowerCase();
     const table = tableNumber.trim().toLowerCase();
