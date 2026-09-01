@@ -50,22 +50,43 @@ export const GuestRemoteView: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customRequestTitle, setCustomRequestTitle] = useState('');
 
-  // Initial mount & URL validation
-  useEffect(() => {
+  // Check and validate kick state against current URL and stored QR key
+  const checkKickState = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
     const hostParam = params.get('host') || '';
+    const urlKey = params.get('k') || '';
+    const kickedKey = localStorage.getItem('karaokelab_kicked_key');
     const kickedHost = localStorage.getItem('karaokelab_kicked_host');
 
-    // If host was kicked in this exact session, enforce kick
-    if (kickedHost && hostParam && kickedHost === hostParam) {
-      setKicked(true);
-    } else if (kickedHost && hostParam && kickedHost !== hostParam) {
+    // If the guest arrived with a new QR key (different from the banned one), clear the kick!
+    if (urlKey && kickedKey && urlKey !== kickedKey) {
       localStorage.removeItem('karaokelab_kicked_host');
+      localStorage.removeItem('karaokelab_kicked_key');
       setKicked(false);
+      return false;
+    } else if (kickedKey && urlKey && urlKey === kickedKey) {
+      // Still using the banned key
+      setKicked(true);
+      return true;
+    } else if (kickedHost && hostParam && kickedHost === hostParam && !urlKey) {
+      // Reloaded without scanning new QR
+      setKicked(true);
+      return true;
+    } else {
+      // Fresh host or valid entry
+      localStorage.removeItem('karaokelab_kicked_host');
+      localStorage.removeItem('karaokelab_kicked_key');
+      setKicked(false);
+      return false;
     }
+  }, []);
+
+  // Initial mount & URL validation
+  useEffect(() => {
+    const isCurrentlyKicked = checkKickState();
 
     const saved = localStorage.getItem('karaokelab_guest_name');
-    if (saved) {
+    if (saved && !isCurrentlyKicked) {
       setGuestName(saved);
       setNameConfirmed(true);
     }
@@ -85,7 +106,10 @@ export const GuestRemoteView: React.FC = () => {
     setActiveProfileId(activeId);
 
     // Real-time listener: host kicked this device
-    const unsubKick = peerSync.onKicked(() => {
+    const unsubKick = peerSync.onKicked((kickedKey) => {
+      if (kickedKey) {
+        try { localStorage.setItem('karaokelab_kicked_key', kickedKey); } catch (_) {}
+      }
       setKicked(true);
       setNameConfirmed(false);
     });
@@ -95,11 +119,20 @@ export const GuestRemoteView: React.FC = () => {
       setConnStatus(status);
     });
 
+    // Listen for URL changes when phone camera or browser navigates
+    const handleUrlChange = () => {
+      checkKickState();
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+
     return () => {
       unsubKick();
       unsubConn();
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
     };
-  }, []);
+  }, [checkKickState]);
 
   // Save profiles to localStorage whenever they change
   const saveGuestProfiles = useCallback((updatedProfiles: SingerProfile[]) => {
@@ -417,6 +450,21 @@ export const GuestRemoteView: React.FC = () => {
               <Camera className="w-4 h-4 text-cyan-400 animate-bounce" />
               <span className="font-semibold text-slate-300">Usa la cámara nativa de tu teléfono</span>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('karaokelab_kicked_host');
+                localStorage.removeItem('karaokelab_kicked_key');
+                setKicked(false);
+                setNameConfirmed(false);
+                window.location.reload();
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#00f0ff] to-cyan-500 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_20px_rgba(0,240,255,0.35)] flex items-center justify-center gap-2 active:scale-98 mt-1"
+            >
+              <RefreshCw className="w-4 h-4 text-slate-950" />
+              <span>Volver a Entrar a la Sala</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
