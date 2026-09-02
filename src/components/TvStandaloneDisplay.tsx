@@ -534,6 +534,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           onClose={() => {}}
           isPartyMode={true}
           muteAudio={true}
+          isReadOnly={true}
         />
       )}
     </div>

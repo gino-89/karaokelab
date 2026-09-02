@@ -40,6 +40,7 @@ interface KaraokeScoreAndTransitionModalProps {
   onClose: () => void;
   isPartyMode?: boolean;
   muteAudio?: boolean;
+  isReadOnly?: boolean;
 }
 
 export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionModalProps> = ({
@@ -54,6 +55,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   onClose,
   isPartyMode = false,
   muteAudio = false,
+  isReadOnly = false,
 }) => {
   const [currentStep, setCurrentStep] = useState<'score' | 'transition'>(initialMode);
   const [countdown, setCountdown] = useState<number>(5);
@@ -73,6 +75,13 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       }
     }
   }, [isOpen, initialMode, performance, muteAudio]);
+
+  // Keep currentStep synced with initialMode when in read-only / TV mode
+  useEffect(() => {
+    if (isReadOnly) {
+      setCurrentStep(initialMode);
+    }
+  }, [isReadOnly, initialMode]);
 
   // Animate score counter up
   useEffect(() => {
