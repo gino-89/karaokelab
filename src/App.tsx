@@ -745,6 +745,7 @@ export default function App() {
 
       const unsub = tvBroadcast.onRemoteCommand((cmd, data) => {
         if (cmd === 'ADD_TO_QUEUE') handleRemoteRequest(data);
+        if (cmd === 'TRACK_ENDED') handleTrackEnded();
       });
       return () => unsub();
     }
@@ -1744,109 +1745,77 @@ export default function App() {
     setQueue((prev) => prev.filter((q) => q.id !== queueId));
   };
 
-  // Play next song in queue (skip current song and load next ready track)
-  const handleNextInQueue = useCallback(() => {
-    const curSong = currentSong;
-    const curId = curSong?.id;
-    const cleanCurId = curId ? curId.replace(/^yt_/, '') : null;
-
-    const currentQueue = queueRef.current;
-
-    // Find the first ready item in queue that is NOT the finished song
-    const nextItem = currentQueue.find((q) => {
-      if (q.status !== 'ready' || !q.songData) return false;
-      if (!cleanCurId) return true;
-      const cleanQId = q.songData.id.replace(/^yt_/, '');
-      return cleanQId !== cleanCurId && q.id !== curId && q.songData.id !== curId;
-    });
-
-    // Remove the finished song and next song from the queue immediately
-    setQueue((prevQueue) =>
-      prevQueue.filter((q) => {
-        const qClean = q.songData?.id ? q.songData.id.replace(/^yt_/, '') : q.id.replace(/^yt_/, '');
-        if (cleanCurId && (q.id === curId || q.songData?.id === curId || qClean === cleanCurId)) {
-          return false;
-        }
-        if (nextItem && (q.id === nextItem.id || q.songData?.id === nextItem.songData?.id)) {
-          return false;
-        }
-        return true;
-      })
-    );
-
-    if (!nextItem || !nextItem.songData) {
-      console.log('No next item in queue, clearing player');
-      handleStop();
-      return;
-    }
-
-    // Stop current track and load next song
-    audioEngine.stop();
-    setYouTubeEmbedId(null);
-    loadSongIntoEngine(nextItem.songData, true);
-  }, [currentSong]);
-
   // Keep currentSongRef updated for asynchronous callbacks
   const currentSongRef = useRef(currentSong);
   useEffect(() => {
     currentSongRef.current = currentSong;
   }, [currentSong]);
 
-  // Auto-play next song in queue with Score & Countdown Intermission when track ends
+  // Unified track completion handler (used by Web Audio onEnded and YouTube video onEnded)
+  const handleTrackEnded = useCallback(() => {
+    setIsPlaying(false);
+    const finishedSong = currentSongRef.current || currentSong || {
+      id: 'fallback_' + Date.now(),
+      title: 'Karaoke Performance',
+      artist: 'Artista',
+      duration: 180,
+    };
+
+    const curId = finishedSong.id || '';
+    const cleanCurId = curId.replace(/^yt_/, '');
+
+    setQueue((prevQueue) => {
+      // Completely purge finished song from queue
+      let nextQueue = prevQueue.filter((q) => {
+        const qClean = q.songData?.id ? q.songData.id.replace(/^yt_/, '') : q.id.replace(/^yt_/, '');
+        return q.id !== curId && q.songData?.id !== curId && qClean !== cleanCurId;
+      });
+
+      // Find next ready song in queue
+      const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
+      const nextSongData = nextReadyItem?.songData || null;
+
+      // 1. Immediately stop audio & video playback engine on track end for clean intermission
+      audioEngine.stop();
+      setIsPlaying(false);
+      setYouTubeEmbedId(null);
+      setCurrentSong(null);
+      setLyrics([]);
+      setDuration(0);
+      setCurrentTime(0);
+      setCurrentIndex(-1);
+
+      // 2. Calculate performance score for singer
+      const perf = generatePerformanceResult(finishedSong, activeProfile);
+
+      // 3. Open Score & Transition Modal with 5s countdown intermission
+      setScoreModalState({
+        isOpen: true,
+        mode: 'score',
+        performance: perf,
+        nextSong: nextSongData,
+        nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
+      });
+
+      return nextQueue;
+    });
+  }, [currentSong, activeProfile]);
+
+  // Play next song in queue with Score & Intermission transition
+  const handleNextInQueue = useCallback(() => {
+    handleTrackEnded();
+  }, [handleTrackEnded]);
+
+  // Auto-play next song in queue with Score & Countdown Intermission when Web Audio track ends
   useEffect(() => {
     const unsubscribe = audioEngine.onTrackEnded(() => {
-      setIsPlaying(false);
-      const finishedSong = currentSongRef.current || currentSong || {
-        id: 'fallback_' + Date.now(),
-        title: 'Karaoke Performance',
-        artist: 'Artista',
-        duration: 180,
-      };
-
-      const curId = finishedSong.id || '';
-      const cleanCurId = curId.replace(/^yt_/, '');
-
-      setQueue((prevQueue) => {
-        // Completely purge finished song from queue
-        let nextQueue = prevQueue.filter((q) => {
-          const qClean = q.songData?.id ? q.songData.id.replace(/^yt_/, '') : q.id.replace(/^yt_/, '');
-          return q.id !== curId && q.songData?.id !== curId && qClean !== cleanCurId;
-        });
-
-        // Find next ready song in queue
-        const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
-        const nextSongData = nextReadyItem?.songData || null;
-
-        // 1. Immediately stop audio & video playback engine on track end for clean intermission
-        audioEngine.stop();
-        setIsPlaying(false);
-        setYouTubeEmbedId(null);
-        setCurrentSong(null);
-        setLyrics([]);
-        setDuration(0);
-        setCurrentTime(0);
-        setCurrentIndex(-1);
-
-        // 2. Calculate performance score for singer
-        const perf = generatePerformanceResult(finishedSong, activeProfile);
-
-        // 3. Open Score & Transition Modal with 5s countdown intermission
-        setScoreModalState({
-          isOpen: true,
-          mode: 'score',
-          performance: perf,
-          nextSong: nextSongData,
-          nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
-        });
-
-        return nextQueue;
-      });
+      handleTrackEnded();
     });
 
     return () => {
       unsubscribe();
     };
-  }, [currentSong, activeProfile]);
+  }, [handleTrackEnded]);
 
   const handleUpdateSong = async (updated: SongItem) => {
     await saveSongToDB(updated);

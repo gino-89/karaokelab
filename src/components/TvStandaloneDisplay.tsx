@@ -127,6 +127,36 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
   }, [tvState?.currentTime, cleanYoutubeId]);
 
+  // Listen for YouTube video end events on TV screen and notify host
+  useEffect(() => {
+    if (!cleanYoutubeId) return;
+
+    let hasNotified = false;
+    const handleTvYtMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (_) { return; }
+        }
+
+        const state = data?.info?.playerState !== undefined
+          ? data.info.playerState
+          : data?.event === 'onStateChange'
+            ? data.info
+            : data?.infoDelivery?.playerState;
+
+        if ((state === 0 || state === '0') && !hasNotified) {
+          hasNotified = true;
+          console.log('✓ YouTube TV video ended, sending TRACK_ENDED to host...');
+          tvBroadcast.sendRemoteCommand('TRACK_ENDED');
+        }
+      } catch (_) {}
+    };
+
+    window.addEventListener('message', handleTvYtMessage);
+    return () => window.removeEventListener('message', handleTvYtMessage);
+  }, [cleanYoutubeId]);
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => { });
@@ -278,6 +308,14 @@ export const TvStandaloneDisplay: React.FC = () => {
             style={{ width: '100vw', height: '100vh' }}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            onLoad={() => {
+              try {
+                const win = ytTvIframeRef.current?.contentWindow;
+                if (win) {
+                  win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
+                }
+              } catch (_) {}
+            }}
           />
           <div
             onClick={toggleFullscreen}
