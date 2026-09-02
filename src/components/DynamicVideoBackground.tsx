@@ -20,19 +20,28 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
+  const [prevSongKey, setPrevSongKey] = useState(songKey);
+  const [prevVideoId, setPrevVideoId] = useState(config.videoId);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
+
+  // Synchronous state adjustment during render when song or video changes
+  // Guarantees zero frames of old video bleed-through during transitions!
+  if (songKey !== prevSongKey || config.videoId !== prevVideoId) {
+    setPrevSongKey(songKey);
+    setPrevVideoId(config.videoId);
+    setIsVideoVisible(false);
+  }
 
   // Record the start time on initial mount so when TV mode or mini player opens, it starts right at current playback time
   const initialStartTimeRef = useRef<number>(Math.max(0, Math.floor(currentTime || 0)));
   const lastSeekTimeRef = useRef<number>(Date.now());
   const prevTimeRef = useRef<number>(currentTime || 0);
 
-  // Quick fade-in curtain (1.2s instead of 4.5s) so the background transition is smooth and fast
+  // Quick fade-in curtain (600ms) so the background transition is smooth and fast
   useEffect(() => {
-    setIsVideoVisible(false);
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 1200);
+    }, 600);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
