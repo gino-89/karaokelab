@@ -135,84 +135,7 @@ export const TvStandaloneDisplay: React.FC = () => {
     }
   };
 
-  if (!tvState || !tvState.songTitle) {
-    return (
-      <div
-        onClick={toggleFullscreen}
-        className="fixed inset-0 bg-[#05050c] text-white flex flex-col items-center justify-between p-8 sm:p-12 font-sans select-none overflow-hidden cursor-pointer"
-      >
-        {/* Ambient background glow */}
-        <div className="absolute w-[500px] h-[500px] bg-gradient-to-tr from-[#00f0ff]/15 to-[#ff007f]/15 rounded-full blur-[140px] pointer-events-none" />
-
-        {/* Top bar */}
-        <div className="relative z-10 w-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-cyan-400/60 shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-              <img src="/logo-highres.jpg" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <span className="font-cyber font-black tracking-widest text-base sm:text-lg text-white">
-              KARAOKELAB <span className="text-[#00f0ff]">TV</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${connectionStatus === 'connected'
-                ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                : 'bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse'
-              }`}>
-              {connectionStatus === 'connected' ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              <span>{connectionStatus === 'connected' ? 'Sincronizado P2P' : targetHostId ? 'Conectando al anfitrión...' : 'Esperando Transmisión'}</span>
-            </span>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
-              className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-colors"
-              title="Pantalla Completa (F11)"
-            >
-              <Maximize2 className="w-4 h-4 text-cyan-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Center Welcome Card */}
-        <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-lg space-y-5 my-auto">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-[#00f0ff] via-indigo-600 to-[#ff007f] p-0.5 shadow-[0_0_50px_rgba(0,240,255,0.4)] animate-pulse flex items-center justify-center">
-              <div className="w-full h-full bg-[#080814] rounded-3xl flex items-center justify-center">
-                <Tv className="w-12 h-12 text-cyan-300" />
-              </div>
-            </div>
-            <Sparkles className="w-6 h-6 text-pink-400 absolute -top-2 -right-2 animate-bounce" />
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-200 to-pink-300">
-              Pantalla Smart TV
-            </h1>
-            <p className="text-sm font-mono text-cyan-400 font-bold">
-              {targetHostId
-                ? `Conectado a la Sala: ${targetHostId.replace('klab_host_', '').toUpperCase()}`
-                : 'Modo Escenario Dual Activo'}
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-1.5 shadow-xl">
-            <p className="text-slate-200 font-bold">✓ Pantalla lista y conectada en tiempo real</p>
-            <p>Selecciona y reproduce cualquier canción en tu control remoto (iPad / PC / Móvil) para que la letra y los fondos aparezcan aquí automáticamente.</p>
-          </div>
-
-          <span className="text-[11px] font-mono text-slate-500 hover:text-slate-400 transition-colors">
-            Haz clic o toca en cualquier lugar para Pantalla Completa
-          </span>
-        </div>
-
-        {/* Bottom footer */}
-        <div className="relative z-10 text-[10px] font-mono text-slate-600">
-          KaraokeLab Web Player · DSP Teleprompter Engine v2.0
-        </div>
-      </div>
-    );
-  }
+  const isStandby = !tvState || !tvState.songTitle;
 
   const {
     songTitle,
@@ -251,83 +174,11 @@ export const TvStandaloneDisplay: React.FC = () => {
   const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
-  // ── Fullscreen Edge-to-Edge Distraction-Free Cinema YouTube Video Mode for TV ──
-  if (cleanYoutubeId) {
-    return (
-      <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
-        <iframe
-          ref={ytTvIframeRef}
-          key={`yt_tv_${cleanYoutubeId}`}
-          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&loop=1&playlist=${cleanYoutubeId}`}
-          title="YouTube Karaoke TV"
-          className="w-full h-full border-0 pointer-events-none scale-[1.06]"
-          style={{ width: '100vw', height: '100vh' }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          onLoad={() => {
-            try {
-              const win = ytTvIframeRef.current?.contentWindow;
-              if (win) {
-                win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
-                if (currentTime && currentTime > 1) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
-                }
-                if (tvState.isPlaying) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
-                } else {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
-                }
-              }
-            } catch (_) {}
-          }}
-        />
-
-        {/* Invisible shield to block any YouTube UI popups, pause buttons, or hover overlays */}
-        <div
-          onClick={toggleFullscreen}
-          className="absolute inset-0 z-30 cursor-pointer"
-          title="Haz clic para Pantalla Completa"
-        />
-
-        {/* Clean Cinema Overlay for TV */}
-        <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-2xl">
-            <span className="text-red-500 font-extrabold font-mono animate-pulse">● EN VIVO</span>
-            <span>·</span>
-            <span className="truncate max-w-md">{songTitle || 'YouTube Karaoke'}</span>
-            {songArtist && <span className="text-cyan-400 truncate max-w-xs">({songArtist})</span>}
-          </div>
-
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {nextSongTitle && (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-amber-300 text-xs font-bold shadow-2xl">
-                <span className="text-slate-400 text-[10px] uppercase font-mono">Próxima:</span>
-                <span className="truncate max-w-xs">{nextSongTitle}</span>
-                {nextSongRequestedBy && (
-                  <span className="text-cyan-400 font-mono text-[11px]">🎤 {nextSongRequestedBy}</span>
-                )}
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="p-2 rounded-full bg-black/80 hover:bg-black/90 backdrop-blur-md border border-white/20 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-2xl"
-              title="Pantalla Completa (F11)"
-            >
-              <Maximize2 className="w-4 h-4 text-cyan-400" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const effectiveVideoBgConfig = tvState?.videoBgConfig || videoBgConfig;
 
   return (
     <div className="fixed inset-0 bg-[#060714] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer (Identical to Mini Player) */}
+      {/* 1. Dynamic Video Background Layer (Permanently mounted - never unmounts on song transitions) */}
       <DynamicVideoBackground
         config={effectiveVideoBgConfig}
         isPlaying={isPlaying}
@@ -335,6 +186,105 @@ export const TvStandaloneDisplay: React.FC = () => {
         currentTime={currentTime}
         duration={duration}
       />
+
+      {/* 2. Standby Welcome Overlay when no song is playing */}
+      {isStandby && (
+        <div
+          onClick={toggleFullscreen}
+          className="absolute inset-0 z-30 bg-[#05050c]/95 backdrop-blur-md text-white flex flex-col items-center justify-between p-8 sm:p-12 font-sans select-none overflow-hidden cursor-pointer"
+        >
+          {/* Ambient background glow */}
+          <div className="absolute w-[500px] h-[500px] bg-gradient-to-tr from-[#00f0ff]/15 to-[#ff007f]/15 rounded-full blur-[140px] pointer-events-none" />
+
+          {/* Top bar */}
+          <div className="relative z-10 w-full flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden border border-cyan-400/60 shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+                <img src="/logo-highres.jpg" alt="Logo" className="w-full h-full object-cover" />
+              </div>
+              <span className="font-cyber font-black tracking-widest text-base sm:text-lg text-white">
+                KARAOKELAB <span className="text-[#00f0ff]">TV</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${connectionStatus === 'connected'
+                  ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : 'bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse'
+                }`}>
+                {connectionStatus === 'connected' ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+                <span>{connectionStatus === 'connected' ? 'Sincronizado P2P' : targetHostId ? 'Conectando al anfitrión...' : 'Esperando Transmisión'}</span>
+              </span>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+                className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-colors"
+                title="Pantalla Completa (F11)"
+              >
+                <Maximize2 className="w-4 h-4 text-cyan-400" />
+              </button>
+            </div>
+          </div>
+
+          {/* Center Welcome Card */}
+          <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-lg space-y-5 my-auto">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-[#00f0ff] via-indigo-600 to-[#ff007f] p-0.5 shadow-[0_0_50px_rgba(0,240,255,0.4)] animate-pulse flex items-center justify-center">
+                <div className="w-full h-full bg-[#080814] rounded-3xl flex items-center justify-center">
+                  <Tv className="w-12 h-12 text-cyan-300" />
+                </div>
+              </div>
+              <Sparkles className="w-6 h-6 text-pink-400 absolute -top-2 -right-2 animate-bounce" />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-200 to-pink-300">
+                Pantalla Smart TV
+              </h1>
+              <p className="text-sm font-mono text-cyan-400 font-bold">
+                {targetHostId
+                  ? `Conectado a la Sala: ${targetHostId.replace('klab_host_', '').toUpperCase()}`
+                  : 'Modo Escenario Dual Activo'}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-1.5 shadow-xl">
+              <p className="text-slate-200 font-bold">✓ Pantalla lista y conectada en tiempo real</p>
+              <p>Selecciona y reproduce cualquier canción en tu control remoto (iPad / PC / Móvil) para que la letra y los fondos aparezcan aquí automáticamente.</p>
+            </div>
+
+            <span className="text-[11px] font-mono text-slate-500 hover:text-slate-400 transition-colors">
+              Haz clic o toca en cualquier lugar para Pantalla Completa
+            </span>
+          </div>
+
+          {/* Bottom footer */}
+          <div className="relative z-10 text-[10px] font-mono text-slate-600">
+            KaraokeLab Web Player · DSP Teleprompter Engine v2.0
+          </div>
+        </div>
+      )}
+
+      {/* 3. Fullscreen YouTube Cinema Video Player (When playing YouTube songs) */}
+      {!isStandby && cleanYoutubeId && (
+        <div className="absolute inset-0 w-full h-full z-25 bg-black flex items-center justify-center overflow-hidden select-none">
+          <iframe
+            ref={ytTvIframeRef}
+            key={`yt_tv_${cleanYoutubeId}`}
+            src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&loop=1&playlist=${cleanYoutubeId}`}
+            title="YouTube Karaoke TV"
+            className="w-full h-full border-0 pointer-events-none scale-[1.06]"
+            style={{ width: '100vw', height: '100vh' }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+          <div
+            onClick={toggleFullscreen}
+            className="absolute inset-0 z-30 cursor-pointer"
+            title="Haz clic para Pantalla Completa"
+          />
+        </div>
+      )}
 
       {/* Ambient Visualizer Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
