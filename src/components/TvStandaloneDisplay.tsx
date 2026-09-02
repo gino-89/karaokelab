@@ -266,17 +266,15 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   // ── Fullscreen Edge-to-Edge Distraction-Free Cinema YouTube Video Mode for TV ──
   if (cleanYoutubeId) {
-    const isNearEnd = duration > 10 && currentTime >= duration - 2.5;
-
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${cleanYoutubeId}`}
-          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&iv_load_policy=3&loop=1&playlist=${cleanYoutubeId}`}
+          src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&loop=1&playlist=${cleanYoutubeId}`}
           title="YouTube Karaoke TV"
-          className="w-full h-full border-0 pointer-events-none scale-[1.25]"
-          style={{ width: '115vw', height: '115vh' }}
+          className="w-full h-full border-0 pointer-events-none scale-[1.06]"
+          style={{ width: '100vw', height: '100vh' }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           onLoad={() => {
@@ -295,13 +293,6 @@ export const TvStandaloneDisplay: React.FC = () => {
               }
             } catch (_) {}
           }}
-        />
-
-        {/* End-of-song Fade-to-Black Curtain to completely block VEVO / YouTube end cards */}
-        <div
-          className={`absolute inset-0 z-35 bg-black transition-opacity duration-700 pointer-events-none ${
-            isNearEnd ? 'opacity-100' : 'opacity-0'
-          }`}
         />
 
         {/* Invisible shield to block any YouTube UI popups, pause buttons, or hover overlays */}

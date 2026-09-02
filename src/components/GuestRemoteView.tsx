@@ -1266,7 +1266,7 @@ export const GuestRemoteView: React.FC = () => {
               </div>
               <div className="relative aspect-video w-full">
                 <iframe
-                  src={`https://www.youtube.com/embed/${ytActiveEmbedId}?autoplay=1&rel=0&iv_load_policy=3`}
+                  src={`https://www.youtube.com/embed/${ytActiveEmbedId}?autoplay=1`}
                   title="YouTube Player Preview"
                   className="w-full h-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
