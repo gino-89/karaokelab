@@ -1252,36 +1252,17 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
 
           <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end md:self-center">
             <button
-              onClick={() => setIsVideoBgModalOpen(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all shadow-sm ${
-                videoBgConfig.enabled && videoBgConfig.mode !== 'off'
-                  ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40 shadow-[0_0_12px_rgba(217,70,239,0.3)] font-bold'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-              }`}
-              title="Configurar Video de Fondo Dinámico (YouTube / Cyberpunk / Loop)"
-            >
-              <Film className="w-3.5 h-3.5 text-fuchsia-400" />
-              <span>Fondo</span>
-            </button>
-
-            {onOpenVocalAutomation && (
-              <button
-                onClick={onOpenVocalAutomation}
-                disabled={!hasSong}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
-                title="Editor de Automatización de Voz Guía (Timeline / Waveform)"
-              >
-                <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden sm:inline">Voz Guía</span>
-              </button>
-            )}
-
-            <button
               onClick={() => setShowLyricTools(!showLyricTools)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-all"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                showLyricTools
+                  ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                  : 'bg-slate-800 border-slate-700 text-slate-200 hover:text-white'
+              }`}
+              title="Herramientas de Edición (Fondo, Voz Guía, Letras y Sincronización)"
             >
+              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Editar</span>
               {showLyricTools ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              <span>Letras</span>
             </button>
 
             <button
@@ -1294,10 +1275,37 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           </div>
         </div>
 
-        {/* Lyric Tools Drawer */}
+        {/* Edit Tools Drawer */}
         {showLyricTools && (
           <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950/95 flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-150">
             <div className="flex flex-wrap items-center gap-2">
+              {/* Video de Fondo Button */}
+              <button
+                onClick={() => setIsVideoBgModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-all shadow-sm ${
+                  videoBgConfig.enabled && videoBgConfig.mode !== 'off'
+                    ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40 shadow-[0_0_12px_rgba(217,70,239,0.3)]'
+                    : 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                }`}
+                title="Configurar Video de Fondo Dinámico (YouTube / Cyberpunk / Loop)"
+              >
+                <Film className="w-3.5 h-3.5 text-fuchsia-400" />
+                <span>Video de Fondo</span>
+              </button>
+
+              {/* Editor de Voz Guía Button */}
+              {onOpenVocalAutomation && (
+                <button
+                  onClick={onOpenVocalAutomation}
+                  disabled={!hasSong}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
+                  title="Editor de Automatización de Voz Guía (Timeline / Waveform)"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Editor Voz Guía</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setIsSearching((prev) => !prev)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg cursor-pointer transition-all ${
@@ -1321,7 +1329,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 <span>{isSearchingLrc ? 'Buscando...' : 'Auto-Buscar'}</span>
               </button>
 
-
               <button
                 onClick={handleOpenEditor}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 cursor-pointer transition-colors shadow-sm"
@@ -1330,7 +1337,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 <Edit3 className="w-3.5 h-3.5 text-amber-400" />
                 <span>Editor LRC</span>
               </button>
-
             </div>
 
             {/* Lyrics info status badge */}
