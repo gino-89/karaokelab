@@ -189,35 +189,29 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   useEffect(() => {
     if (!isOpen || isCountdownPaused || isReadOnly) return;
 
-    if (countdown <= 0) {
-      if (nextSong) {
-        onStartNextSong();
-      } else {
-        onClose();
-      }
-      return;
-    }
-
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        if (!muteAudio && nextSong && prev <= 4) {
-          soundEffects.playCountdownBeep(prev <= 2);
+        const nextVal = prev - 1;
+        if (!muteAudio && nextSong && nextVal <= 4 && nextVal > 0) {
+          soundEffects.playCountdownBeep(nextVal <= 2);
         }
-        if (prev <= 1) {
-          clearInterval(timer);
-          if (nextSong) {
-            onStartNextSong();
-          } else {
-            onClose();
-          }
-          return 0;
-        }
-        return prev - 1;
+        return Math.max(0, nextVal);
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isOpen, countdown, isCountdownPaused, isReadOnly, nextSong, onStartNextSong, onClose, muteAudio]);
+  }, [isOpen, isCountdownPaused, isReadOnly, muteAudio, nextSong]);
+
+  // Asynchronously trigger next song / close when countdown reaches 0 (prevents setState in render warning)
+  useEffect(() => {
+    if (!isOpen || isReadOnly || countdown > 0) return;
+
+    if (nextSong) {
+      onStartNextSong();
+    } else {
+      onClose();
+    }
+  }, [isOpen, isReadOnly, countdown, nextSong, onStartNextSong, onClose]);
 
   if (!isOpen) return null;
 
