@@ -339,25 +339,14 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-[#060714] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer or Ambient Gradient */}
-      {videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId ? (
-        <DynamicVideoBackground
-          config={{
-            ...videoBgConfig,
-            overlayOpacity: 0.65,
-          }}
-          isPlaying={isPlaying}
-          songKey={`${songTitle}___${songArtist || ''}`}
-          currentTime={currentTime}
-          duration={duration}
-        />
-      ) : (
-        /* Rich Ambient Gradient Stage Background when no video background is configured */
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0f24] via-[#060714] to-[#140824] pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#00f0ff]/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#ff007f]/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
-        </div>
-      )}
+      {/* Dynamic Video Background Layer (Identical to Mini Player) */}
+      <DynamicVideoBackground
+        config={videoBgConfig}
+        isPlaying={isPlaying}
+        songKey={`${songTitle}___${songArtist || ''}`}
+        currentTime={currentTime}
+        duration={duration}
+      />
 
       {/* Ambient Visualizer Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
