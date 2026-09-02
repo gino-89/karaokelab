@@ -67,6 +67,37 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
   }
 
+  const videoDurationRef = useRef<number>(0);
+
+  // Listen for iframe duration and state changes: auto-restart immediately if video ends
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (_) { return; }
+        }
+        const dur = data?.info?.duration ?? data?.infoDelivery?.duration;
+        if (typeof dur === 'number' && dur > 0) {
+          videoDurationRef.current = dur;
+        }
+
+        const state = data?.info?.playerState ?? data?.infoDelivery?.playerState;
+        // If background video ever reaches end, immediately restart at 0 to guarantee infinite loop without end screens
+        if (state === 0 || state === '0') {
+          const win = iframeRef.current?.contentWindow;
+          if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+          }
+        }
+      } catch (_) {}
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   // Sync Play / Pause command when playback state changes
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
@@ -76,11 +107,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       if (!win) return;
 
       if (currentTime !== undefined) {
+        const safeTime = videoDurationRef.current > 0 ? (currentTime % videoDurationRef.current) : currentTime;
         win.postMessage(
           JSON.stringify({
             event: 'command',
             func: 'seekTo',
-            args: [currentTime, true],
+            args: [safeTime, true],
           }),
           '*'
         );
@@ -111,11 +143,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       try {
         const win = iframeRef.current?.contentWindow;
         if (win) {
+          const safeTime = videoDurationRef.current > 0 ? (currentTime % videoDurationRef.current) : currentTime;
           win.postMessage(
             JSON.stringify({
               event: 'command',
               func: 'seekTo',
-              args: [currentTime, true],
+              args: [safeTime, true],
             }),
             '*'
           );

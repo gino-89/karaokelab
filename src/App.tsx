@@ -817,13 +817,15 @@ export default function App() {
   };
 
   // Auto-search and sync official music video whenever currentSong changes (including auto-advance from queue)
+  // Auto-search and sync official music video / loop background whenever currentSong changes
   useEffect(() => {
     if (!currentSong?.title) return;
 
-    // 1. If song ALREADY has a video saved in its JSON/database (whether auto, preset, or custom URL), use it directly with 0 API calls!
+    // 1. If song ALREADY has a video saved in its JSON/database, use it directly!
     if (currentSong.videoBgId) {
       setVideoBgConfig((prev) => ({
         ...prev,
+        enabled: true,
         videoId: currentSong.videoBgId!,
         videoTitle: currentSong.videoBgTitle || (currentSong.artist ? `${currentSong.artist} - ${currentSong.title}` : currentSong.title),
         mode: currentSong.videoBgMode || 'custom',
@@ -832,23 +834,36 @@ export default function App() {
       return;
     }
 
-    // 2. If song does NOT have a custom video, reset to auto-search mode for THIS specific song (never spill previous song's custom video)
-    if (!videoBgConfig.enabled) return;
+    // 2. If song does NOT have a video, assign default loop and search in background
+    const defaultLoopId = 'qC0vDKVPCrw';
+    const defaultLoopTitle = 'Cyberpunk Neon City (Loop)';
 
-    // Reset current videoId so previous song's video is NOT displayed
+    // Immediately enable background loop so the song is never blank
     setVideoBgConfig((prev) => ({
       ...prev,
-      mode: 'auto',
-      videoId: '',
-      videoTitle: undefined,
-      customUrlOrId: undefined,
+      enabled: true,
+      mode: 'preset',
+      videoId: defaultLoopId,
+      videoTitle: defaultLoopTitle,
     }));
+
+    // Inject default loop into song & persist to DB/JSON
+    const initialUpdated: SongItem = {
+      ...currentSong,
+      videoBgId: defaultLoopId,
+      videoBgTitle: defaultLoopTitle,
+      videoBgMode: 'preset',
+      updatedAt: Date.now(),
+    };
+    saveSongToDB(initialUpdated);
+    setSavedSongs((prevList) => prevList.map((s) => (s.id === initialUpdated.id ? initialUpdated : s)));
 
     let isMounted = true;
     searchOfficialVideo(currentSong.title, currentSong.artist).then((res) => {
       if (isMounted && res && res.videoId) {
         setVideoBgConfig((prev) => ({
           ...prev,
+          enabled: true,
           mode: 'auto',
           videoId: res.videoId,
           videoTitle: res.title,
@@ -868,19 +883,11 @@ export default function App() {
           setSavedSongs((prevList) => prevList.map((s) => (s.id === updated.id ? updated : s)));
           return updated;
         });
-      } else if (isMounted) {
-        // Fallback to high-def preset loop (Cyberpunk City) if no official video found
-        setVideoBgConfig((prev) => ({
-          ...prev,
-          mode: 'preset',
-          videoId: 'qC0vDKVPCrw',
-          videoTitle: 'Cyberpunk Neon City (Loop)',
-        }));
       }
     }).catch(() => {});
 
     return () => { isMounted = false; };
-  }, [currentSong?.id, currentSong?.title, currentSong?.artist, currentSong?.videoBgId, videoBgConfig.enabled]);
+  }, [currentSong?.id, currentSong?.title, currentSong?.artist, currentSong?.videoBgId]);
 
   // Memoize catalogSummary so it only recomputes when savedSongs changes, NOT every 100ms or 33ms!
   const catalogSummary = useMemo(() => {
