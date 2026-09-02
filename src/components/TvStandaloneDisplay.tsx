@@ -327,11 +327,11 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-[#060714] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer */}
+      {/* Dynamic Video Background Layer (Identical to Mini Player) */}
       <DynamicVideoBackground
-        config={effectiveVideoBgConfig}
+        config={videoBgConfig}
         isPlaying={isPlaying}
-        songKey={tvState?.songTitle ? `${tvState.songTitle}___${tvState.songArtist || ''}___${tvState.timestamp || ''}` : 'tv_standby'}
+        songKey={`${songTitle}___${songArtist || ''}`}
         currentTime={currentTime}
         duration={duration}
       />
