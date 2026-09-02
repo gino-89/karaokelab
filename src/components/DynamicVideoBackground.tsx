@@ -180,6 +180,11 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
       {/* Subtle Vignette & Gradient Edges */}
       <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-slate-950/90 pointer-events-none" />
+
+      {/* End-of-song Fade-to-Black Overlay - Hides VEVO end cards when song finishes */}
+      {duration && duration > 10 && currentTime && currentTime >= duration - 2.5 && (
+        <div className="absolute inset-0 bg-[#04060c] z-30 transition-opacity duration-500 pointer-events-none" />
+      )}
     </div>
   );
 };

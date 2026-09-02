@@ -1399,14 +1399,14 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         {/* ── TELEPROMPTER LYRICS / YOUTUBE STAGE ── */}
         <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e] overflow-hidden">
           {youTubeEmbedId ? (
-            <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20">
+            <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20 overflow-hidden">
               <iframe
                 id="karaokelab-yt-stage-iframe"
                 ref={ytIframeRef}
                 key={`yt_stage_${youTubeEmbedId}`}
                 src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&iv_load_policy=3&loop=1&playlist=${youTubeEmbedId}&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                 title={songTitle || 'YouTube Karaoke Player'}
-                className="w-full h-full border-0"
+                className="w-full h-full border-0 scale-[1.15]"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 onLoad={() => {
@@ -1418,7 +1418,11 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                         '*'
                       );
                       win.postMessage(
-                        JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+                        JSON.stringify({
+                          event: 'command',
+                          func: isPlaying ? 'playVideo' : 'pauseVideo',
+                          args: '',
+                        }),
                         '*'
                       );
                     }
