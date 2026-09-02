@@ -352,13 +352,23 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               ? data.info
               : data?.infoDelivery?.playerState;
 
-        if (state === 0 || state === '0') {
-          if (!hasHandledEnd) {
-            hasHandledEnd = true;
-            console.log('✓ YouTube video ended, auto-advancing to next song in queue...');
-            if (onNextInQueueRef.current) {
-              onNextInQueueRef.current();
-            }
+        const curTime = (data?.info?.currentTime !== undefined && typeof data.info.currentTime === 'number')
+          ? data.info.currentTime
+          : (data?.infoDelivery?.currentTime !== undefined && typeof data.infoDelivery.currentTime === 'number')
+            ? data.infoDelivery.currentTime
+            : undefined;
+        const dur = (data?.info?.duration !== undefined && typeof data.info.duration === 'number')
+          ? data.info.duration
+          : (data?.infoDelivery?.duration !== undefined && typeof data.infoDelivery.duration === 'number')
+            ? data.infoDelivery.duration
+            : undefined;
+        const nearEnd = dur !== undefined && dur > 0 && curTime !== undefined && (dur - curTime <= 1.2);
+
+        if (((state === 0 || state === '0') || nearEnd) && !hasHandledEnd) {
+          hasHandledEnd = true;
+          console.log('✓ YouTube video ended, auto-advancing to next song in queue...');
+          if (onNextInQueueRef.current) {
+            onNextInQueueRef.current();
           }
         } else if (!hasHandledEnd && (state === 1 || state === '1') && !isPlaying) {
           // Video was played inside YouTube player
@@ -1410,7 +1420,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 id="karaokelab-yt-stage-iframe"
                 ref={ytIframeRef}
                 key={`yt_stage_${youTubeEmbedId}`}
-                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${youTubeEmbedId}&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                 title={songTitle || 'YouTube Karaoke Player'}
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
