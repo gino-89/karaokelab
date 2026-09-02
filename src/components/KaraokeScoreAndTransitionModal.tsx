@@ -64,7 +64,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   const [isCountdownPaused, setIsCountdownPaused] = useState<boolean>(false);
   const [animatedScore, setAnimatedScore] = useState<number>(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const hasStartedRef = useRef<boolean>(false);
+  const hasDecrementedRef = useRef<boolean>(false);
 
   // Sync countdown when modal opens & play crowd applause ONCE
   useEffect(() => {
@@ -72,12 +72,12 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       setCountdown(10);
       setIsCountdownPaused(false);
       setAnimatedScore(0);
-      hasStartedRef.current = true;
+      hasDecrementedRef.current = false;
       if (!muteAudio && performance) {
         soundEffects.playApplause(performance.score);
       }
     } else {
-      hasStartedRef.current = false;
+      hasDecrementedRef.current = false;
     }
   }, [isOpen]);
 
@@ -198,6 +198,9 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
+        if (prev <= 10 && prev > 0) {
+          hasDecrementedRef.current = true;
+        }
         const nextVal = prev - 1;
         if (!muteAudio && nextSong && nextVal <= 4 && nextVal > 0) {
           soundEffects.playCountdownBeep(nextVal <= 2);
@@ -209,9 +212,9 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
     return () => clearInterval(timer);
   }, [isOpen, isCountdownPaused, muteAudio, nextSong]);
 
-  // Asynchronously trigger next song / close when countdown reaches 0 (only after timer actively started)
+  // Asynchronously trigger next song / close when countdown reaches 0 (only after timer actively decremented)
   useEffect(() => {
-    if (!isOpen || isReadOnly || !hasStartedRef.current || countdown > 0) return;
+    if (!isOpen || isReadOnly || !hasDecrementedRef.current || countdown > 0) return;
 
     if (nextSong) {
       onStartNextSong();

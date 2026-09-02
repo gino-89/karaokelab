@@ -1776,8 +1776,18 @@ export default function App() {
     currentSongRef.current = currentSong;
   }, [currentSong]);
 
+  const lastTrackEndedTimeRef = useRef<number>(0);
+
   // Unified track completion handler (used by Web Audio onEnded and YouTube video onEnded)
   const handleTrackEnded = useCallback(() => {
+    const now = Date.now();
+    // Guard against duplicate track end triggers within 1.5 seconds (e.g. YouTube iframe + TV BroadcastChannel)
+    if (now - lastTrackEndedTimeRef.current < 1500) {
+      console.warn('⚠️ Ignoring duplicate handleTrackEnded call within 1.5s window');
+      return;
+    }
+    lastTrackEndedTimeRef.current = now;
+
     const finishedSong = currentSongRef.current || currentSong;
     const curId = finishedSong?.id || '';
     const cleanCurId = curId ? curId.replace(/^yt_/, '') : '';
@@ -1890,6 +1900,12 @@ export default function App() {
 
   // 7. Transport Controls Handlers
   const handlePlay = async () => {
+    // If score modal is currently open, ignore automated handlePlay calls
+    if (scoreModalState.isOpen) {
+      console.log('⚠️ Score modal is currently open. Ignoring automated handlePlay call.');
+      return;
+    }
+
     // If no song is loaded in player
     if (!currentSong) {
       // Check if there is a ready song in queue to play

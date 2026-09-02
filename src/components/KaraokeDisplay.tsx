@@ -360,10 +360,10 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               onNextInQueueRef.current();
             }
           }
-        } else if ((state === 1 || state === '1') && !isPlaying) {
+        } else if (!hasHandledEnd && (state === 1 || state === '1') && !isPlaying) {
           // Video was played inside YouTube player
           onPlayRef.current?.();
-        } else if ((state === 2 || state === '2') && isPlaying) {
+        } else if (!hasHandledEnd && (state === 2 || state === '2') && isPlaying) {
           // Video was paused inside YouTube player
           onPauseRef.current?.();
         }
