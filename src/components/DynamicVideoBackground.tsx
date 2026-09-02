@@ -37,8 +37,16 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const lastSeekTimeRef = useRef<number>(Date.now());
   const prevTimeRef = useRef<number>(currentTime || 0);
 
-  // Quick fade-in curtain (600ms) so the background transition is smooth and fast
+  // Quick fade-in curtain (600ms) and instant seekTo(0) reset on song change
   useEffect(() => {
+    setIsVideoVisible(false);
+    try {
+      const win = iframeRef.current?.contentWindow;
+      if (win) {
+        win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+      }
+    } catch (_) {}
+
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
     }, 600);
@@ -46,12 +54,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
 
-  // Static embed URL per videoId (NEVER depends on isPlaying to prevent iframe reloading on pause/play)
+  // Static embed URL per videoId & songKey (resets start parameter to 0s whenever song changes)
   const embedUrl = useRef<string>('');
   const lastVideoIdRef = useRef<string>('');
+  const lastSongKeyRef = useRef<string>('');
 
-  if (config.videoId && config.videoId !== lastVideoIdRef.current) {
+  if (config.videoId && (config.videoId !== lastVideoIdRef.current || songKey !== lastSongKeyRef.current)) {
     lastVideoIdRef.current = config.videoId;
+    lastSongKeyRef.current = songKey || '';
     const startSec = Math.max(0, Math.floor(currentTime || 0));
     const startParam = startSec > 0 ? `&start=${startSec}` : '';
     embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
