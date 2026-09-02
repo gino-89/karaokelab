@@ -99,15 +99,15 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     } catch (_) { }
   }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
-  // Sync Seek position when user jumps / seeks in the song
+  // Sync Seek position when user jumps / seeks or if video drifts by more than 0.7s
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
 
     const delta = Math.abs(currentTime - prevTimeRef.current);
     const now = Date.now();
 
-    // If time jumped by more than 1.5 seconds (manual seek)
-    if (delta > 1.5 && now - lastSeekTimeRef.current > 500) {
+    // Millimeter-accurate sync: re-sync immediately if video drifts by > 0.7s
+    if (delta > 0.7 && now - lastSeekTimeRef.current > 400) {
       lastSeekTimeRef.current = now;
       prevTimeRef.current = currentTime;
       try {
