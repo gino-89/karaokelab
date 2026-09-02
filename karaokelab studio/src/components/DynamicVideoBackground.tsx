@@ -33,7 +33,6 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   }, [config.videoId, songKey]);
 
   // Sync Play / Pause command ONLY when playback state actually changes (prevents HUD animation flashes)
-  // NOTE: We intentionally DO NOT call seekTo here, allowing background loop clips to loop naturally and endlessly
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
@@ -59,15 +58,15 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     } catch (_) {}
   }, [isPlaying, config.enabled, config.mode, config.videoId, currentTime, duration]);
 
-  if (!config.enabled || config.mode === 'off' || !config.videoId) {
+  if (!config.enabled || config.mode === 'off' || !config.videoId || !isPlaying) {
     return null;
   }
 
-  // Construct optimized, zero-controls, muted, loop URL with playlist param & youtube-nocookie
+  // Construct optimized, zero-controls, muted, loop URL with playlist param
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const embedUrl = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${isPlaying ? 1 : 0}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
 
-  const overlayOpacity = Math.max(0.15, Math.min(0.95, config.overlayOpacity ?? 0.55));
+  const overlayOpacity = Math.max(0.2, Math.min(0.95, config.overlayOpacity ?? 0.70));
   const blurPx = Math.max(0, Math.min(10, config.blurAmount ?? 1));
 
   return (
@@ -83,12 +82,10 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }}
       />
 
-      {/* Scaled & Centered 16:9 Frame - Scaled 1.45x to crop top title and bottom bars */}
-      <div
-        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
-          isVideoVisible ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
+      {/* Scaled & Centered 16:9 Desktop Frame - Scaled 1.45x to crop top title and bottom bars */}
+      <div className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
+        isVideoVisible ? 'opacity-100' : 'opacity-0'
+      }`}>
         <iframe
           ref={iframeRef}
           key={`${config.videoId}_${songKey || 'default'}`}
@@ -110,9 +107,9 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
       {/* Dark Contrast & Glassmorphism Overlay */}
       <div
-        className="absolute inset-0 transition-all duration-300 pointer-events-none"
+        className="absolute inset-0 transition-all duration-300"
         style={{
-          backgroundColor: `rgba(4, 6, 12, ${overlayOpacity})`,
+          backgroundColor: `rgba(6, 8, 15, ${overlayOpacity})`,
           backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
           WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
         }}
