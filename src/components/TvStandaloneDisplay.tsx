@@ -41,10 +41,11 @@ export const TvStandaloneDisplay: React.FC = () => {
             timestamp: newState.timestamp || Date.now(),
           };
         }
-        // Full update: update metadata, lyrics, and configuration
+        // Full update: update metadata, lyrics, configuration, and reset youTubeEmbedId if missing
         return {
           ...prev,
           ...newState,
+          youTubeEmbedId: 'youTubeEmbedId' in newState ? newState.youTubeEmbedId : null,
           lyrics: newState.lyrics || prev.lyrics,
           songTitle: newState.songTitle || prev.songTitle,
           songArtist: newState.songArtist !== undefined ? newState.songArtist : prev.songArtist,
@@ -343,7 +344,7 @@ export const TvStandaloneDisplay: React.FC = () => {
       <DynamicVideoBackground
         config={videoBgConfig}
         isPlaying={isPlaying}
-        songKey={`${songTitle}___${songArtist || ''}`}
+        songKey={tvState?.songTitle ? `${tvState.songTitle}___${tvState.songArtist || ''}` : 'tv_standby'}
         currentTime={currentTime}
         duration={duration}
       />
