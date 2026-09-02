@@ -187,7 +187,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
 
   // 10-second Countdown Timer Logic
   useEffect(() => {
-    if (!isOpen || isCountdownPaused || isReadOnly) return;
+    if (!isOpen || isCountdownPaused) return;
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -200,7 +200,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isOpen, isCountdownPaused, isReadOnly, muteAudio, nextSong]);
+  }, [isOpen, isCountdownPaused, muteAudio, nextSong]);
 
   // Asynchronously trigger next song / close when countdown reaches 0 (prevents setState in render warning)
   useEffect(() => {

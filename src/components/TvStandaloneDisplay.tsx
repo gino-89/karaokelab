@@ -30,6 +30,18 @@ export const TvStandaloneDisplay: React.FC = () => {
     const handleStateUpdate = (newState: TvStatePayload) => {
       setTvState((prev) => {
         if (!prev) return newState;
+
+        // Preserve scoreModalState object reference stability during broadcast ticks to prevent countdown re-render freezes
+        const prevModalOpen = !!prev.scoreModalState?.isOpen;
+        const newModalOpen = !!newState.scoreModalState?.isOpen;
+        const prevNextSongId = prev.scoreModalState?.nextSong?.id;
+        const newNextSongId = newState.scoreModalState?.nextSong?.id;
+        
+        const modalChanged = prevModalOpen !== newModalOpen || prevNextSongId !== newNextSongId;
+        const effectiveScoreModalState = modalChanged
+          ? newState.scoreModalState
+          : (prev.scoreModalState !== undefined ? prev.scoreModalState : newState.scoreModalState);
+
         if (newState.isTick) {
           // Fast-path delta tick: update time, duration, isPlaying, currentIndex, timestamp, scoreModalState
           return {
@@ -38,7 +50,7 @@ export const TvStandaloneDisplay: React.FC = () => {
             duration: newState.duration || prev.duration,
             isPlaying: newState.isPlaying !== undefined ? newState.isPlaying : prev.isPlaying,
             currentIndex: newState.currentIndex !== undefined ? newState.currentIndex : prev.currentIndex,
-            scoreModalState: newState.scoreModalState !== undefined ? newState.scoreModalState : prev.scoreModalState,
+            scoreModalState: effectiveScoreModalState,
             timestamp: newState.timestamp || Date.now(),
           };
         }
@@ -46,6 +58,7 @@ export const TvStandaloneDisplay: React.FC = () => {
         return {
           ...prev,
           ...newState,
+          scoreModalState: effectiveScoreModalState,
           youTubeEmbedId: 'youTubeEmbedId' in newState ? newState.youTubeEmbedId : null,
           lyrics: newState.lyrics !== undefined ? newState.lyrics : prev.lyrics,
           songTitle: newState.songTitle !== undefined ? newState.songTitle : prev.songTitle,
