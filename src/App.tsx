@@ -1817,33 +1817,27 @@ export default function App() {
         const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
         const nextSongData = nextReadyItem?.songData || null;
 
-        // If there are no more songs in the queue, clear player so SONANDO is emptied
-        if (!nextSongData) {
-          setCurrentSong(null);
-          setLyrics([]);
-          setDuration(0);
-          setCurrentTime(0);
-          setCurrentIndex(-1);
-          audioEngine.stop();
-        }
+        // 1. Immediately stop audio & video playback engine on track end for clean intermission
+        audioEngine.stop();
+        setIsPlaying(false);
+        setYouTubeEmbedId(null);
+        setCurrentSong(null);
+        setLyrics([]);
+        setDuration(0);
+        setCurrentTime(0);
+        setCurrentIndex(-1);
 
-        // Calculate performance score
+        // 2. Calculate performance score for singer
         const perf = generatePerformanceResult(finishedSong, activeProfile);
 
-        // [PAUSED SCORE MODAL FOR TESTING] Pause modal display and start next song directly
+        // 3. Open Score & Transition Modal with 5s countdown intermission
         setScoreModalState({
-          isOpen: false,
+          isOpen: true,
           mode: 'score',
           performance: perf,
           nextSong: nextSongData,
           nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
         });
-
-        if (nextSongData) {
-          setTimeout(() => {
-            loadSongIntoEngine(nextSongData, true);
-          }, 150);
-        }
 
         return nextQueue;
       });
