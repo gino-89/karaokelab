@@ -138,14 +138,14 @@ export const TvStandaloneDisplay: React.FC = () => {
   const isStandby = !tvState || !tvState.songTitle;
 
   const {
-    songTitle,
+    songTitle = '',
     songArtist,
     artistsList,
-    currentTime,
-    duration,
-    isPlaying,
-    lyrics,
-    currentIndex,
+    currentTime = 0,
+    duration = 0,
+    isPlaying = false,
+    lyrics = [],
+    currentIndex = -1,
     activeSingerName,
     activeSingerAvatar,
     nextSongTitle,
@@ -153,10 +153,11 @@ export const TvStandaloneDisplay: React.FC = () => {
     nextSongRequestedBy,
     isDuetMode,
     youTubeEmbedId,
-  } = tvState;
+  } = tvState || {};
 
-  const currentLyric = currentIndex >= 0 && currentIndex < lyrics.length ? lyrics[currentIndex] : null;
-  const nextLyric = currentIndex >= 0 && currentIndex < lyrics.length - 1 ? lyrics[currentIndex + 1] : (currentIndex === -1 && lyrics.length > 0 ? lyrics[0] : null);
+  const safeLyrics = Array.isArray(lyrics) ? lyrics : [];
+  const currentLyric = currentIndex >= 0 && currentIndex < safeLyrics.length ? safeLyrics[currentIndex] : null;
+  const nextLyric = currentIndex >= 0 && currentIndex < safeLyrics.length - 1 ? safeLyrics[currentIndex + 1] : (currentIndex === -1 && safeLyrics.length > 0 ? safeLyrics[0] : null);
 
   const currentSinger = currentLyric ? getDuetSinger(currentLyric, currentIndex, null, songArtist) : 'singer1';
   const nextSinger = nextLyric ? getDuetSinger(nextLyric, currentIndex + 1, null, songArtist) : 'singer1';
