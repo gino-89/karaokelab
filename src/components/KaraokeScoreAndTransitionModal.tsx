@@ -251,14 +251,11 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   if (!isOpen) return null;
 
   return (
-    <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 select-none ${
-        isPartyMode 
-          ? 'bg-black/95 backdrop-blur-2xl' 
-          : 'bg-slate-950/90 backdrop-blur-xl'
-      }`}
-      onClick={onClose}
-    >
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 select-none ${
+      isPartyMode 
+        ? 'bg-black/95 backdrop-blur-2xl' 
+        : 'bg-slate-950/90 backdrop-blur-xl'
+    }`}>
       {/* Background Canvas for Confetti */}
       <canvas
         ref={canvasRef}
@@ -272,10 +269,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       {/* ── STEP 1: KARAOKE PERFORMANCE SCORE SCREEN ───────────────── */}
       {/* ───────────────────────────────────────────────────────────── */}
       {currentStep === 'score' && performance && (
-        <div
-          className="relative z-20 w-full max-w-xl bg-slate-900/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-[0_0_80px_rgba(0,240,255,0.25)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="relative z-20 w-full max-w-xl bg-slate-900/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-[0_0_80px_rgba(0,240,255,0.25)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
           {/* Close button */}
           <button
             onClick={onClose}
@@ -341,20 +335,12 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
           </div>
 
           {/* Rank Badge */}
-          <div className="mb-4">
+          <div className="mb-6">
             <span className={`px-5 py-2 rounded-2xl text-sm sm:text-base font-black tracking-wider shadow-lg uppercase inline-flex items-center gap-2 ${performance.rankColor}`}>
               <Flame className="w-5 h-5 fill-current animate-pulse" />
               {performance.rank}
             </span>
           </div>
-
-          {/* Jury Verdict Quote */}
-          {(performance as any).juryVerdict && (
-            <div className="mb-5 px-4 py-2 rounded-2xl bg-slate-950/80 border border-pink-500/40 text-pink-300 text-xs font-black shadow-md flex items-center justify-center gap-2 animate-in fade-in">
-              <span>💬 Jurado KaraokeLab:</span>
-              <span className="italic text-white font-medium">"{(performance as any).juryVerdict}"</span>
-            </div>
-          )}
 
           {/* Detailed Performance Metrics */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full mb-8">

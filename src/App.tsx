@@ -57,7 +57,6 @@ import { aiEngineService } from './services/aiEngineService';
 import { tvBroadcast } from './services/tvBroadcastService';
 import { KaraokeScoreAndTransitionModal, KaraokePerformanceResult } from './components/KaraokeScoreAndTransitionModal';
 import { karaokeScoringTracker } from './services/karaokeScoringEngine';
-import { ScoringMode, generatePerformanceResult as generateEngineResult, pitchTracker } from './services/scoreEngine';
 
 export default function App() {
   // Current Song & Audio State
@@ -970,24 +969,8 @@ export default function App() {
     nextSinger: null,
   });
 
-  const [scoringMode, setScoringMode] = useState<ScoringMode>(
-    () => (localStorage.getItem('karaokelab_scoring_mode') as ScoringMode) || 'fiesta'
-  );
-
-  const handleUpdateScoringMode = (mode: ScoringMode) => {
-    setScoringMode(mode);
-    localStorage.setItem('karaokelab_scoring_mode', mode);
-  };
-
-  const generatePerformanceResult = (song: SongItem, singer?: SingerProfile): KaraokePerformanceResult | null => {
-    if (scoringMode === 'off') return null;
-
-    let realScore: number | null = null;
-    if (scoringMode === 'pitch') {
-      realScore = pitchTracker.stopTracking();
-    }
-
-    return generateEngineResult(song, singer, scoringMode, realScore);
+  const generatePerformanceResult = (song: SongItem, singer?: SingerProfile): KaraokePerformanceResult => {
+    return karaokeScoringTracker.computeFinalScore(song, singer, isMicActive);
   };
 
   const handleStartNextSongFromModal = () => {
@@ -1242,9 +1225,6 @@ export default function App() {
 
       // 3. START PLAYBACK INSTANTLY (0 delay)
       if (autoPlay) {
-        if (scoringMode === 'pitch') {
-          pitchTracker.startTracking();
-        }
         audioEngine.play(0).then(() => {
           setIsPlaying(true);
           const ctx = audioEngine.getAudioContext();
@@ -1826,21 +1806,14 @@ export default function App() {
         // Calculate performance score
         const perf = generatePerformanceResult(finishedSong, activeProfile);
 
-        if (perf) {
-          // Open Score & Transition Modal
-          setScoreModalState({
-            isOpen: true,
-            mode: 'score',
-            performance: perf,
-            nextSong: nextSongData,
-            nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
-          });
-        } else if (nextSongData) {
-          // If scoring disabled, auto-start next song
-          setTimeout(() => {
-            loadSongIntoEngine(nextSongData, true);
-          }, 300);
-        }
+        // Open Score & Transition Modal
+        setScoreModalState({
+          isOpen: true,
+          mode: 'score',
+          performance: perf,
+          nextSong: nextSongData,
+          nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
+        });
 
         return nextQueue;
       });
@@ -2549,8 +2522,6 @@ export default function App() {
         onClose={() => setIsDspModalOpen(false)}
         syncDelay={syncDelay}
         onUpdateSyncDelay={handleUpdateSyncDelay}
-        scoringMode={scoringMode}
-        onUpdateScoringMode={handleUpdateScoringMode}
       />
 
       {/* ── Modal de Información del Sistema / About (Gino El Arquitecto) ── */}

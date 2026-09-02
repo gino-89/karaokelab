@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { audioEngine } from '../services/audioEngine';
-import { Cpu, Zap, Volume2, Sliders, X, Check, RefreshCw, Radio, Sparkles, ShieldCheck, Trophy } from 'lucide-react';
-import { ScoringMode } from '../services/scoreEngine';
+import { Cpu, Zap, Volume2, Sliders, X, Check, RefreshCw, Radio, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface DspSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   syncDelay: number;
   onUpdateSyncDelay: (newDelay: number) => void;
-  scoringMode?: ScoringMode;
-  onUpdateScoringMode?: (mode: ScoringMode) => void;
 }
 
 export const DspSettingsModal: React.FC<DspSettingsModalProps> = ({
@@ -17,8 +14,6 @@ export const DspSettingsModal: React.FC<DspSettingsModalProps> = ({
   onClose,
   syncDelay,
   onUpdateSyncDelay,
-  scoringMode = 'fiesta',
-  onUpdateScoringMode,
 }) => {
   const [latencyMode, setLatencyMode] = useState<'interactive' | 'balanced' | 'playback'>('interactive');
   const [telemetry, setTelemetry] = useState({
@@ -191,57 +186,6 @@ export const DspSettingsModal: React.FC<DspSettingsModalProps> = ({
                 <ShieldCheck className="w-4 h-4 text-indigo-400 mb-1" />
                 <span className="text-xs font-bold">Reproducción</span>
                 <span className="text-[9px] text-indigo-300 font-mono mt-0.5">Sin cortes</span>
-              </button>
-            </div>
-          </div>
-
-          {/* KaraokeLab Scoring Mode Selector */}
-          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col gap-2">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
-              <span>Modo de Puntuación KaraokeLab</span>
-            </label>
-            <div className="grid grid-cols-3 gap-1.5 pt-1">
-              <button
-                type="button"
-                onClick={() => onUpdateScoringMode?.('fiesta')}
-                className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  scoringMode === 'fiesta'
-                    ? 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <span className="text-sm mb-0.5">🎲</span>
-                <span className="text-[11px] font-black">Jurado Fiesta</span>
-                <span className="text-[9px] text-amber-300 font-mono mt-0.5">Humor & Medallas</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onUpdateScoringMode?.('pitch')}
-                className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  scoringMode === 'pitch'
-                    ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.3)]'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <span className="text-sm mb-0.5">🎤</span>
-                <span className="text-[11px] font-black">Pitch Real</span>
-                <span className="text-[9px] text-cyan-300 font-mono mt-0.5">Focusrite / Mic</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onUpdateScoringMode?.('off')}
-                className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                  scoringMode === 'off'
-                    ? 'border-slate-500 bg-slate-800 text-slate-200'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <span className="text-sm mb-0.5">🔕</span>
-                <span className="text-[11px] font-bold">Desactivado</span>
-                <span className="text-[9px] text-slate-400 font-mono mt-0.5">Sin Puntos</span>
               </button>
             </div>
           </div>
