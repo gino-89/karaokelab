@@ -8,7 +8,6 @@ import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
-import { KaraokeScoreAndTransitionModal } from './KaraokeScoreAndTransitionModal';
 
 export const TvStandaloneDisplay: React.FC = () => {
   const [tvState, setTvState] = useState<TvStatePayload | null>(() => tvBroadcast.getInitialState());
@@ -338,7 +337,6 @@ export const TvStandaloneDisplay: React.FC = () => {
     );
   }
 
-  const isScoreModalActive = Boolean(tvState?.scoreModalState?.isOpen);
   const effectiveVideoBgConfig = tvState?.videoBgConfig || videoBgConfig;
 
   return (
@@ -350,13 +348,6 @@ export const TvStandaloneDisplay: React.FC = () => {
         songKey={tvState?.songTitle ? `${tvState.songTitle}___${tvState.songArtist || ''}` : 'tv_standby'}
         currentTime={currentTime}
         duration={duration}
-      />
-
-      {/* Dark Stage Curtain during Score & Transition Intermission */}
-      <div
-        className={`absolute inset-0 bg-[#060714] transition-opacity duration-500 z-20 pointer-events-none ${
-          isScoreModalActive ? 'opacity-100' : 'opacity-0'
-        }`}
       />
 
       {/* Ambient Visualizer Background */}
@@ -530,23 +521,6 @@ export const TvStandaloneDisplay: React.FC = () => {
           {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
         </span>
       </div>
-
-      {/* ── Score & Transition Modal Broadcast for TV Display ── */}
-      {tvState.scoreModalState && (
-        <KaraokeScoreAndTransitionModal
-          isOpen={tvState.scoreModalState.isOpen}
-          mode={tvState.scoreModalState.mode}
-          performance={tvState.scoreModalState.performance}
-          nextSong={tvState.scoreModalState.nextSong}
-          nextSinger={tvState.scoreModalState.nextSinger}
-          onStartNextSong={() => tvBroadcast.sendRemoteCommand('start_next_song')}
-          onReplayCurrentSong={() => tvBroadcast.sendRemoteCommand('replay_song')}
-          onClose={() => {}}
-          isPartyMode={true}
-          muteAudio={true}
-          isReadOnly={true}
-        />
-      )}
     </div>
   );
 };
