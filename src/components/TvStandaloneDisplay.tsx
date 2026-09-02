@@ -338,15 +338,25 @@ export const TvStandaloneDisplay: React.FC = () => {
     );
   }
 
+  const isScoreModalActive = Boolean(tvState?.scoreModalState?.isOpen);
+  const effectiveVideoBgConfig = tvState?.videoBgConfig || videoBgConfig;
+
   return (
     <div className="fixed inset-0 bg-[#060714] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden font-sans">
-      {/* Dynamic Video Background Layer (Identical to Mini Player) */}
+      {/* Dynamic Video Background Layer */}
       <DynamicVideoBackground
-        config={videoBgConfig}
+        config={effectiveVideoBgConfig}
         isPlaying={isPlaying}
         songKey={tvState?.songTitle ? `${tvState.songTitle}___${tvState.songArtist || ''}` : 'tv_standby'}
         currentTime={currentTime}
         duration={duration}
+      />
+
+      {/* Dark Stage Curtain during Score & Transition Intermission */}
+      <div
+        className={`absolute inset-0 bg-[#060714] transition-opacity duration-500 z-20 pointer-events-none ${
+          isScoreModalActive ? 'opacity-100' : 'opacity-0'
+        }`}
       />
 
       {/* Ambient Visualizer Background */}
