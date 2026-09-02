@@ -429,6 +429,15 @@ export default function App() {
   }, []);
 
   // ── Karaoke Performance Score & Next Song Transition Modal ──
+  const [scoringMode, setScoringMode] = useState<'fiesta' | 'real' | 'off'>(() => {
+    return (localStorage.getItem('karaokelab_scoring_mode') as 'fiesta' | 'real' | 'off') || 'fiesta';
+  });
+
+  const handleUpdateScoringMode = (mode: 'fiesta' | 'real' | 'off') => {
+    setScoringMode(mode);
+    localStorage.setItem('karaokelab_scoring_mode', mode);
+  };
+
   const [scoreModalState, setScoreModalState] = useState<{
     isOpen: boolean;
     mode: 'score' | 'transition';
@@ -1804,13 +1813,23 @@ export default function App() {
     // 3. Purge finished song from queue
     setQueue(nextQueue);
 
-    // 4. Calculate performance score for singer
+    // 4. If scoring mode is disabled ('off'), bypass score modal and start next song immediately
+    if (scoringMode === 'off') {
+      if (nextSongData) {
+        loadSongIntoEngine(nextSongData, true);
+      } else {
+        handleStop();
+      }
+      return;
+    }
+
+    // 5. Calculate performance score for singer
     const perf = generatePerformanceResult(
       finishedSong || { id: 'fallback_' + Date.now(), title: 'Karaoke Performance', artist: 'Artista', duration: 180 },
       activeProfile
     );
 
-    // 5. Open Score & Transition Celebration Modal (Guaranteed to render visually every time)
+    // 6. Open Score & Transition Celebration Modal (Guaranteed to render visually every time)
     setScoreModalState({
       isOpen: true,
       mode: 'score',
@@ -1818,7 +1837,7 @@ export default function App() {
       nextSong: nextSongData,
       nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
     });
-  }, [currentSong, activeProfile]);
+  }, [currentSong, activeProfile, scoringMode]);
 
   // Play next song in queue with Score & Intermission transition
   const handleNextInQueue = useCallback(() => {
@@ -2534,6 +2553,8 @@ export default function App() {
         onClose={() => setIsDspModalOpen(false)}
         syncDelay={syncDelay}
         onUpdateSyncDelay={handleUpdateSyncDelay}
+        scoringMode={scoringMode}
+        onUpdateScoringMode={handleUpdateScoringMode}
       />
 
       {/* ── Modal de Información del Sistema / About (Gino El Arquitecto) ── */}

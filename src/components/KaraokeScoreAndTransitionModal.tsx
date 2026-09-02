@@ -27,6 +27,9 @@ export interface KaraokePerformanceResult {
   rank: string;
   rankColor: string;
   stars: number; // 1 to 5
+  verdict?: string;
+  medal?: string;
+  medalColor?: string;
 }
 
 interface KaraokeScoreAndTransitionModalProps {
@@ -285,14 +288,21 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
                 </span>
               </div>
 
-              {/* Rank Badge */}
-              <span className={`mt-2 px-3 py-1 rounded-xl text-xs font-black tracking-wider shadow-md uppercase inline-flex items-center gap-1.5 ${performance.rankColor}`}>
-                <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
-                {performance.rank}
-              </span>
+              {/* Medal & Rank Badges */}
+              <div className="flex items-center gap-1.5 flex-wrap justify-center mt-2">
+                <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wider shadow-md uppercase inline-flex items-center gap-1 ${performance.rankColor}`}>
+                  <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
+                  {performance.rank}
+                </span>
+                {performance.medal && (
+                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wider border shadow-md inline-flex items-center gap-1 ${performance.medalColor}`}>
+                    {performance.medal}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Metrics Breakdown & Stars */}
+            {/* Metrics Breakdown & Stars & Jury Verdict */}
             <div className="flex flex-col items-center sm:items-start flex-1 w-full gap-2.5">
               {/* Stars */}
               <div className="flex items-center gap-1">
@@ -332,6 +342,14 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
                   </span>
                 </div>
               </div>
+
+              {/* Jury Verdict Quote Banner */}
+              {performance.verdict && (
+                <div className="w-full bg-slate-900/90 border border-amber-500/30 rounded-xl p-2.5 flex items-center justify-center gap-2 text-xs font-bold text-amber-200 shadow-md">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0 animate-spin" />
+                  <span className="italic text-center">"{performance.verdict}"</span>
+                </div>
+              )}
             </div>
           </div>
         )}

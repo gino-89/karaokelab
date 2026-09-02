@@ -226,26 +226,69 @@ export class KaraokeScoringTracker {
 
     const finalScore = Math.round(pitchScore * 0.4 + rhythmScore * 0.3 + lyricsScore * 0.3);
 
+    const JURY_VERDICTS_HIGH = [
+      '¡El garzón soltó la bandeja de la emoción! 😭🏆',
+      '¡La mesa 4 se puso de pie a aplaudir! 👏🎤',
+      '¡Próximo nominado al Grammy de la noche! 🌟✨',
+      '¡Rompió la copa de cristal con el agudo final! 🍷🎉',
+      '¡El público pidió bis antes de que terminaras! 🙌🔥',
+    ];
+
+    const JURY_VERDICTS_MID = [
+      '¡Mucha actitud! Faltó solo un sorbo de cerveza para el agudo 🍻🎶',
+      '¡Afinación limpia en el coro, el bar te acompañó! 🎤⚡',
+      '¡Le pusiste alma, corazón y garganta en el escenario! 💥❤️',
+      '¡El ritmo estuvo encendido de principio a fin! 🥁🔥',
+    ];
+
+    const JURY_VERDICTS_LOW = [
+      '¡Lo importante es cantar con ganas y convicción! 🎤🎉',
+      '¡El público celebró tu valentía en el escenario! 🥳👏',
+      '¡Para la próxima se viene el solo estelar! 🚀✨',
+    ];
+
     let rank = '🌟 ¡VOCALISTA ESTRELLA!';
     let rankColor = 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-cyan-500/40';
     let stars = 5;
+    let medal = 'Diamante 💎';
+    let medalColor = 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.4)]';
+    let verdict = JURY_VERDICTS_HIGH[Math.floor(Math.random() * JURY_VERDICTS_HIGH.length)];
 
     if (finalScore >= 96) {
       rank = '🏆 ¡LEYENDA DEL KARAOKE!';
       rankColor = 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-amber-400/50';
       stars = 5;
-    } else if (finalScore >= 92) {
+      medal = 'Diamante 💎';
+      medalColor = 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.4)]';
+      verdict = JURY_VERDICTS_HIGH[Math.floor(Math.random() * JURY_VERDICTS_HIGH.length)];
+    } else if (finalScore >= 91) {
       rank = '🌟 ¡VOCALISTA ESTRELLA!';
       rankColor = 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-cyan-400/40';
       stars = 5;
-    } else if (finalScore >= 85) {
+      medal = 'Platino 👑';
+      medalColor = 'bg-indigo-500/20 border-indigo-400 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.4)]';
+      verdict = JURY_VERDICTS_HIGH[Math.floor(Math.random() * JURY_VERDICTS_HIGH.length)];
+    } else if (finalScore >= 84) {
       rank = '🔥 ¡CANTAZ@ PROFESIONAL!';
       rankColor = 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-pink-500/40';
       stars = 4;
-    } else {
-      rank = '🎤 ¡BUEN RITMO!';
+      medal = 'Oro 🏆';
+      medalColor = 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]';
+      verdict = JURY_VERDICTS_MID[Math.floor(Math.random() * JURY_VERDICTS_MID.length)];
+    } else if (finalScore >= 77) {
+      rank = '🎤 ¡GRAN ACTITUD!';
       rankColor = 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-emerald-500/40';
       stars = 3;
+      medal = 'Plata 🥈';
+      medalColor = 'bg-slate-700/40 border-slate-400 text-slate-200';
+      verdict = JURY_VERDICTS_MID[Math.floor(Math.random() * JURY_VERDICTS_MID.length)];
+    } else {
+      rank = '🎵 ¡BUEN INTENTO!';
+      rankColor = 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-purple-500/40';
+      stars = 2;
+      medal = 'Bronce 🥉';
+      medalColor = 'bg-orange-950/40 border-orange-600 text-orange-300';
+      verdict = JURY_VERDICTS_LOW[Math.floor(Math.random() * JURY_VERDICTS_LOW.length)];
     }
 
     return {
@@ -258,6 +301,9 @@ export class KaraokeScoringTracker {
       rank,
       rankColor,
       stars,
+      verdict,
+      medal,
+      medalColor,
     };
   }
 }
