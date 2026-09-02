@@ -4,7 +4,7 @@ import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
 import { cleanLyricText, resolveArtistInfo } from '../services/lrcParser';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles, Mic } from 'lucide-react';
+import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
@@ -490,6 +490,13 @@ export const TvStandaloneDisplay: React.FC = () => {
                   </div>
                 );
               })()
+            ) : nextLyric ? (
+              <div className="flex flex-col items-center gap-3 text-slate-300">
+                <Music className="w-12 h-12 text-cyan-400" />
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-cyan-300">
+                  {cleanLyricText(nextLyric.text)}
+                </p>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-3 text-slate-400">
                 <Music className="w-12 h-12 text-slate-500" />
