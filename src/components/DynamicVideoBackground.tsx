@@ -49,21 +49,24 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 2000);
+    }, 2200);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
 
-  // Static embed URL per videoId & songKey (resets start parameter to 0s whenever song changes)
+  // Static embed URL per videoId & songKey (starts at 0s for new songs, or current time when mounting mid-song)
   const embedUrl = useRef<string>('');
   const lastVideoIdRef = useRef<string>('');
   const lastSongKeyRef = useRef<string>('');
 
   if (config.videoId && (config.videoId !== lastVideoIdRef.current || songKey !== lastSongKeyRef.current)) {
+    const isSongChange = songKey !== lastSongKeyRef.current;
     lastVideoIdRef.current = config.videoId;
     lastSongKeyRef.current = songKey || '';
-    // Always start new song video at second 0 (never inherit old song's final currentTime!)
-    embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}&start=0`;
+    // Start at 0s when changing songs; or at currentTime if mounting mid-song
+    const startSec = isSongChange ? 0 : Math.max(0, Math.floor(currentTime || 0));
+    const startParam = startSec > 0 ? `&start=${startSec}` : '';
+    embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
   }
 
   // Sync Play / Pause command when playback state changes
@@ -168,8 +171,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
               const win = iframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
-                // Always seek to second 0 on iframe load to prevent inheriting old song's currentTime
-                win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+                const targetSec = Math.max(0, Math.floor(currentTime || 0));
+                win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetSec, true] }), '*');
                 if (!isPlaying) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
                 } else {
