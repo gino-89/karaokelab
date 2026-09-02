@@ -1754,39 +1754,44 @@ export default function App() {
   // Unified track completion handler (used by Web Audio onEnded and YouTube video onEnded)
   const handleTrackEnded = useCallback(() => {
     setIsPlaying(false);
-    const finishedSong = currentSongRef.current || currentSong || {
-      id: 'fallback_' + Date.now(),
-      title: 'Karaoke Performance',
-      artist: 'Artista',
-      duration: 180,
-    };
+    const finishedSong = currentSongRef.current || currentSong;
+    const curId = finishedSong?.id || '';
+    const cleanCurId = curId ? curId.replace(/^yt_/, '') : '';
 
-    const curId = finishedSong.id || '';
-    const cleanCurId = curId.replace(/^yt_/, '');
+    console.log('✓ Track ended for:', finishedSong?.title || curId);
+
+    // 1. Immediately stop audio & video playback engine on track end for clean intermission
+    audioEngine.stop();
+    setIsPlaying(false);
+    setYouTubeEmbedId(null);
+    setCurrentSong(null);
+    setLyrics([]);
+    setDuration(0);
+    setCurrentTime(0);
+    setCurrentIndex(-1);
 
     setQueue((prevQueue) => {
-      // Completely purge finished song from queue
-      let nextQueue = prevQueue.filter((q) => {
-        const qClean = q.songData?.id ? q.songData.id.replace(/^yt_/, '') : q.id.replace(/^yt_/, '');
-        return q.id !== curId && q.songData?.id !== curId && qClean !== cleanCurId;
+      // Completely purge the finished song from queue (check id, songData.id, and clean YouTube id)
+      const nextQueue = prevQueue.filter((q) => {
+        if (!curId && !cleanCurId) return true;
+        const qId = q.id;
+        const qSongId = q.songData?.id;
+        const qClean = qSongId ? qSongId.replace(/^yt_/, '') : qId.replace(/^yt_/, '');
+
+        if (qId === curId || qSongId === curId) return false;
+        if (cleanCurId && (qClean === cleanCurId || qId.includes(cleanCurId))) return false;
+        return true;
       });
 
       // Find next ready song in queue
       const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
       const nextSongData = nextReadyItem?.songData || null;
 
-      // 1. Immediately stop audio & video playback engine on track end for clean intermission
-      audioEngine.stop();
-      setIsPlaying(false);
-      setYouTubeEmbedId(null);
-      setCurrentSong(null);
-      setLyrics([]);
-      setDuration(0);
-      setCurrentTime(0);
-      setCurrentIndex(-1);
-
       // 2. Calculate performance score for singer
-      const perf = generatePerformanceResult(finishedSong, activeProfile);
+      const perf = generatePerformanceResult(
+        finishedSong || { id: 'fallback_' + Date.now(), title: 'Karaoke Performance', artist: 'Artista', duration: 180 },
+        activeProfile
+      );
 
       // 3. Open Score & Transition Modal with 5s countdown intermission
       setScoreModalState({
