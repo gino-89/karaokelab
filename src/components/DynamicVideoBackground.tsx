@@ -37,7 +37,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const lastSeekTimeRef = useRef<number>(Date.now());
   const prevTimeRef = useRef<number>(currentTime || 0);
 
-  // 3-second pure black fade curtain (3000ms) and instant seekTo(0) reset on song/video change
+  // 2.5-second pure black fade curtain (2500ms) and instant seekTo(0) reset on song/video change
   useEffect(() => {
     setIsVideoVisible(false);
     try {
@@ -49,7 +49,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 3000);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
