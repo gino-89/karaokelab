@@ -12,3 +12,4 @@ temp_ai
 .env.local
 .DS_Store
 *.log
+.vite
