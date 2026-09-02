@@ -1641,60 +1641,62 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           <span className="text-xs font-mono text-slate-400 tabular-nums w-10 text-right">{fmt(duration)}</span>
         </div>
 
-        {/* ── Transport Controls ── */}
-        <div className="px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 bg-slate-900/95 border-t border-slate-800/80">
-          {/* Left: Dueto (40% de voz) & Guía Coros */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* ── Transport Controls Bar ── */}
+        <div className="px-3 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3 bg-slate-950/95 border-t border-slate-800/80 shadow-2xl">
+          {/* Left: Vocal Guide Controls (Voz Guía & Guía Coros) */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={onToggleVocalGuide}
               style={{ touchAction: 'manipulation' }}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all duration-300 ease-out active:scale-95 shadow-sm ${
                 vocalGain > 0.05
-                  ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.45)] font-black'
-                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
+                  ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.45)] font-black scale-105'
+                  : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
               }`}
               title="Voz Guía: Activa la voz original del artista al 40% de volumen para acompañar tu canto"
             >
-              <Mic className="w-4 h-4 text-cyan-300" />
-              <span className="hidden sm:inline">
-                {vocalGain > 0.05 ? 'Voz Guía (40%) ON' : 'Voz Guía'}
+              <Mic className={`w-4 h-4 transition-transform duration-300 ${vocalGain > 0.05 ? 'text-cyan-300 scale-110 animate-pulse' : 'text-slate-400'}`} />
+              <span className="whitespace-nowrap transition-all duration-300">
+                {vocalGain > 0.05 ? 'Voz Guía ON (40%)' : 'Voz Guía'}
               </span>
             </button>
+
             <button
               type="button"
               onClick={onToggleSmartVocalCue}
               style={{ touchAction: 'manipulation' }}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all duration-300 ease-out active:scale-95 shadow-sm ${
                 isSmartVocalCue
-                  ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_14px_rgba(99,102,241,0.5)] font-black'
-                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
+                  ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_16px_rgba(99,102,241,0.5)] font-black scale-105'
+                  : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
               }`}
               title="Guía Coros: Activa la voz original automáticamente solo en entradas de versos y coros"
             >
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span className="hidden sm:inline">
-                {isSmartVocalCue ? 'Coros ON' : 'Guía Coros'}
+              <Sparkles className={`w-4 h-4 transition-transform duration-300 ${isSmartVocalCue ? 'text-indigo-300 scale-110 animate-spin' : 'text-slate-400'}`} />
+              <span className="whitespace-nowrap transition-all duration-300">
+                {isSmartVocalCue ? 'Guía Coros ON' : 'Guía Coros'}
               </span>
             </button>
           </div>
 
-          {/* Center: Play / Pause / Stop / Next */}
-          <div className="flex items-center justify-center gap-2 sm:gap-3 mx-auto order-first sm:order-none w-full sm:w-auto py-0.5">
+          {/* Center: Primary Transport Controls (Stop, Play/Pause, Replay, Next) */}
+          <div className="flex items-center justify-center gap-2.5 sm:gap-3 mx-auto order-first sm:order-none w-full sm:w-auto py-1">
             <button
               type="button"
               onClick={onStop}
               style={{ touchAction: 'manipulation' }}
-              className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
+              className="w-10 h-10 rounded-full border border-slate-700/80 bg-slate-900 hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-sm"
               title="Detener"
             >
               <Square className="w-4 h-4 text-slate-300 fill-current" />
             </button>
+
             <button
               type="button"
               onClick={isPlaying ? onPause : onPlay}
               style={{ touchAction: 'manipulation' }}
-              className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 transition-all active:scale-95"
+              className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 hover:brightness-110 text-slate-950 flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition-all active:scale-95"
               title={isPlaying ? 'Pausar' : 'Reproducir'}
             >
               {isPlaying
@@ -1702,15 +1704,17 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 : <Play className="w-6 h-6 fill-current ml-0.5" />
               }
             </button>
+
             <button
               type="button"
               onClick={() => onSeek(0)}
               style={{ touchAction: 'manipulation' }}
-              className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
-              title="Reiniciar"
+              className="w-10 h-10 rounded-full border border-slate-700/80 bg-slate-900 hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-sm"
+              title="Reiniciar Canción"
             >
               <RotateCcw className="w-4 h-4 text-slate-300" />
             </button>
+
             <button
               type="button"
               onClick={onNextInQueue}
@@ -1718,33 +1722,35 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               disabled={!hasNextInQueue || !onNextInQueue}
               className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
                 hasNextInQueue && onNextInQueue
-                  ? 'border-cyan-400/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 hover:border-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.4)] cursor-pointer active:scale-90'
+                  ? 'border-cyan-400/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 hover:border-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.4)] cursor-pointer active:scale-90'
                   : 'border-slate-800 bg-slate-900/60 text-slate-600 cursor-not-allowed opacity-40'
               }`}
-              title={hasNextInQueue ? 'Siguiente canción en cola' : 'No hay más canciones en la cola'}
+              title={hasNextInQueue ? 'Siguiente canción en cola (pasar directo)' : 'No hay más canciones en la cola'}
             >
               <SkipForward className="w-4 h-4 fill-current" />
             </button>
           </div>
 
-          {/* Right: Quick Offset adjustment */}
-          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400 shrink-0 ml-auto sm:ml-0">
-            <span className="hidden md:inline font-semibold">Calibrar:</span>
+          {/* Right: Sync Offset Calibration Box */}
+          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400 shrink-0 ml-auto sm:ml-0 bg-slate-900/80 border border-slate-800 rounded-xl px-2.5 py-1.5 shadow-sm">
+            <span className="hidden md:inline font-semibold text-slate-400">Calibrar:</span>
             <button
               type="button"
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay - 0.2)}
               style={{ touchAction: 'manipulation' }}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
+              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer transition-all active:scale-95"
               title="Adelantar Letra -0.2s"
             >
               -0.2s
             </button>
-            <span className="text-amber-300 font-bold px-1">{syncDelay > 0 ? `+${syncDelay.toFixed(1)}s` : `${syncDelay.toFixed(1)}s`}</span>
+            <span className="text-amber-300 font-bold px-1 text-xs">
+              {syncDelay > 0 ? `+${syncDelay.toFixed(1)}s` : `${syncDelay.toFixed(1)}s`}
+            </span>
             <button
               type="button"
               onClick={() => onUpdateSyncDelay && onUpdateSyncDelay(syncDelay + 0.2)}
               style={{ touchAction: 'manipulation' }}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer active:scale-95"
+              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer transition-all active:scale-95"
               title="Atrasar Letra +0.2s"
             >
               +0.2s
