@@ -60,22 +60,31 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const lastSongKeyRef = useRef<string>('');
 
   if (config.videoId && (config.videoId !== lastVideoIdRef.current || songKey !== lastSongKeyRef.current)) {
-    const isSongChange = songKey !== lastSongKeyRef.current;
     lastVideoIdRef.current = config.videoId;
     lastSongKeyRef.current = songKey || '';
-    // Start at 0s when changing songs; or at currentTime if mounting mid-song
-    const startSec = isSongChange ? 0 : Math.max(0, Math.floor(currentTime || 0));
+    const startSec = Math.max(0, Math.floor(currentTime || 0));
     const startParam = startSec > 0 ? `&start=${startSec}` : '';
     embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
   }
 
-  // Sync Play / Pause command when playback state changes (Matches Mini Player behavior 1:1)
+  // Sync Play / Pause command when playback state changes
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
     try {
       const win = iframeRef.current?.contentWindow;
       if (!win) return;
+
+      if (currentTime !== undefined) {
+        win.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func: 'seekTo',
+            args: [currentTime, true],
+          }),
+          '*'
+        );
+      }
 
       win.postMessage(
         JSON.stringify({
@@ -85,35 +94,33 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }),
         '*'
       );
-    } catch (_) { }
+    } catch (_) {}
   }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
-  // Sync Seek position ONLY when user manually seeks or jumps in the song (delta > 2.0s)
-  // Eliminates seekTo postMessage stuttering so video background plays fluidly 1:1 identical to Mini Player
+  // Sync Seek position when user jumps / seeks in the song
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
 
     const delta = Math.abs(currentTime - prevTimeRef.current);
     const now = Date.now();
 
-    // Manual seek / jump detection (> 2 seconds jump)
-    if (delta > 2.0 && now - lastSeekTimeRef.current > 500) {
+    // If time jumped by more than 1.5 seconds (manual seek)
+    if (delta > 1.5 && now - lastSeekTimeRef.current > 500) {
       lastSeekTimeRef.current = now;
       prevTimeRef.current = currentTime;
       try {
         const win = iframeRef.current?.contentWindow;
         if (win) {
-          const targetSec = Math.max(0, Math.floor(currentTime || 0));
           win.postMessage(
             JSON.stringify({
               event: 'command',
               func: 'seekTo',
-              args: [targetSec, true],
+              args: [currentTime, true],
             }),
             '*'
           );
         }
-      } catch (_) { }
+      } catch (_) {}
     } else {
       prevTimeRef.current = currentTime;
     }
@@ -130,14 +137,16 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
       {/* High-def Cover Transition Mask - Pure dark stage during startup & song changes */}
       <div
-        className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
-          }`}
+        className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${
+          isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
       />
 
       {/* Scaled & Centered 16:9 Frame - Hardware accelerated with 3D transform */}
       <div
-        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${isVideoVisible ? 'opacity-100' : 'opacity-0'
-          }`}
+        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
+          isVideoVisible ? 'opacity-100' : 'opacity-0'
+        }`}
         style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
       >
         <iframe
@@ -162,16 +171,16 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
               const win = iframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
-                const baseSec = Math.max(0, Math.floor(currentTime || 0));
-                const targetSec = baseSec > 0 ? baseSec + 0.25 : 0;
-                win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetSec, true] }), '*');
+                if (currentTime) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [currentTime, true] }), '*');
+                }
                 if (!isPlaying) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
                 } else {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 }
               }
-            } catch (_) { }
+            } catch (_) {}
           }}
         />
       </div>
