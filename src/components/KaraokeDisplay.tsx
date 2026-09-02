@@ -1553,22 +1553,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                       </div>
                     );
                   })()
-                ) : nextLyric ? (
-                  <div className="text-center flex flex-col items-center justify-center gap-1.5 animate-in fade-in">
-                    {secondsToNext > 0.5 && secondsToNext <= 5.0 ? (
-                      <div className="flex items-center gap-2 px-3 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 text-xs font-black uppercase tracking-widest shadow-md">
-                        <span className="text-cyan-400 font-mono text-sm animate-pulse font-extrabold">{Math.ceil(secondsToNext)}s</span>
-                        <span>· ¡PREPÁRATE PARA CANTAR! 🎤</span>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] font-mono font-bold text-cyan-400/80 uppercase tracking-widest bg-slate-900/80 px-3 py-0.5 rounded-full border border-slate-800">
-                        ♫ INTRO INSTRUMENTAL
-                      </span>
-                    )}
-                    <p className="text-lg sm:text-2xl font-black text-white max-w-2xl truncate drop-shadow-md">
-                      "{cleanLyricText(nextLyric.text)}"
-                    </p>
-                  </div>
                 ) : (
                   <div className="text-center">
                     <p className="text-xl sm:text-2xl font-bold text-slate-500 tracking-wider animate-pulse">
