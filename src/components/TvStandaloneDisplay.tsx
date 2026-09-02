@@ -4,7 +4,7 @@ import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
 import { cleanLyricText, resolveArtistInfo } from '../services/lrcParser';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
+import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles, Mic } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
@@ -491,11 +491,33 @@ export const TvStandaloneDisplay: React.FC = () => {
                 );
               })()
             ) : nextLyric ? (
-              <div className="flex flex-col items-center gap-3 text-slate-300">
-                <Music className="w-12 h-12 text-cyan-400" />
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-cyan-300">
-                  {cleanLyricText(nextLyric.text)}
-                </p>
+              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                {showCountdown ? (
+                  <div className="flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-cyan-500/20 border-4 border-cyan-400 flex items-center justify-center shadow-[0_0_50px_rgba(0,240,255,0.6)] animate-pulse">
+                      <span className="text-5xl sm:text-7xl font-black font-mono text-[#00f0ff]">
+                        {Math.ceil(secondsToNext)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 text-sm font-black uppercase tracking-widest shadow-lg">
+                      <Mic className="w-4 h-4 text-cyan-400 animate-bounce" />
+                      <span>¡PREPÁRATE PARA CANTAR!</span>
+                    </div>
+                    <p className="text-2xl sm:text-4xl md:text-5xl font-black text-white max-w-3xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+                      "{cleanLyricText(nextLyric.text)}"
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-slate-300">
+                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 border border-cyan-500/40 text-cyan-400 text-xs font-mono font-bold uppercase tracking-wider shadow-md">
+                      <Music className="w-4 h-4 text-cyan-400 animate-spin" />
+                      <span>INTRO INSTRUMENTAL</span>
+                    </div>
+                    <p className="text-2xl sm:text-4xl md:text-5xl font-black text-white/90 max-w-3xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+                      "{cleanLyricText(nextLyric.text)}"
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -507,8 +529,8 @@ export const TvStandaloneDisplay: React.FC = () => {
             )}
           </div>
 
-          {/* Next Upcoming Line Preview */}
-          {nextLyric ? (
+          {/* Next Upcoming Line Preview (Only show when a line is currently active) */}
+          {currentLyric && nextLyric ? (
             <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/85 border border-slate-700/80 max-w-3xl w-full flex flex-col items-center shadow-lg">
               <span className="text-sm sm:text-base md:text-lg font-mono font-black uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
                 {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
