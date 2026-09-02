@@ -7,6 +7,7 @@ import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
 import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
+import { KaraokeScoreAndTransitionModal } from './KaraokeScoreAndTransitionModal';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
 
 export const TvStandaloneDisplay: React.FC = () => {
@@ -30,13 +31,14 @@ export const TvStandaloneDisplay: React.FC = () => {
       setTvState((prev) => {
         if (!prev) return newState;
         if (newState.isTick) {
-          // Fast-path delta tick: update only time, duration, isPlaying, currentIndex, timestamp
+          // Fast-path delta tick: update time, duration, isPlaying, currentIndex, timestamp, scoreModalState
           return {
             ...prev,
             currentTime: newState.currentTime,
             duration: newState.duration || prev.duration,
             isPlaying: newState.isPlaying !== undefined ? newState.isPlaying : prev.isPlaying,
             currentIndex: newState.currentIndex !== undefined ? newState.currentIndex : prev.currentIndex,
+            scoreModalState: newState.scoreModalState !== undefined ? newState.scoreModalState : prev.scoreModalState,
             timestamp: newState.timestamp || Date.now(),
           };
         }
@@ -496,6 +498,19 @@ export const TvStandaloneDisplay: React.FC = () => {
           {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
         </span>
       </div>
+
+      {/* 4. Score & 10-Second Transition Celebration Modal on TV Display */}
+      <KaraokeScoreAndTransitionModal
+        isOpen={!!tvState?.scoreModalState?.isOpen}
+        performance={tvState?.scoreModalState?.performance || null}
+        nextSong={tvState?.scoreModalState?.nextSong || null}
+        nextSinger={tvState?.scoreModalState?.nextSinger || null}
+        onStartNextSong={() => {}}
+        onReplayCurrentSong={() => {}}
+        onClose={() => {}}
+        isReadOnly={true}
+        muteAudio={true}
+      />
     </div>
   );
 };
