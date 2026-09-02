@@ -901,30 +901,41 @@ export default function App() {
         const activeProf = profiles.find((p) => p.id === activeProfileId);
         const nextQueueItem = queue[0];
 
-        if (isFullSyncNeeded) {
+        // Determine active song & background to broadcast (pre-load NEXT song immediately if score modal is open)
+        const isIntermission = Boolean(scoreModalState.isOpen && scoreModalState.nextSong);
+        const targetSong = isIntermission ? scoreModalState.nextSong : currentSong;
+        const targetLyrics = isIntermission ? (scoreModalState.nextSong?.lyrics || []) : lyrics;
+        const targetYtId = isIntermission
+          ? (scoreModalState.nextSong?.id?.startsWith('yt_') ? scoreModalState.nextSong.id : null)
+          : youTubeEmbedId;
+        const targetVideoBgConfig = isIntermission
+          ? (scoreModalState.nextSong?.videoBgConfig || videoBgConfig)
+          : videoBgConfig;
+
+        if (isFullSyncNeeded || isIntermission) {
           lastFullSyncRef.current = now;
-          lastSongIdRef.current = currentSong?.id || null;
+          lastSongIdRef.current = targetSong?.id || null;
 
           // Full state payload (sent on song change, play/pause, or periodic 2.5s heartbeat)
           const fullPayload = {
-            songTitle: currentSong?.title || '',
-            songArtist: currentSong?.artist,
-            artistsList: currentSong?.artistsList,
-            currentTime,
-            duration,
-            isPlaying,
-            lyrics,
-            currentIndex,
+            songTitle: targetSong?.title || '',
+            songArtist: targetSong?.artist,
+            artistsList: targetSong?.artistsList,
+            currentTime: isIntermission ? 0 : currentTime,
+            duration: isIntermission ? (targetSong?.duration || 0) : duration,
+            isPlaying: isIntermission ? false : isPlaying,
+            lyrics: targetLyrics,
+            currentIndex: isIntermission ? -1 : currentIndex,
             activeSingerName: activeProf && activeProf.id !== 'profile_all' ? activeProf.name : undefined,
             activeSingerAvatar: activeProf && activeProf.id !== 'profile_all' ? activeProf.avatar : undefined,
             nextSongTitle: nextQueueItem?.songData?.title || (nextQueueItem?.fileName ? nextQueueItem.fileName.replace(/^🎬\s*\[YouTube\]\s*/, '') : undefined),
             nextSongArtist: nextQueueItem?.songData?.artist,
             nextSongRequestedBy: nextQueueItem?.requestedBy,
             scoreModalState: scoreModalState.isOpen ? scoreModalState : null,
-            bpm: currentSong?.bpm || 120,
+            bpm: targetSong?.bpm || 120,
             isDuetMode,
-            youTubeEmbedId,
-            videoBgConfig,
+            youTubeEmbedId: targetYtId,
+            videoBgConfig: targetVideoBgConfig,
             timestamp: Date.now(),
             isTick: false,
           };
