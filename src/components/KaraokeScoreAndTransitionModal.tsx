@@ -240,62 +240,65 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       {/* ───────────────────────────────────────────────────────────── */}
       {/* ── UNIFIED KARAOKE PERFORMANCE SCORE & 10s COUNTDOWN MODAL ──── */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="relative z-20 w-full max-w-2xl bg-slate-900/95 border border-slate-700/90 rounded-3xl p-5 sm:p-7 shadow-[0_0_90px_rgba(0,240,255,0.25)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[95vh]">
+      <div className="relative z-20 w-full max-w-4xl bg-slate-900/95 border border-slate-700/90 rounded-3xl p-6 sm:p-8 shadow-[0_0_100px_rgba(0,240,255,0.3)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[92vh]">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
+          className="absolute top-5 right-5 p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
           title="Cerrar"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
         {/* Top Header Badge */}
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-cyan-500/20 border border-amber-400/40 text-amber-300 text-xs font-black tracking-widest uppercase mb-3 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-          <Trophy className="w-4 h-4 text-amber-400 fill-amber-400 animate-bounce" />
+        <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-cyan-500/20 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-black tracking-widest uppercase mb-4 shadow-[0_0_25px_rgba(245,158,11,0.35)]">
+          <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 fill-amber-400 animate-bounce" />
           <span>PUNTUACIÓN Y PRÓXIMA CANCIÓN</span>
-          <Sparkles className="w-4 h-4 text-cyan-300" />
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-300" />
         </div>
 
         {/* Singer Badge & Song Title */}
         {performance && (
-          <div className="flex flex-col items-center gap-1 mb-3">
+          <div className="flex flex-col items-center gap-1.5 mb-4">
             {performance.singer && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-bold text-slate-200">
-                <span className="text-base">{performance.singer.avatar}</span>
+              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold text-slate-200">
+                <span className="text-lg">{performance.singer.avatar}</span>
                 <span>Cantante:</span>
                 <span className="text-cyan-400 font-extrabold">{performance.singer.name}</span>
               </div>
             )}
-            <h2 className="text-lg sm:text-xl font-black text-white tracking-wide truncate max-w-md">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-wide truncate max-w-xl">
               {performance.song.title}
             </h2>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium">
+              {performance.song.artist || 'KaraokeLab Engine'}
+            </p>
           </div>
         )}
 
         {/* Middle Section: Score Box + Performance Metrics */}
         {performance && (
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 w-full mb-4 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 w-full mb-5 bg-slate-950/70 border border-slate-800/90 rounded-2xl p-5 shadow-inner">
             {/* Score Ring */}
             <div className="flex flex-col items-center justify-center shrink-0">
-              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-3 border-cyan-400/80 shadow-[0_0_35px_rgba(0,240,255,0.3)] flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-4 border-cyan-400/90 shadow-[0_0_45px_rgba(0,240,255,0.35)] flex flex-col items-center justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent animate-pulse" />
-                <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-100 to-cyan-400 font-mono tracking-tight">
+                <span className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-100 to-cyan-400 font-mono tracking-tight">
                   {animatedScore}
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-1">
                   Puntos
                 </span>
               </div>
 
               {/* Medal & Rank Badges */}
-              <div className="flex items-center gap-1.5 flex-wrap justify-center mt-2">
-                <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wider shadow-md uppercase inline-flex items-center gap-1 ${performance.rankColor}`}>
-                  <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
+              <div className="flex items-center gap-2 flex-wrap justify-center mt-3">
+                <span className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black tracking-wider shadow-md uppercase inline-flex items-center gap-1.5 ${performance.rankColor}`}>
+                  <Flame className="w-4 h-4 fill-current animate-pulse" />
                   {performance.rank}
                 </span>
                 {performance.medal && (
-                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wider border shadow-md inline-flex items-center gap-1 ${performance.medalColor}`}>
+                  <span className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black tracking-wider border shadow-md inline-flex items-center gap-1.5 ${performance.medalColor}`}>
                     {performance.medal}
                   </span>
                 )}
@@ -303,18 +306,18 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
             </div>
 
             {/* Metrics Breakdown & Stars & Jury Verdict */}
-            <div className="flex flex-col items-center sm:items-start flex-1 w-full gap-2.5">
+            <div className="flex flex-col items-center sm:items-start flex-1 w-full gap-3">
               {/* Stars */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 {[1, 2, 3, 4, 5].map((starIdx) => {
                   const isFilled = starIdx <= performance.stars;
                   return (
                     <Star
                       key={starIdx}
-                      className={`w-5 h-5 transition-all duration-300 ${
+                      className={`w-6 h-6 sm:w-7 sm:h-7 transition-all duration-300 ${
                         isFilled
-                          ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)] scale-110'
-                          : 'text-slate-700'
+                          ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)] scale-110'
+                          : 'text-slate-800'
                       }`}
                     />
                   );
@@ -322,22 +325,22 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
               </div>
 
               {/* 3 Metric Pills */}
-              <div className="grid grid-cols-3 gap-2 w-full">
-                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Afinación</span>
-                  <span className="text-sm font-black text-cyan-400 font-mono mt-0.5">
+              <div className="grid grid-cols-3 gap-2.5 w-full">
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Afinación</span>
+                  <span className="text-base sm:text-lg font-black text-cyan-400 font-mono mt-0.5">
                     {performance.pitchAccuracy}%
                   </span>
                 </div>
-                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Ritmo</span>
-                  <span className="text-sm font-black text-[#ff007f] font-mono mt-0.5">
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Ritmo</span>
+                  <span className="text-base sm:text-lg font-black text-[#ff007f] font-mono mt-0.5">
                     {performance.rhythmScore}%
                   </span>
                 </div>
-                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Letras</span>
-                  <span className="text-sm font-black text-[#00ff9d] font-mono mt-0.5">
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Letras</span>
+                  <span className="text-base sm:text-lg font-black text-[#00ff9d] font-mono mt-0.5">
                     {performance.lyricsCompletion}%
                   </span>
                 </div>
@@ -345,7 +348,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
 
               {/* Jury Verdict Quote Banner */}
               {performance.verdict && (
-                <div className="w-full bg-slate-900/90 border border-amber-500/30 rounded-xl p-2.5 flex items-center justify-center gap-2 text-xs font-bold text-amber-200 shadow-md">
+                <div className="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-3 flex items-center justify-center gap-2 text-xs sm:text-sm font-bold text-amber-200 shadow-md">
                   <Sparkles className="w-4 h-4 text-amber-400 shrink-0 animate-spin" />
                   <span className="italic text-center">"{performance.verdict}"</span>
                 </div>
@@ -358,21 +361,21 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
         {/* ── NEXT SONG CARD & 10-SECOND COUNTDOWN ───────────────────── */}
         {/* ───────────────────────────────────────────────────────────── */}
         {nextSong ? (
-          <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 border border-slate-700/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 mb-5 shadow-lg">
+          <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 border border-slate-700/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 shadow-lg">
             {/* Left: Next Song Details */}
-            <div className="flex items-center gap-3 min-w-0 text-left w-full sm:w-auto flex-1">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff007f]/30 to-[#00f0ff]/30 border border-slate-700 flex items-center justify-center shrink-0">
-                <Music className="w-6 h-6 text-cyan-300" />
+            <div className="flex items-center gap-4 min-w-0 text-left w-full sm:w-auto flex-1">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#ff007f]/30 to-[#00f0ff]/30 border border-slate-700 flex items-center justify-center shrink-0 shadow-md">
+                <Music className="w-7 h-7 text-cyan-300" />
               </div>
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#ff007f] flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  <span>PRÓXIMA CANCIÓN:</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#ff007f] flex items-center gap-1.5 mb-0.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>PRÓXIMA CANCIÓN EN COLA:</span>
                 </span>
-                <h3 className="text-base font-black text-white truncate">
+                <h3 className="text-lg sm:text-xl font-black text-white truncate">
                   {nextSong.title}
                 </h3>
-                <p className="text-xs text-slate-400 truncate">
+                <p className="text-xs sm:text-sm text-slate-400 truncate">
                   {nextSong.artist || 'Artista Desconocido'}
                   {nextSinger && (
                     <span className="text-cyan-300 font-bold ml-2">
@@ -384,7 +387,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
             </div>
 
             {/* Right: 10-Second Countdown Circle */}
-            <div className="relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 shrink-0">
+            <div className="relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                 <circle
                   cx="50"
@@ -408,32 +411,32 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
               </svg>
 
               <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-2xl sm:text-3xl font-black text-white font-mono animate-pulse">
+                <span className="text-3xl sm:text-4xl font-black text-white font-mono animate-pulse">
                   {countdown}
                 </span>
-                <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
                   seg
                 </span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="w-full flex items-center justify-center gap-2 mb-5 text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 py-2.5 rounded-xl">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>¡Has completado la cola! Excelente actuación. ({countdown}s)</span>
+          <div className="w-full flex items-center justify-center gap-2 mb-6 text-xs sm:text-sm font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 py-3 px-4 rounded-2xl">
+            <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+            <span>¡Has completado toda la cola! Excelente actuación. ({countdown}s)</span>
           </div>
         )}
 
         {/* ───────────────────────────────────────────────────────────── */}
         {/* ── ACTION BUTTONS ─────────────────────────────────────────── */}
         {/* ───────────────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center justify-center gap-2.5 w-full">
+        <div className="flex flex-wrap items-center justify-center gap-3 w-full">
           <button
             onClick={onReplayCurrentSong}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-all shadow-md"
             title="Volver a cantar la canción actual"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" />
             <span>Volver a Cantar</span>
           </button>
 
@@ -441,25 +444,25 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
             <>
               <button
                 onClick={() => setIsCountdownPaused((prev) => !prev)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 cursor-pointer transition-colors flex items-center gap-1.5"
+                className="px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs sm:text-sm border border-slate-700 cursor-pointer transition-colors flex items-center gap-2 shadow-md"
               >
-                {isCountdownPaused ? <Play className="w-3.5 h-3.5 text-cyan-400 fill-current" /> : <Pause className="w-3.5 h-3.5 text-amber-400" />}
+                {isCountdownPaused ? <Play className="w-4 h-4 text-cyan-400 fill-current" /> : <Pause className="w-4 h-4 text-amber-400" />}
                 <span>{isCountdownPaused ? 'Reanudar' : 'Pausar'}</span>
               </button>
 
               {onSkipNextSong && (
                 <button
                   onClick={onSkipNextSong}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs border border-slate-700 cursor-pointer transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs sm:text-sm border border-slate-700 cursor-pointer transition-colors flex items-center gap-2 shadow-md"
                 >
-                  <SkipForward className="w-3.5 h-3.5" />
+                  <SkipForward className="w-4 h-4" />
                   <span>Saltar Canción</span>
                 </button>
               )}
 
               <button
                 onClick={onStartNextSong}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_25px_rgba(16,185,129,0.4)]"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>¡Cantar Ahora!</span>
@@ -468,7 +471,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
           ) : (
             <button
               onClick={onClose}
-              className="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_25px_rgba(16,185,129,0.4)]"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Cerrar</span>
