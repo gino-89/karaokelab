@@ -35,19 +35,22 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     setIsVideoVisible(false);
   }
 
-  // Soft fade-in curtain: Stays visible for 3s to guarantee YouTube startup HUD is invisible
+  // 2-second pure black fade curtain (2000ms) on song/video change
   useEffect(() => {
     setIsVideoVisible(false);
     try {
       const win = iframeRef.current?.contentWindow;
       if (win) {
         win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+        if (!isPlaying) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+        }
       }
     } catch (_) {}
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 3000);
+    }, 2000); // Exact 2-second fade-in curtain
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
@@ -61,7 +64,9 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     lastVideoIdRef.current = config.videoId;
     lastSongKeyRef.current = songKey || '';
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
+    // Only autoplay if playback is currently active so TV doesn't run ahead during intermission/countdown!
+    const autoPlayParam = isPlaying ? 1 : 0;
+    embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
   }
 
   // Helper: Computes exact modulo time so loop videos stay in perfect sync between Laptop and TV
@@ -103,7 +108,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Sync Play / Pause command when playback state changes
+  // Sync Play / Pause command when playback state changes:
+  // Starts both laptop and TV screen from second 0 at the exact same instant when playback starts!
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
@@ -117,14 +123,15 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       const win = iframeRef.current?.contentWindow;
       if (!win) return;
 
-      win.postMessage(
-        JSON.stringify({
-          event: 'command',
-          func: shouldPlay ? 'playVideo' : 'pauseVideo',
-          args: '',
-        }),
-        '*'
-      );
+      if (shouldPlay) {
+        // If song just started (within first 2 seconds), ensure both screens start at exact second 0 in lockstep
+        if (currentTime !== undefined && currentTime <= 2) {
+          win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+        }
+        win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+      } else {
+        win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+      }
     } catch (_) {}
   }, [isPlaying, config.enabled, config.mode, config.videoId, currentTime, duration]);
 
@@ -169,15 +176,11 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
-      {/* High-def Cover Thumbnail Mask - Displayed seamlessly during startup so 0 HUD icons are visible */}
+      {/* High-def Cover Transition Mask - Pure dark stage for 2s during startup & song changes */}
       <div
-        className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 z-10 ${
+        className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${
           isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
-        style={{
-          backgroundImage: `url(https://i.ytimg.com/vi/${config.videoId}/hqdefault.jpg)`,
-          filter: 'blur(8px)',
-        }}
       />
 
       {/* Scaled & Centered 16:9 Frame - Scaled 1.45x to crop top title and bottom bars */}
@@ -208,15 +211,16 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
               const win = iframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
-                // Synchronize starting frame with host playback time when mounting TV screen mid-song
-                if (currentTime && currentTime > 1) {
+                // If mounting mid-song while already playing, synchronize starting frame with host
+                if (isPlaying && currentTime && currentTime > 2) {
                   const safeStart = getSyncedPosition(currentTime);
                   win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [safeStart, true] }), '*');
-                }
-                if (!isPlaying) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
-                } else {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else if (isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
                 }
               }
             } catch (_) {}
