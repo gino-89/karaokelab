@@ -1753,7 +1753,6 @@ export default function App() {
 
   // Unified track completion handler (used by Web Audio onEnded and YouTube video onEnded)
   const handleTrackEnded = useCallback(() => {
-    setIsPlaying(false);
     const finishedSong = currentSongRef.current || currentSong;
     const curId = finishedSong?.id || '';
     const cleanCurId = curId ? curId.replace(/^yt_/, '') : '';
@@ -1770,39 +1769,38 @@ export default function App() {
     setCurrentTime(0);
     setCurrentIndex(-1);
 
-    setQueue((prevQueue) => {
-      // Completely purge the finished song from queue (check id, songData.id, and clean YouTube id)
-      const nextQueue = prevQueue.filter((q) => {
-        if (!curId && !cleanCurId) return true;
-        const qId = q.id;
-        const qSongId = q.songData?.id;
-        const qClean = qSongId ? qSongId.replace(/^yt_/, '') : qId.replace(/^yt_/, '');
+    // 2. Compute remaining queue & next song synchronously using queueRef
+    const currentQueue = queueRef.current;
+    const nextQueue = currentQueue.filter((q) => {
+      if (!curId && !cleanCurId) return true;
+      const qId = q.id;
+      const qSongId = q.songData?.id;
+      const qClean = qSongId ? qSongId.replace(/^yt_/, '') : qId.replace(/^yt_/, '');
 
-        if (qId === curId || qSongId === curId) return false;
-        if (cleanCurId && (qClean === cleanCurId || qId.includes(cleanCurId))) return false;
-        return true;
-      });
+      if (qId === curId || qSongId === curId) return false;
+      if (cleanCurId && (qClean === cleanCurId || qId.includes(cleanCurId))) return false;
+      return true;
+    });
 
-      // Find next ready song in queue
-      const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
-      const nextSongData = nextReadyItem?.songData || null;
+    const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
+    const nextSongData = nextReadyItem?.songData || null;
 
-      // 2. Calculate performance score for singer
-      const perf = generatePerformanceResult(
-        finishedSong || { id: 'fallback_' + Date.now(), title: 'Karaoke Performance', artist: 'Artista', duration: 180 },
-        activeProfile
-      );
+    // 3. Purge finished song from queue
+    setQueue(nextQueue);
 
-      // 3. Open Score & Transition Modal with 5s countdown intermission
-      setScoreModalState({
-        isOpen: true,
-        mode: 'score',
-        performance: perf,
-        nextSong: nextSongData,
-        nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
-      });
+    // 4. Calculate performance score for singer
+    const perf = generatePerformanceResult(
+      finishedSong || { id: 'fallback_' + Date.now(), title: 'Karaoke Performance', artist: 'Artista', duration: 180 },
+      activeProfile
+    );
 
-      return nextQueue;
+    // 5. Open Score & Transition Celebration Modal (Guaranteed to render visually every time)
+    setScoreModalState({
+      isOpen: true,
+      mode: 'score',
+      performance: perf,
+      nextSong: nextSongData,
+      nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
     });
   }, [currentSong, activeProfile]);
 

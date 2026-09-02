@@ -216,7 +216,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 select-none ${
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 select-none ${
       isPartyMode 
         ? 'bg-black/95 backdrop-blur-2xl' 
         : 'bg-slate-950/90 backdrop-blur-xl'
