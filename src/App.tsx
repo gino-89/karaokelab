@@ -988,11 +988,30 @@ export default function App() {
     return karaokeScoringTracker.computeFinalScore(song, singer, isMicActive);
   };
 
+  // Dynamically sync scoreModalState.nextSong with the current top ready song in queue while modal is open
+  useEffect(() => {
+    if (!scoreModalState.isOpen) return;
+
+    const currentNext = queue.find((q) => q.status === 'ready' && q.songData)?.songData || null;
+    if (scoreModalState.nextSong?.id !== currentNext?.id) {
+      setScoreModalState((prev) => {
+        if (!prev.isOpen) return prev;
+        return {
+          ...prev,
+          nextSong: currentNext,
+          nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
+        };
+      });
+    }
+  }, [queue, scoreModalState.isOpen, scoreModalState.nextSong?.id, activeProfile]);
+
   const handleStartNextSongFromModal = () => {
-    const songToPlay = scoreModalState.nextSong;
     setScoreModalState((prev) => ({ ...prev, isOpen: false }));
+    const songToPlay = queue.find((q) => q.status === 'ready' && q.songData)?.songData || scoreModalState.nextSong;
     if (songToPlay) {
       loadSongIntoEngine(songToPlay, true);
+    } else {
+      handleStop();
     }
   };
 
@@ -1139,6 +1158,7 @@ export default function App() {
   // 3. Load a song into Web Audio Engine (Instant Fast-Path Playback)
   const loadSongIntoEngine = async (song: SongItem, autoPlay = false) => {
     try {
+      setScoreModalState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
       audioEngine.clearBuffers();
       audioEngine.resumeContextSync();
       invalidateVocalProfileCache(); // Clear cache for new song
