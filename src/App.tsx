@@ -1849,10 +1849,53 @@ export default function App() {
     });
   }, [currentSong, activeProfile, scoringMode]);
 
-  // Play next song in queue with Score & Intermission transition
+  // Play next song in queue directly when user clicks "Next / Skip" button (bypass score modal)
   const handleNextInQueue = useCallback(() => {
-    handleTrackEnded();
-  }, [handleTrackEnded]);
+    const finishedSong = currentSongRef.current || currentSong;
+    const curId = finishedSong?.id || '';
+    const cleanCurId = curId ? curId.replace(/^yt_/, '') : '';
+
+    console.log('⏭️ User pressed Next/Skip button, bypassing score modal directly to next song...');
+
+    // 1. Stop current audio & video playback
+    audioEngine.stop();
+    setIsPlaying(false);
+    setYouTubeEmbedId(null);
+    setCurrentSong(null);
+    setLyrics([]);
+    setDuration(0);
+    setCurrentTime(0);
+    setCurrentIndex(-1);
+
+    // 2. Compute remaining queue & next song
+    const currentQueue = queueRef.current;
+    const nextQueue = currentQueue.filter((q) => {
+      if (!curId && !cleanCurId) return true;
+      const qId = q.id;
+      const qSongId = q.songData?.id;
+      const qClean = qSongId ? qSongId.replace(/^yt_/, '') : qId.replace(/^yt_/, '');
+
+      if (qId === curId || qSongId === curId) return false;
+      if (cleanCurId && (qClean === cleanCurId || qId.includes(cleanCurId))) return false;
+      return true;
+    });
+
+    const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
+    const nextSongData = nextReadyItem?.songData || null;
+
+    // 3. Update queue
+    setQueue(nextQueue);
+
+    // 4. Close score modal if open
+    setScoreModalState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+
+    // 5. Load and play next song directly
+    if (nextSongData) {
+      loadSongIntoEngine(nextSongData, true);
+    } else {
+      handleStop();
+    }
+  }, [currentSong]);
 
   // Auto-play next song in queue with Score & Countdown Intermission when Web Audio track ends
   useEffect(() => {
