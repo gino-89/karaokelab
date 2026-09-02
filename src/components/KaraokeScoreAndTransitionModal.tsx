@@ -279,6 +279,20 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
           </div>
         )}
 
+        {/* PROMINENT JURY VERDICT CARD (Big, Eye-Catching, Golden Glow) */}
+        {performance?.verdict && (
+          <div className="w-full bg-gradient-to-r from-amber-500/25 via-yellow-400/20 to-amber-500/25 border-2 border-amber-400/70 rounded-2xl p-4 sm:p-5 mb-5 shadow-[0_0_35px_rgba(245,158,11,0.4)] flex flex-col items-center justify-center gap-1.5 animate-in zoom-in-95 duration-300">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-black tracking-widest uppercase text-amber-300">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 animate-spin" />
+              <span>VEREDICTO DEL JURADO KARAOKELAB</span>
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 animate-spin" />
+            </div>
+            <p className="text-lg sm:text-2xl lg:text-3xl font-black text-amber-100 italic tracking-wide text-center leading-relaxed drop-shadow-md">
+              "{performance.verdict}"
+            </p>
+          </div>
+        )}
+
         {/* Middle Section: Score Box + Performance Metrics */}
         {performance && (
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 lg:gap-10 w-full mb-6 bg-slate-950/70 border border-slate-800/90 rounded-2xl p-5 sm:p-7 shadow-inner">
@@ -308,7 +322,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
               </div>
             </div>
 
-            {/* Metrics Breakdown & Stars & Jury Verdict */}
+            {/* Metrics Breakdown & Stars */}
             <div className="flex flex-col items-center sm:items-start flex-1 w-full gap-3 sm:gap-4">
               {/* Stars */}
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -348,14 +362,6 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
                   </span>
                 </div>
               </div>
-
-              {/* Jury Verdict Quote Banner */}
-              {performance.verdict && (
-                <div className="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-3 sm:p-4 flex items-center justify-center gap-2.5 text-xs sm:text-base font-bold text-amber-200 shadow-md">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0 animate-spin" />
-                  <span className="italic text-center">"{performance.verdict}"</span>
-                </div>
-              )}
             </div>
           </div>
         )}
