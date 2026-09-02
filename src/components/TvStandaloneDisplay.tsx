@@ -45,8 +45,8 @@ export const TvStandaloneDisplay: React.FC = () => {
           ...prev,
           ...newState,
           youTubeEmbedId: 'youTubeEmbedId' in newState ? newState.youTubeEmbedId : null,
-          lyrics: newState.lyrics || prev.lyrics,
-          songTitle: newState.songTitle || prev.songTitle,
+          lyrics: newState.lyrics !== undefined ? newState.lyrics : prev.lyrics,
+          songTitle: newState.songTitle !== undefined ? newState.songTitle : prev.songTitle,
           songArtist: newState.songArtist !== undefined ? newState.songArtist : prev.songArtist,
         };
       });

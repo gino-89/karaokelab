@@ -134,15 +134,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const overlayOpacity = Math.max(0.15, Math.min(0.85, config.overlayOpacity ?? 0.45));
 
   return (
-    <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 ${className}`}>
-      {/* High-def Cover Thumbnail Mask - Displayed seamlessly during startup */}
+    <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
+      {/* High-def Cover Transition Mask - Pure dark stage during startup & song changes */}
       <div
-        className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
-          isVideoVisible ? 'opacity-0' : 'opacity-100'
+        className={`absolute inset-0 bg-[#04060c] transition-opacity duration-500 z-10 ${
+          isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
-        style={{
-          backgroundImage: `url(https://i.ytimg.com/vi/${config.videoId}/hqdefault.jpg)`,
-        }}
       />
 
       {/* Scaled & Centered 16:9 Frame - Hardware accelerated with 3D transform */}
