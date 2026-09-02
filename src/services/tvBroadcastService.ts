@@ -15,6 +15,13 @@ export interface TvStatePayload {
   nextSongTitle?: string;
   nextSongArtist?: string;
   nextSongRequestedBy?: string;
+  scoreModalState?: {
+    isOpen: boolean;
+    mode: 'score' | 'transition';
+    performance: any;
+    nextSong: any;
+    nextSinger?: any;
+  } | null;
   bpm?: number;
   isDuetMode?: boolean;
   youTubeEmbedId?: string | null;

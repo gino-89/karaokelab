@@ -8,6 +8,7 @@ import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { loadVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
+import { KaraokeScoreAndTransitionModal } from './KaraokeScoreAndTransitionModal';
 
 export const TvStandaloneDisplay: React.FC = () => {
   const [tvState, setTvState] = useState<TvStatePayload | null>(() => tvBroadcast.getInitialState());
@@ -529,6 +530,21 @@ export const TvStandaloneDisplay: React.FC = () => {
           {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
         </span>
       </div>
+
+      {/* ── Score & Transition Modal Broadcast for TV Display ── */}
+      {tvState.scoreModalState && (
+        <KaraokeScoreAndTransitionModal
+          isOpen={tvState.scoreModalState.isOpen}
+          mode={tvState.scoreModalState.mode}
+          performance={tvState.scoreModalState.performance}
+          nextSong={tvState.scoreModalState.nextSong}
+          nextSinger={tvState.scoreModalState.nextSinger}
+          onStartNextSong={() => tvBroadcast.sendRemoteCommand('start_next_song')}
+          onReplayCurrentSong={() => tvBroadcast.sendRemoteCommand('replay_song')}
+          onClose={() => {}}
+          isPartyMode={true}
+        />
+      )}
     </div>
   );
 };

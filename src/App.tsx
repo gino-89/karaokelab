@@ -428,6 +428,21 @@ export default function App() {
     };
   }, []);
 
+  // ── Karaoke Performance Score & Next Song Transition Modal ──
+  const [scoreModalState, setScoreModalState] = useState<{
+    isOpen: boolean;
+    mode: 'score' | 'transition';
+    performance: KaraokePerformanceResult | null;
+    nextSong: SongItem | null;
+    nextSinger: SingerProfile | null;
+  }>({
+    isOpen: false,
+    mode: 'score',
+    performance: null,
+    nextSong: null,
+    nextSinger: null,
+  });
+
   // Sync lightweight catalog to localStorage for guest mobile remote views
   useEffect(() => {
     if (savedSongs.length > 0) {
@@ -905,6 +920,7 @@ export default function App() {
             nextSongTitle: nextQueueItem?.songData?.title || (nextQueueItem?.fileName ? nextQueueItem.fileName.replace(/^🎬\s*\[YouTube\]\s*/, '') : undefined),
             nextSongArtist: nextQueueItem?.songData?.artist,
             nextSongRequestedBy: nextQueueItem?.requestedBy,
+            scoreModalState: scoreModalState.isOpen ? scoreModalState : null,
             bpm: currentSong?.bpm || 120,
             isDuetMode,
             youTubeEmbedId,
@@ -915,12 +931,13 @@ export default function App() {
           tvBroadcast.broadcastState(fullPayload);
           peerSync.broadcastTvState(fullPayload);
         } else {
-          // Ultra-lightweight delta tick (only 4 small numbers, zero CPU/crypto/bandwidth overhead)
+          // Ultra-lightweight delta tick (only small numbers, zero CPU/crypto/bandwidth overhead)
           const tickPayload = {
             currentTime,
             duration,
             isPlaying,
             currentIndex,
+            scoreModalState: scoreModalState.isOpen ? scoreModalState : null,
             timestamp: Date.now(),
             isTick: true,
           };
@@ -944,6 +961,7 @@ export default function App() {
     isDuetMode,
     youTubeEmbedId,
     videoBgConfig,
+    scoreModalState,
   ]);
 
   if (isTvDisplayMode) {
@@ -953,21 +971,6 @@ export default function App() {
   if (isGuestMode) {
     return <GuestRemoteView />;
   }
-
-  // ── Karaoke Performance Score & Next Song Transition Modal ──
-  const [scoreModalState, setScoreModalState] = useState<{
-    isOpen: boolean;
-    mode: 'score' | 'transition';
-    performance: KaraokePerformanceResult | null;
-    nextSong: SongItem | null;
-    nextSinger: SingerProfile | null;
-  }>({
-    isOpen: false,
-    mode: 'score',
-    performance: null,
-    nextSong: null,
-    nextSinger: null,
-  });
 
   const generatePerformanceResult = (song: SongItem, singer?: SingerProfile): KaraokePerformanceResult => {
     return karaokeScoringTracker.computeFinalScore(song, singer, isMicActive);
