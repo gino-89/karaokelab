@@ -1003,14 +1003,10 @@ export default function App() {
     );
     setQueue(remaining);
     const nextAfter = remaining.find((q) => q.status === 'ready' && q.songData)?.songData || null;
-    if (nextAfter) {
-      setScoreModalState((prev) => ({
-        ...prev,
-        nextSong: nextAfter,
-      }));
-    } else {
-      setScoreModalState((prev) => ({ ...prev, isOpen: false }));
-    }
+    setScoreModalState((prev) => ({
+      ...prev,
+      nextSong: nextAfter,
+    }));
   };
 
   const handleReplayCurrentSongFromModal = () => {

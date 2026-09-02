@@ -61,18 +61,22 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   const [isCountdownPaused, setIsCountdownPaused] = useState<boolean>(false);
   const [animatedScore, setAnimatedScore] = useState<number>(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hasStartedRef = useRef<boolean>(false);
 
-  // Sync countdown when modal opens & play crowd applause
+  // Sync countdown when modal opens & play crowd applause ONCE
   useEffect(() => {
     if (isOpen) {
       setCountdown(10);
       setIsCountdownPaused(false);
       setAnimatedScore(0);
+      hasStartedRef.current = true;
       if (!muteAudio && performance) {
         soundEffects.playApplause(performance.score);
       }
+    } else {
+      hasStartedRef.current = false;
     }
-  }, [isOpen, performance, muteAudio]);
+  }, [isOpen]);
 
   // Animate score counter up
   useEffect(() => {
@@ -202,9 +206,9 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
     return () => clearInterval(timer);
   }, [isOpen, isCountdownPaused, muteAudio, nextSong]);
 
-  // Asynchronously trigger next song / close when countdown reaches 0 (prevents setState in render warning)
+  // Asynchronously trigger next song / close when countdown reaches 0 (only after timer actively started)
   useEffect(() => {
-    if (!isOpen || isReadOnly || countdown > 0) return;
+    if (!isOpen || isReadOnly || !hasStartedRef.current || countdown > 0) return;
 
     if (nextSong) {
       onStartNextSong();
