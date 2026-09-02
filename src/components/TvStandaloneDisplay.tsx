@@ -490,17 +490,10 @@ export const TvStandaloneDisplay: React.FC = () => {
                   </div>
                 );
               })()
-            ) : nextLyric ? (
-              <div className="flex flex-col items-center gap-3 text-slate-300">
-                <Music className="w-12 h-12 text-cyan-400" />
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-cyan-300">
-                  {cleanLyricText(nextLyric.text)}
-                </p>
-              </div>
             ) : (
               <div className="flex flex-col items-center gap-3 text-slate-400">
                 <Music className="w-12 h-12 text-slate-500" />
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-300">
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-300 animate-pulse">
                   ♫ [SOLO INSTRUMENTAL] ♫
                 </p>
               </div>
