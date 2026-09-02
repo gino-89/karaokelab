@@ -265,10 +265,35 @@ export const TvStandaloneDisplay: React.FC = () => {
   const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
+  // Synchronous curtain for full-screen YouTube TV track transitions
+  const [ytCurtainVisible, setYtCurtainVisible] = useState(false);
+  const prevCleanYtIdRef = useRef(cleanYoutubeId);
+
+  if (cleanYoutubeId !== prevCleanYtIdRef.current) {
+    prevCleanYtIdRef.current = cleanYoutubeId;
+    setYtCurtainVisible(true);
+  }
+
+  useEffect(() => {
+    if (cleanYoutubeId) {
+      const timer = setTimeout(() => {
+        setYtCurtainVisible(false);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [cleanYoutubeId]);
+
   // ── Fullscreen Edge-to-Edge Distraction-Free Cinema YouTube Video Mode for TV ──
   if (cleanYoutubeId) {
     return (
       <div className="fixed inset-0 w-screen h-screen z-50 bg-black flex items-center justify-center overflow-hidden select-none">
+        {/* Black Transition Curtain to hide last decoded video frame during YouTube song changes */}
+        <div
+          className={`absolute inset-0 bg-black z-40 transition-opacity duration-500 pointer-events-none ${
+            ytCurtainVisible ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+
         <iframe
           ref={ytTvIframeRef}
           key={`yt_tv_${cleanYoutubeId}`}
