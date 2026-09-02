@@ -543,6 +543,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           onReplayCurrentSong={() => tvBroadcast.sendRemoteCommand('replay_song')}
           onClose={() => {}}
           isPartyMode={true}
+          muteAudio={true}
         />
       )}
     </div>

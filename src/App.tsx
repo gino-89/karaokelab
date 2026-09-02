@@ -1775,14 +1775,24 @@ export default function App() {
     loadSongIntoEngine(nextItem.songData, true);
   }, [currentSong]);
 
+  // Keep currentSongRef updated for asynchronous callbacks
+  const currentSongRef = useRef(currentSong);
+  useEffect(() => {
+    currentSongRef.current = currentSong;
+  }, [currentSong]);
+
   // Auto-play next song in queue with Score & Countdown Intermission when track ends
   useEffect(() => {
     const unsubscribe = audioEngine.onTrackEnded(() => {
       setIsPlaying(false);
-      const finishedSong = currentSong;
-      if (!finishedSong) return;
+      const finishedSong = currentSongRef.current || currentSong || {
+        id: 'fallback_' + Date.now(),
+        title: 'Karaoke Performance',
+        artist: 'Artista',
+        duration: 180,
+      };
 
-      const curId = finishedSong.id;
+      const curId = finishedSong.id || '';
       const cleanCurId = curId.replace(/^yt_/, '');
 
       setQueue((prevQueue) => {

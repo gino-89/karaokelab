@@ -39,6 +39,7 @@ interface KaraokeScoreAndTransitionModalProps {
   onReplayCurrentSong: () => void;
   onClose: () => void;
   isPartyMode?: boolean;
+  muteAudio?: boolean;
 }
 
 export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionModalProps> = ({
@@ -52,6 +53,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   onReplayCurrentSong,
   onClose,
   isPartyMode = false,
+  muteAudio = false,
 }) => {
   const [currentStep, setCurrentStep] = useState<'score' | 'transition'>(initialMode);
   const [countdown, setCountdown] = useState<number>(5);
@@ -66,11 +68,11 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       setCountdown(5);
       setIsCountdownPaused(false);
       setAnimatedScore(0);
-      if (initialMode === 'score' && performance) {
+      if (!muteAudio && initialMode === 'score' && performance) {
         soundEffects.playApplause(performance.score);
       }
     }
-  }, [isOpen, initialMode, performance]);
+  }, [isOpen, initialMode, performance, muteAudio]);
 
   // Animate score counter up
   useEffect(() => {
@@ -235,7 +237,9 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        soundEffects.playCountdownBeep(prev <= 2);
+        if (!muteAudio) {
+          soundEffects.playCountdownBeep(prev <= 2);
+        }
         if (prev <= 1) {
           clearInterval(timer);
           onStartNextSong();
