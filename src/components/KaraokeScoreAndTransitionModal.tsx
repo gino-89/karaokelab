@@ -11,7 +11,8 @@ import {
   Mic2, 
   Music, 
   CheckCircle2, 
-  Zap 
+  Zap,
+  Pause
 } from 'lucide-react';
 import { SongItem, SingerProfile } from '../types';
 import { soundEffects } from '../services/soundEffects';
@@ -30,7 +31,7 @@ export interface KaraokePerformanceResult {
 
 interface KaraokeScoreAndTransitionModalProps {
   isOpen: boolean;
-  mode: 'score' | 'transition';
+  mode?: 'score' | 'transition';
   performance: KaraokePerformanceResult | null;
   nextSong: SongItem | null;
   nextSinger?: SingerProfile | null;
@@ -45,7 +46,6 @@ interface KaraokeScoreAndTransitionModalProps {
 
 export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionModalProps> = ({
   isOpen,
-  mode: initialMode,
   performance,
   nextSong,
   nextSinger,
@@ -57,35 +57,26 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   muteAudio = false,
   isReadOnly = false,
 }) => {
-  const [currentStep, setCurrentStep] = useState<'score' | 'transition'>(initialMode);
-  const [countdown, setCountdown] = useState<number>(5);
+  const [countdown, setCountdown] = useState<number>(10);
   const [isCountdownPaused, setIsCountdownPaused] = useState<boolean>(false);
   const [animatedScore, setAnimatedScore] = useState<number>(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Sync step when modal opens & play crowd applause
+  // Sync countdown when modal opens & play crowd applause
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep(initialMode);
-      setCountdown(5);
+      setCountdown(10);
       setIsCountdownPaused(false);
       setAnimatedScore(0);
-      if (!muteAudio && initialMode === 'score' && performance) {
+      if (!muteAudio && performance) {
         soundEffects.playApplause(performance.score);
       }
     }
-  }, [isOpen, initialMode, performance, muteAudio]);
-
-  // Keep currentStep synced with initialMode when in read-only / TV mode
-  useEffect(() => {
-    if (isReadOnly) {
-      setCurrentStep(initialMode);
-    }
-  }, [isReadOnly, initialMode]);
+  }, [isOpen, performance, muteAudio]);
 
   // Animate score counter up
   useEffect(() => {
-    if (isOpen && currentStep === 'score' && performance) {
+    if (isOpen && performance) {
       const targetScore = performance.score;
       const duration = 1200; // 1.2s
       const startTime = performanceNow();
@@ -94,7 +85,6 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       const step = () => {
         const now = performanceNow();
         const progress = Math.min(1, (now - startTime) / duration);
-        // Ease out expo
         const current = Math.round(targetScore * (1 - Math.pow(2, -10 * progress)));
         setAnimatedScore(current);
 
@@ -108,7 +98,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       animationFrameId = requestAnimationFrame(step);
       return () => cancelAnimationFrame(animationFrameId);
     }
-  }, [isOpen, currentStep, performance]);
+  }, [isOpen, performance]);
 
   // Helper for performance.now()
   function performanceNow() {
@@ -117,7 +107,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
 
   // Particle Confetti Burst Effect
   useEffect(() => {
-    if (!isOpen || currentStep !== 'score' || !canvasRef.current) return;
+    if (!isOpen || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -143,7 +133,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
     for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: width / 2 + (Math.random() - 0.5) * 80,
-        y: height * 0.45,
+        y: height * 0.35,
         vx: (Math.random() - 0.5) * 14,
         vy: (Math.random() - 0.8) * 15,
         size: Math.random() * 8 + 4,
@@ -193,65 +183,33 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [isOpen, currentStep]);
+  }, [isOpen]);
 
-  // Auto-advance from Score screen to Next Song Countdown (Hands-free automatic transition)
-  const [scoreAutoSeconds, setScoreAutoSeconds] = useState<number>(5);
-  // Auto-close countdown when there are NO MORE songs in the queue (3 seconds)
-  const [closeAutoSeconds, setCloseAutoSeconds] = useState<number>(3);
-
+  // 10-second Countdown Timer Logic
   useEffect(() => {
-    if (!isOpen || currentStep !== 'score') return;
-
-    if (nextSong) {
-      setScoreAutoSeconds(5);
-      const interval = setInterval(() => {
-        setScoreAutoSeconds((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            setCurrentStep('transition');
-            setCountdown(5);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
-    } else {
-      setCloseAutoSeconds(3);
-      const interval = setInterval(() => {
-        setCloseAutoSeconds((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            onClose();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [isOpen, currentStep, nextSong, onClose]);
-
-  // 5-second Countdown Timer Logic
-  useEffect(() => {
-    if (!isOpen || currentStep !== 'transition' || isCountdownPaused) return;
+    if (!isOpen || isCountdownPaused || isReadOnly) return;
 
     if (countdown <= 0) {
-      onStartNextSong();
+      if (nextSong) {
+        onStartNextSong();
+      } else {
+        onClose();
+      }
       return;
     }
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        if (!muteAudio) {
+        if (!muteAudio && nextSong && prev <= 4) {
           soundEffects.playCountdownBeep(prev <= 2);
         }
         if (prev <= 1) {
           clearInterval(timer);
-          onStartNextSong();
+          if (nextSong) {
+            onStartNextSong();
+          } else {
+            onClose();
+          }
           return 0;
         }
         return prev - 1;
@@ -259,12 +217,12 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isOpen, currentStep, countdown, isCountdownPaused, onStartNextSong]);
+  }, [isOpen, countdown, isCountdownPaused, isReadOnly, nextSong, onStartNextSong, onClose, muteAudio]);
 
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 select-none ${
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 select-none ${
       isPartyMode 
         ? 'bg-black/95 backdrop-blur-2xl' 
         : 'bg-slate-950/90 backdrop-blur-xl'
@@ -279,269 +237,229 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       <div className="absolute w-[600px] h-[600px] bg-gradient-to-tr from-[#00f0ff]/15 via-[#ff007f]/15 to-amber-500/10 rounded-full blur-[140px] pointer-events-none" />
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* ── STEP 1: KARAOKE PERFORMANCE SCORE SCREEN ───────────────── */}
+      {/* ── UNIFIED KARAOKE PERFORMANCE SCORE & 10s COUNTDOWN MODAL ──── */}
       {/* ───────────────────────────────────────────────────────────── */}
-      {currentStep === 'score' && performance && (
-        <div className="relative z-20 w-full max-w-xl bg-slate-900/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-[0_0_80px_rgba(0,240,255,0.25)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
-            title="Cerrar"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      <div className="relative z-20 w-full max-w-2xl bg-slate-900/95 border border-slate-700/90 rounded-3xl p-5 sm:p-7 shadow-[0_0_90px_rgba(0,240,255,0.25)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[95vh]">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
+          title="Cerrar"
+        >
+          <X className="w-4 h-4" />
+        </button>
 
-          {/* Top Header Badge */}
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-cyan-500/20 border border-amber-400/40 text-amber-300 text-xs font-black tracking-widest uppercase mb-3 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-            <Trophy className="w-4 h-4 text-amber-400 fill-amber-400 animate-bounce" />
-            <span>PUNTUACIÓN FINAL</span>
-            <Sparkles className="w-4 h-4 text-cyan-300" />
-          </div>
-
-          {/* Singer Badge */}
-          {performance.singer && (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-bold text-slate-200 mb-4">
-              <span className="text-base">{performance.singer.avatar}</span>
-              <span>Cantante:</span>
-              <span className="text-cyan-400 font-extrabold">{performance.singer.name}</span>
-            </div>
-          )}
-
-          {/* Song Name */}
-          <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide truncate max-w-md">
-            {performance.song.title}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mb-6">
-            {performance.song.artist || 'KaraokeLab Engine'}
-          </p>
-
-          {/* Large Animated Score Ring / Box */}
-          <div className="relative flex flex-col items-center justify-center mb-6">
-            <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-4 border-cyan-400/80 shadow-[0_0_50px_rgba(0,240,255,0.4)] flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent animate-pulse" />
-              
-              <span className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-100 to-cyan-400 font-mono tracking-tight">
-                {animatedScore}
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-1">
-                de 100 Puntos
-              </span>
-            </div>
-
-            {/* Stars Rating */}
-            <div className="flex items-center gap-1.5 mt-3">
-              {[1, 2, 3, 4, 5].map((starIdx) => {
-                const isFilled = starIdx <= performance.stars;
-                return (
-                  <Star
-                    key={starIdx}
-                    className={`w-6 h-6 transition-all duration-300 ${
-                      isFilled
-                        ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)] scale-110'
-                        : 'text-slate-700'
-                    }`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Rank Badge */}
-          <div className="mb-6">
-            <span className={`px-5 py-2 rounded-2xl text-sm sm:text-base font-black tracking-wider shadow-lg uppercase inline-flex items-center gap-2 ${performance.rankColor}`}>
-              <Flame className="w-5 h-5 fill-current animate-pulse" />
-              {performance.rank}
-            </span>
-          </div>
-
-          {/* Detailed Performance Metrics */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full mb-8">
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Afinación</span>
-              <span className="text-base sm:text-lg font-black text-cyan-400 font-mono mt-0.5">
-                {performance.pitchAccuracy}%
-              </span>
-            </div>
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Ritmo / Tiempo</span>
-              <span className="text-base sm:text-lg font-black text-[#ff007f] font-mono mt-0.5">
-                {performance.rhythmScore}%
-              </span>
-            </div>
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Letras Cantadas</span>
-              <span className="text-base sm:text-lg font-black text-[#00ff9d] font-mono mt-0.5">
-                {performance.lyricsCompletion}%
-              </span>
-            </div>
-          </div>
-
-          {/* If no next song in queue, show clear completion status */}
-          {!nextSong && (
-            <div className="w-full flex items-center justify-center gap-2 mb-4 text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 py-2 rounded-xl">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span>¡Has completado la lista! Excelente actuación.</span>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-            <button
-              onClick={onReplayCurrentSong}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-2 cursor-pointer transition-all"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Repetir Canción</span>
-            </button>
-
-            {nextSong ? (
-              <button
-                onClick={() => {
-                  setCurrentStep('transition');
-                  setCountdown(5);
-                }}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#ff007f] hover:brightness-110 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_20px_rgba(0,240,255,0.4)]"
-              >
-                <span>Siguiente Ahora</span>
-                <SkipForward className="w-4 h-4 fill-current" />
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Cerrar ({closeAutoSeconds}s)</span>
-              </button>
-            )}
-          </div>
+        {/* Top Header Badge */}
+        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-cyan-500/20 border border-amber-400/40 text-amber-300 text-xs font-black tracking-widest uppercase mb-3 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+          <Trophy className="w-4 h-4 text-amber-400 fill-amber-400 animate-bounce" />
+          <span>PUNTUACIÓN Y PRÓXIMA CANCIÓN</span>
+          <Sparkles className="w-4 h-4 text-cyan-300" />
         </div>
-      )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* ── STEP 2: NEXT SONG TRANSITION & 5-SECOND COUNTDOWN ──────── */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {currentStep === 'transition' && nextSong && (
-        <div className="relative z-20 w-full max-w-xl bg-slate-900/95 border border-slate-700/90 rounded-3xl p-6 sm:p-8 shadow-[0_0_90px_rgba(255,0,127,0.3)] flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
-            title="Cancelar"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {/* Next Song Header Badge */}
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-pink-500/20 border border-pink-400/50 text-[#ff007f] text-xs font-black tracking-widest uppercase mb-4 shadow-[0_0_20px_rgba(255,0,127,0.3)]">
-            <Sparkles className="w-4 h-4 animate-spin" />
-            <span>PRÓXIMA CANCIÓN</span>
-            <Music className="w-4 h-4" />
+        {/* Singer Badge & Song Title */}
+        {performance && (
+          <div className="flex flex-col items-center gap-1 mb-3">
+            {performance.singer && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-bold text-slate-200">
+                <span className="text-base">{performance.singer.avatar}</span>
+                <span>Cantante:</span>
+                <span className="text-cyan-400 font-extrabold">{performance.singer.name}</span>
+              </div>
+            )}
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-wide truncate max-w-md">
+              {performance.song.title}
+            </h2>
           </div>
+        )}
 
-          {/* Next Singer Turn Badge */}
-          {nextSinger ? (
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-900/80 to-purple-900/80 border border-indigo-400/60 text-xs font-bold text-white mb-6 shadow-md">
-              <span className="text-lg">{nextSinger.avatar}</span>
-              <span className="text-slate-300">Turno al micrófono:</span>
-              <span className="text-cyan-300 font-extrabold text-sm">{nextSinger.name}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 mb-6">
-              <Mic2 className="w-3.5 h-3.5 text-cyan-400" />
-              <span>¡Prepárate para cantar!</span>
-            </div>
-          )}
+        {/* Middle Section: Score Box + Performance Metrics */}
+        {performance && (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 w-full mb-4 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+            {/* Score Ring */}
+            <div className="flex flex-col items-center justify-center shrink-0">
+              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-3 border-cyan-400/80 shadow-[0_0_35px_rgba(0,240,255,0.3)] flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent animate-pulse" />
+                <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-100 to-cyan-400 font-mono tracking-tight">
+                  {animatedScore}
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
+                  Puntos
+                </span>
+              </div>
 
-          {/* Next Song Card with Icon & Metadata */}
-          <div className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center gap-4 mb-6 text-left">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#ff007f]/30 to-[#00f0ff]/30 border border-slate-700 flex items-center justify-center shrink-0 shadow-inner">
-              <Music className="w-7 h-7 text-cyan-300" />
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#ff007f]">
-                {nextSong.genre || 'Pista de Karaoke'}
+              {/* Rank Badge */}
+              <span className={`mt-2 px-3 py-1 rounded-xl text-xs font-black tracking-wider shadow-md uppercase inline-flex items-center gap-1.5 ${performance.rankColor}`}>
+                <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
+                {performance.rank}
               </span>
-              <h3 className="text-lg sm:text-xl font-black text-white truncate">
-                {nextSong.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-400 truncate">
-                {nextSong.artist || 'Artista Desconocido'}
-              </p>
+            </div>
+
+            {/* Metrics Breakdown & Stars */}
+            <div className="flex flex-col items-center sm:items-start flex-1 w-full gap-2.5">
+              {/* Stars */}
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((starIdx) => {
+                  const isFilled = starIdx <= performance.stars;
+                  return (
+                    <Star
+                      key={starIdx}
+                      className={`w-5 h-5 transition-all duration-300 ${
+                        isFilled
+                          ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)] scale-110'
+                          : 'text-slate-700'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* 3 Metric Pills */}
+              <div className="grid grid-cols-3 gap-2 w-full">
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Afinación</span>
+                  <span className="text-sm font-black text-cyan-400 font-mono mt-0.5">
+                    {performance.pitchAccuracy}%
+                  </span>
+                </div>
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Ritmo</span>
+                  <span className="text-sm font-black text-[#ff007f] font-mono mt-0.5">
+                    {performance.rhythmScore}%
+                  </span>
+                </div>
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Letras</span>
+                  <span className="text-sm font-black text-[#00ff9d] font-mono mt-0.5">
+                    {performance.lyricsCompletion}%
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Animated 5-Second Countdown Big Circle */}
-          <div className="flex flex-col items-center justify-center mb-8">
-            <div className="relative flex items-center justify-center w-28 h-28 sm:w-32 sm:h-32">
-              {/* Circular SVG Ring */}
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* ── NEXT SONG CARD & 10-SECOND COUNTDOWN ───────────────────── */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {nextSong ? (
+          <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 border border-slate-700/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 mb-5 shadow-lg">
+            {/* Left: Next Song Details */}
+            <div className="flex items-center gap-3 min-w-0 text-left w-full sm:w-auto flex-1">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff007f]/30 to-[#00f0ff]/30 border border-slate-700 flex items-center justify-center shrink-0">
+                <Music className="w-6 h-6 text-cyan-300" />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#ff007f] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>PRÓXIMA CANCIÓN:</span>
+                </span>
+                <h3 className="text-base font-black text-white truncate">
+                  {nextSong.title}
+                </h3>
+                <p className="text-xs text-slate-400 truncate">
+                  {nextSong.artist || 'Artista Desconocido'}
+                  {nextSinger && (
+                    <span className="text-cyan-300 font-bold ml-2">
+                      • 🎤 {nextSinger.name}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Right: 10-Second Countdown Circle */}
+            <div className="relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 shrink-0">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                 <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
+                  cx="50"
+                  cy="50"
+                  r="42"
                   className="stroke-slate-800"
-                  strokeWidth="8"
+                  strokeWidth="7"
                   fill="transparent"
                 />
                 <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
+                  cx="50"
+                  cy="50"
+                  r="42"
                   className="stroke-[#ff007f] transition-all duration-1000 ease-linear"
-                  strokeWidth="8"
-                  strokeDasharray={326.7}
-                  strokeDashoffset={326.7 * (1 - countdown / 5)}
+                  strokeWidth="7"
+                  strokeDasharray={263.8}
+                  strokeDashoffset={263.8 * (1 - countdown / 10)}
                   strokeLinecap="round"
                   fill="transparent"
                 />
               </svg>
 
               <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-4xl sm:text-5xl font-black text-white font-mono animate-pulse">
+                <span className="text-2xl sm:text-3xl font-black text-white font-mono animate-pulse">
                   {countdown}
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                  segundos
+                <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
+                  seg
                 </span>
               </div>
             </div>
-
-            <p className="text-xs font-bold text-cyan-300 tracking-wide mt-3 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-              <span>Comenzando automáticamente...</span>
-            </p>
           </div>
+        ) : (
+          <div className="w-full flex items-center justify-center gap-2 mb-5 text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 py-2.5 rounded-xl">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span>¡Has completado la cola! Excelente actuación. ({countdown}s)</span>
+          </div>
+        )}
 
-          {/* Countdown Controls */}
-          <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-            <button
-              onClick={() => setIsCountdownPaused((prev) => !prev)}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 cursor-pointer transition-colors"
-            >
-              {isCountdownPaused ? '▶ Reanudar Conteo' : '⏸ Pausar Conteo'}
-            </button>
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* ── ACTION BUTTONS ─────────────────────────────────────────── */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center justify-center gap-2.5 w-full">
+          <button
+            onClick={onReplayCurrentSong}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            title="Volver a cantar la canción actual"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Volver a Cantar</span>
+          </button>
 
-            {onSkipNextSong && (
+          {nextSong ? (
+            <>
               <button
-                onClick={onSkipNextSong}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs border border-slate-700 cursor-pointer transition-colors"
+                onClick={() => setIsCountdownPaused((prev) => !prev)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 cursor-pointer transition-colors flex items-center gap-1.5"
               >
-                Saltar Canción
+                {isCountdownPaused ? <Play className="w-3.5 h-3.5 text-cyan-400 fill-current" /> : <Pause className="w-3.5 h-3.5 text-amber-400" />}
+                <span>{isCountdownPaused ? 'Reanudar' : 'Pausar'}</span>
               </button>
-            )}
 
+              {onSkipNextSong && (
+                <button
+                  onClick={onSkipNextSong}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs border border-slate-700 cursor-pointer transition-colors flex items-center gap-1.5"
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  <span>Saltar Canción</span>
+                </button>
+              )}
+
+              <button
+                onClick={onStartNextSong}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>¡Cantar Ahora!</span>
+              </button>
+            </>
+          ) : (
             <button
-              onClick={onStartNextSong}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_25px_rgba(16,185,129,0.4)]"
+              onClick={onClose}
+              className="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:brightness-110 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
             >
-              <Play className="w-4 h-4 fill-current" />
-              <span>¡Comenzar Ya!</span>
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Cerrar</span>
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
