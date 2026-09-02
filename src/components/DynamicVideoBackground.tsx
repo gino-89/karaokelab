@@ -69,26 +69,13 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     embedUrl.current = `https://www.youtube.com/embed/${config.videoId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${config.videoId}${startParam}`;
   }
 
-  // Sync Play / Pause command when playback state changes
+  // Sync Play / Pause command when playback state changes (Matches Mini Player behavior 1:1)
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
     try {
       const win = iframeRef.current?.contentWindow;
       if (!win) return;
-
-      if (currentTime !== undefined) {
-        // Compensate for 250ms YouTube iframe API postMessage processing + WebRTC transmission delay
-        const compensatedTime = currentTime > 0 ? currentTime + 0.25 : 0;
-        win.postMessage(
-          JSON.stringify({
-            event: 'command',
-            func: 'seekTo',
-            args: [compensatedTime, true],
-          }),
-          '*'
-        );
-      }
 
       win.postMessage(
         JSON.stringify({
@@ -101,27 +88,27 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     } catch (_) { }
   }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
-  // Sync Seek position when user jumps / seeks or if video drifts by more than 0.4s
+  // Sync Seek position ONLY when user manually seeks or jumps in the song (delta > 2.0s)
+  // Eliminates seekTo postMessage stuttering so video background plays fluidly 1:1 identical to Mini Player
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
 
     const delta = Math.abs(currentTime - prevTimeRef.current);
     const now = Date.now();
 
-    // Frame-accurate zero-delay sync: re-sync immediately if video drifts by > 0.4s
-    if (delta > 0.4 && now - lastSeekTimeRef.current > 350) {
+    // Manual seek / jump detection (> 2 seconds jump)
+    if (delta > 2.0 && now - lastSeekTimeRef.current > 500) {
       lastSeekTimeRef.current = now;
       prevTimeRef.current = currentTime;
       try {
         const win = iframeRef.current?.contentWindow;
         if (win) {
-          // Compensate for 250ms YouTube iframe API processing delay
-          const compensatedTime = currentTime > 0 ? currentTime + 0.25 : 0;
+          const targetSec = Math.max(0, Math.floor(currentTime || 0));
           win.postMessage(
             JSON.stringify({
               event: 'command',
               func: 'seekTo',
-              args: [compensatedTime, true],
+              args: [targetSec, true],
             }),
             '*'
           );
