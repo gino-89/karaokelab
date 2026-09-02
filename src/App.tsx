@@ -1830,14 +1830,20 @@ export default function App() {
         // Calculate performance score
         const perf = generatePerformanceResult(finishedSong, activeProfile);
 
-        // Open Score & Transition Modal
+        // [PAUSED SCORE MODAL FOR TESTING] Pause modal display and start next song directly
         setScoreModalState({
-          isOpen: true,
+          isOpen: false,
           mode: 'score',
           performance: perf,
           nextSong: nextSongData,
           nextSinger: activeProfile && activeProfile.id !== 'profile_all' ? activeProfile : null,
         });
+
+        if (nextSongData) {
+          setTimeout(() => {
+            loadSongIntoEngine(nextSongData, true);
+          }, 150);
+        }
 
         return nextQueue;
       });

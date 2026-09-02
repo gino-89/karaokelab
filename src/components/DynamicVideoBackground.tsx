@@ -45,11 +45,11 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       if (win) {
         win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 2000);
+    }, 2200);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
@@ -94,7 +94,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }),
         '*'
       );
-    } catch (_) {}
+    } catch (_) { }
   }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
   // Sync Seek position when user jumps / seeks in the song
@@ -120,7 +120,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             '*'
           );
         }
-      } catch (_) {}
+      } catch (_) { }
     } else {
       prevTimeRef.current = currentTime;
     }
@@ -137,16 +137,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
       {/* High-def Cover Transition Mask - Pure dark stage during startup & song changes */}
       <div
-        className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${
-          isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        }`}
+        className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
       />
 
       {/* Scaled & Centered 16:9 Frame - Hardware accelerated with 3D transform */}
       <div
-        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
-          isVideoVisible ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${isVideoVisible ? 'opacity-100' : 'opacity-0'
+          }`}
         style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
       >
         <iframe
@@ -180,7 +178,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 }
               }
-            } catch (_) {}
+            } catch (_) { }
           }}
         />
       </div>
