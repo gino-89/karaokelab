@@ -78,11 +78,13 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       if (!win) return;
 
       if (currentTime !== undefined) {
+        // Compensate for 250ms YouTube iframe API postMessage processing + WebRTC transmission delay
+        const compensatedTime = currentTime > 0 ? currentTime + 0.25 : 0;
         win.postMessage(
           JSON.stringify({
             event: 'command',
             func: 'seekTo',
-            args: [currentTime, true],
+            args: [compensatedTime, true],
           }),
           '*'
         );
@@ -99,25 +101,27 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     } catch (_) { }
   }, [isPlaying, config.enabled, config.mode, config.videoId]);
 
-  // Sync Seek position when user jumps / seeks or if video drifts by more than 0.7s
+  // Sync Seek position when user jumps / seeks or if video drifts by more than 0.4s
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
 
     const delta = Math.abs(currentTime - prevTimeRef.current);
     const now = Date.now();
 
-    // Millimeter-accurate sync: re-sync immediately if video drifts by > 0.7s
-    if (delta > 0.7 && now - lastSeekTimeRef.current > 400) {
+    // Frame-accurate zero-delay sync: re-sync immediately if video drifts by > 0.4s
+    if (delta > 0.4 && now - lastSeekTimeRef.current > 350) {
       lastSeekTimeRef.current = now;
       prevTimeRef.current = currentTime;
       try {
         const win = iframeRef.current?.contentWindow;
         if (win) {
+          // Compensate for 250ms YouTube iframe API processing delay
+          const compensatedTime = currentTime > 0 ? currentTime + 0.25 : 0;
           win.postMessage(
             JSON.stringify({
               event: 'command',
               func: 'seekTo',
-              args: [currentTime, true],
+              args: [compensatedTime, true],
             }),
             '*'
           );
@@ -171,7 +175,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
               const win = iframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
-                const targetSec = Math.max(0, Math.floor(currentTime || 0));
+                const baseSec = Math.max(0, Math.floor(currentTime || 0));
+                const targetSec = baseSec > 0 ? baseSec + 0.25 : 0;
                 win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetSec, true] }), '*');
                 if (!isPlaying) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
