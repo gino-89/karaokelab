@@ -324,7 +324,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           win.postMessage(JSON.stringify({ event: 'command', func: 'getDuration', args: '' }), '*');
         }
       } catch (_) {}
-    }, 500);
+    }, 200);
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -362,7 +362,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           : (data?.infoDelivery?.duration !== undefined && typeof data.infoDelivery.duration === 'number')
             ? data.infoDelivery.duration
             : undefined;
-        const nearEnd = dur !== undefined && dur > 0 && curTime !== undefined && (dur - curTime <= 1.2);
+        const nearEnd = dur !== undefined && dur > 0 && curTime !== undefined && (dur - curTime <= 1.5);
 
         if (((state === 0 || state === '0') || nearEnd) && !hasHandledEnd) {
           hasHandledEnd = true;
@@ -1420,7 +1420,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 id="karaokelab-yt-stage-iframe"
                 ref={ytIframeRef}
                 key={`yt_stage_${youTubeEmbedId}`}
-                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&loop=1&playlist=${youTubeEmbedId}&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                 title={songTitle || 'YouTube Karaoke Player'}
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

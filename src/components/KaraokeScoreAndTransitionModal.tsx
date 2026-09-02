@@ -216,12 +216,8 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
   useEffect(() => {
     if (!isOpen || isReadOnly || !hasDecrementedRef.current || countdown > 0) return;
 
-    if (nextSong) {
-      onStartNextSong();
-    } else {
-      onClose();
-    }
-  }, [isOpen, isReadOnly, countdown, nextSong, onStartNextSong, onClose]);
+    onStartNextSong();
+  }, [isOpen, isReadOnly, countdown, onStartNextSong]);
 
   if (!isOpen) return null;
 

@@ -162,7 +162,7 @@ export const TvStandaloneDisplay: React.FC = () => {
 
         const curTime = data?.info?.currentTime ?? data?.infoDelivery?.currentTime;
         const dur = data?.info?.duration ?? data?.infoDelivery?.duration;
-        const nearEnd = dur > 0 && typeof curTime === 'number' && (dur - curTime <= 1.2);
+        const nearEnd = dur > 0 && typeof curTime === 'number' && (dur - curTime <= 1.5);
 
         if (((state === 0 || state === '0') || nearEnd) && !hasNotified) {
           hasNotified = true;
@@ -321,7 +321,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           <iframe
             ref={ytTvIframeRef}
             key={`yt_tv_${cleanYoutubeId}`}
-            src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&loop=1&playlist=${cleanYoutubeId}`}
+            src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0`}
             title="YouTube Karaoke TV"
             className="w-full h-full border-0 pointer-events-none scale-[1.06]"
             style={{ width: '100vw', height: '100vh' }}

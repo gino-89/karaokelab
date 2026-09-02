@@ -1023,7 +1023,12 @@ export default function App() {
 
   const handleStartNextSongFromModal = () => {
     setScoreModalState((prev) => ({ ...prev, isOpen: false }));
-    const songToPlay = queue.find((q) => q.status === 'ready' && q.songData)?.songData || scoreModalState.nextSong;
+    const currentQueue = queueRef.current;
+    const nextItem =
+      currentQueue.find((q) => (q.status === 'ready' || !q.status || q.status === 'idle') && q.songData) ||
+      currentQueue.find((q) => q.songData) ||
+      currentQueue[0];
+    const songToPlay = nextItem?.songData || scoreModalState.nextSong;
     if (songToPlay) {
       loadSongIntoEngine(songToPlay, true);
     } else {
@@ -1096,6 +1101,13 @@ export default function App() {
     const tick = (timestamp = performance.now()) => {
       if (audioEngine.getIsPlaying()) {
         const t = audioEngine.getCurrentTime();
+        const d = audioEngine.getDuration() || duration;
+
+        // Auto-advance watchdog: if local audio has reached the end of the song
+        if (d > 2 && t >= d - 0.4) {
+          handleTrackEnded();
+          return;
+        }
 
         // Throttle React root state re-renders to ~25 FPS (~40ms) so WebKit touch events are never dropped or starved
         if (timestamp - lastFlushTime >= 40) {
@@ -1824,7 +1836,10 @@ export default function App() {
       return true;
     });
 
-    const nextReadyItem = nextQueue.find((q) => q.status === 'ready' && q.songData);
+    const nextReadyItem =
+      nextQueue.find((q) => (q.status === 'ready' || !q.status || q.status === 'idle') && q.songData) ||
+      nextQueue.find((q) => q.songData) ||
+      nextQueue[0];
     const nextSongData = nextReadyItem?.songData || null;
 
     // 3. Purge finished song from queue
