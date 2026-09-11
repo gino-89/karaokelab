@@ -1658,62 +1658,64 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         {/* ── Transport Controls Bar ── */}
         <div className="px-3 sm:px-6 py-3 bg-slate-950/95 border-t border-slate-800/80 shadow-2xl">
           <div className="flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-between gap-3 w-full">
-            {/* Left: Vocal Guide Controls (Voz Guía, Guía Coros & Pista Limpia) */}
-            <div className="flex items-center justify-center lg:justify-start gap-2 shrink-0 flex-wrap order-2 lg:order-1">
-              <button
-                type="button"
-                onClick={onToggleVocalGuide}
-                disabled={isCleanTrack}
-                style={{ touchAction: 'manipulation' }}
-                className={`flex items-center justify-center gap-1.5 w-28 sm:w-32 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 shadow-sm shrink-0 ${
-                  isCleanTrack
-                    ? 'border-slate-800/80 bg-slate-950/60 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
-                    : vocalGain > 0.05
-                    ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.4)] font-black cursor-pointer'
-                    : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600 cursor-pointer'
-                }`}
-                title={isCleanTrack ? 'Voz Guía desactivada en modo Pista Limpia' : 'Voz Guía: Activa la voz original del artista al 40% de volumen para acompañar tu canto'}
-              >
-                <Mic className={`w-3.5 h-3.5 shrink-0 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-300 animate-pulse' : 'text-slate-500'}`} />
-                <span className="whitespace-nowrap truncate">
-                  {!isCleanTrack && vocalGain > 0.05 ? 'Voz Guía ON' : 'Voz Guía'}
-                </span>
-              </button>
+            {/* Left: Vocal Guide Controls (Voz Guía y Guía Coros arriba, Pista Limpia debajo) */}
+            <div className="flex flex-col gap-1.5 w-full max-w-[230px] sm:max-w-[250px] shrink-0 order-2 lg:order-1 mx-auto lg:mx-0">
+              <div className="grid grid-cols-2 gap-1.5 w-full">
+                <button
+                  type="button"
+                  onClick={onToggleVocalGuide}
+                  disabled={isCleanTrack}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate ${
+                    isCleanTrack
+                      ? 'border-slate-800/80 bg-slate-950/60 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
+                      : vocalGain > 0.05
+                      ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.4)] font-black cursor-pointer'
+                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600 cursor-pointer'
+                  }`}
+                  title={isCleanTrack ? 'Voz Guía desactivada en modo Pista Limpia' : 'Voz Guía: Activa la voz original del artista al 40% de volumen para acompañar tu canto'}
+                >
+                  <Mic className={`w-3 h-3 shrink-0 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-300 animate-pulse' : 'text-slate-500'}`} />
+                  <span className="truncate">
+                    {!isCleanTrack && vocalGain > 0.05 ? 'Voz Guía ON' : 'Voz Guía'}
+                  </span>
+                </button>
 
-              <button
-                type="button"
-                onClick={onToggleSmartVocalCue}
-                disabled={isCleanTrack}
-                style={{ touchAction: 'manipulation' }}
-                className={`flex items-center justify-center gap-1.5 w-28 sm:w-32 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 shadow-sm shrink-0 ${
-                  isCleanTrack
-                    ? 'border-slate-800/80 bg-slate-950/60 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
-                    : isSmartVocalCue
-                    ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_14px_rgba(99,102,241,0.4)] font-black cursor-pointer'
-                    : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600 cursor-pointer'
-                }`}
-                title={isCleanTrack ? 'Guía Coros desactivada en modo Pista Limpia' : 'Guía Coros: Activa la voz original automáticamente solo en entradas de versos y coros'}
-              >
-                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${!isCleanTrack && isSmartVocalCue ? 'text-indigo-300 animate-spin' : 'text-slate-500'}`} />
-                <span className="whitespace-nowrap truncate">
-                  {!isCleanTrack && isSmartVocalCue ? 'Coros ON' : 'Guía Coros'}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={onToggleSmartVocalCue}
+                  disabled={isCleanTrack}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate ${
+                    isCleanTrack
+                      ? 'border-slate-800/80 bg-slate-950/60 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
+                      : isSmartVocalCue
+                      ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.4)] font-black cursor-pointer'
+                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600 cursor-pointer'
+                  }`}
+                  title={isCleanTrack ? 'Guía Coros desactivada en modo Pista Limpia' : 'Guía Coros: Activa la voz original automáticamente solo en entradas de versos y coros'}
+                >
+                  <Sparkles className={`w-3 h-3 shrink-0 ${!isCleanTrack && isSmartVocalCue ? 'text-indigo-300 animate-spin' : 'text-slate-500'}`} />
+                  <span className="truncate">
+                    {!isCleanTrack && isSmartVocalCue ? 'Coros ON' : 'Guía Coros'}
+                  </span>
+                </button>
+              </div>
 
-              {/* Botón Maestro "Pista Limpia" (Bypass de Voz) */}
+              {/* Botón Maestro "Pista Limpia" (Bypass de Voz) debajo de los dos */}
               <button
                 type="button"
                 onClick={onToggleCleanTrack}
                 style={{ touchAction: 'manipulation' }}
-                className={`flex items-center justify-center gap-1.5 w-32 sm:w-36 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-sm shrink-0 ${
+                className={`flex items-center justify-center gap-1.5 w-full py-1.5 px-2 rounded-lg border text-[11px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm ${
                   isCleanTrack
-                    ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.4)] font-black ring-1 ring-emerald-400/50'
+                    ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.4)] font-black ring-1 ring-emerald-400/50'
                     : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
                 }`}
                 title="Pista Limpia: Fuerza 100% instrumental sin voz original ni guías"
               >
-                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${isCleanTrack ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
-                <span className="whitespace-nowrap truncate">
+                <Sparkles className={`w-3 h-3 shrink-0 ${isCleanTrack ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+                <span className="truncate">
                   {isCleanTrack ? '✨ Pista Limpia: ON' : '✨ Pista Limpia'}
                 </span>
               </button>
