@@ -29,6 +29,37 @@ export function extractYouTubeId(urlOrId: string): string | null {
 }
 
 /**
+ * Fast parallel filter to discard videos where external embed playback is disabled (Error 150/101)
+ */
+async function filterEmbeddableVideos(items: YouTubeSearchResult[]): Promise<YouTubeSearchResult[]> {
+  if (!items || items.length === 0) return [];
+  const checks = await Promise.allSettled(
+    items.map(async (item) => {
+      if (!item.id || item.id === 'search_fallback') return true;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2000);
+        const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(item.id)}&format=json`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.status === 401 || res.status === 403) {
+          return false;
+        }
+        return true;
+      } catch {
+        return true;
+      }
+    })
+  );
+
+  return items.filter((_, idx) => {
+    const check = checks[idx];
+    return check.status === 'fulfilled' ? check.value : true;
+  });
+}
+
+/**
  * Searches YouTube for Karaoke videos using serverless backend + public API fallbacks
  */
 export async function searchYouTubeVideos(query: string): Promise<YouTubeSearchResult[]> {
@@ -40,7 +71,11 @@ export async function searchYouTubeVideos(query: string): Promise<YouTubeSearchR
   if (directId) {
     let videoTitle = 'Video de YouTube';
     try {
-      const oembedRes = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${directId}`);
+      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${directId}&format=json`);
+      // If video owner disabled playback on other websites (Error 150/101), reject it
+      if (oembedRes.status === 401 || oembedRes.status === 403) {
+        return [];
+      }
       if (oembedRes.ok) {
         const oembedData = await oembedRes.json();
         if (oembedData.title) videoTitle = oembedData.title;
@@ -100,9 +135,9 @@ export async function searchYouTubeVideos(query: string): Promise<YouTubeSearchR
 
       const items = Array.isArray(data) ? data : data.items;
       if (Array.isArray(items) && items.length > 0) {
-        return items
+        const candidateResults = items
           .filter((item: any) => (item.videoId || item.url?.replace('/watch?v=', '')) && item.title)
-          .slice(0, 12)
+          .slice(0, 16)
           .map((item: any) => {
             const vidId = item.videoId || item.url?.replace('/watch?v=', '') || '';
             const sec = item.duration || item.lengthSeconds || 0;
@@ -119,6 +154,8 @@ export async function searchYouTubeVideos(query: string): Promise<YouTubeSearchR
               url: `https://www.youtube.com/watch?v=${vidId}`,
             };
           });
+
+        return await filterEmbeddableVideos(candidateResults);
       }
     } catch (_) {}
   }

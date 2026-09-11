@@ -26,9 +26,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const yt: any = (YouTubeSR as any).default || YouTubeSR;
     const searchFn = typeof yt.search === 'function' ? yt.search.bind(yt) : (YouTubeSR as any).search.bind(YouTubeSR);
 
-    const videos = await searchFn(q, { limit: 15, type: 'video' });
+    const videos = await searchFn(q, { limit: 25, type: 'video' });
 
-    const results = (videos || []).map((video: any) => {
+    const rawResults = (videos || []).map((video: any) => {
       const sec = video.duration ? video.duration / 1000 : 0;
       const mins = Math.floor(sec / 60);
       const remainderSec = Math.floor(sec % 60);
@@ -42,6 +42,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         thumbnail: video.thumbnail?.url || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
         url: video.url || `https://www.youtube.com/watch?v=${video.id}`,
       };
+    });
+
+    // Filtro de Reproducción Externa: Descarta videos que tienen la inserción bloqueada (Error 150 / 101)
+    const embedChecks = await Promise.allSettled(
+      rawResults.map(async (item: any) => {
+        if (!item.id) return false;
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          const oembedRes = await fetch(
+            `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(item.id)}&format=json`,
+            { signal: controller.signal }
+          );
+          clearTimeout(timer);
+          // Si el código es 401 o 403, YouTube prohíbe la reproducción en reproductores externos
+          if (oembedRes.status === 401 || oembedRes.status === 403) {
+            return false;
+          }
+          return true;
+        } catch {
+          // En caso de timeout de red, conservar el elemento
+          return true;
+        }
+      })
+    );
+
+    const results = rawResults.filter((_, idx) => {
+      const check = embedChecks[idx];
+      return check.status === 'fulfilled' ? check.value : true;
     });
 
     return res.status(200).json({ results });
