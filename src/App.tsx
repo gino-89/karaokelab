@@ -83,6 +83,7 @@ export default function App() {
   const [isDuetMode, setIsDuetMode] = useState(false);
   const [isSmartVocalCue, setIsSmartVocalCue] = useState(false);
   const [activeCueType, setActiveCueType] = useState<'intro' | 'chorus' | 'outro' | null>(null);
+  const [isCleanTrack, setIsCleanTrack] = useState(false);
 
   // Pre-analyzed Intelligent Song Structure Cues (Choruses, Lead-ins, Outros)
   const smartCues = useMemo(() => {
@@ -1132,10 +1133,14 @@ export default function App() {
         }
 
         // Evaluate Vocal Playback Modes in real-time Web Audio graph:
-        // 1. If Guía Coros is ON -> uses dynamic smart cue detector (verses/choruses)
-        // 2. If Voz Guía (40%) is ON -> uses manual constant volume
-        // 3. If BOTH ARE OFF -> Plays EXACTLY as the acapella / vocal automation was custom edited!
-        if (isSmartVocalCue) {
+        // 1. If Pista Limpia is ON -> forces lead vocal to 0.0 (100% instrumental karaoke, bypassing curves & guides)
+        // 2. If Guía Coros is ON -> uses dynamic smart cue detector (verses/choruses)
+        // 3. If Voz Guía (40%) is ON -> uses manual constant volume
+        // 4. If ALL ARE OFF -> Plays EXACTLY as the acapella / vocal automation was custom edited!
+        if (isCleanTrack) {
+          audioEngine.setVocalGain(0.0);
+          setActiveCueType(null);
+        } else if (isSmartVocalCue) {
           const cue = getActiveSmartCue(t, smartCues);
           audioEngine.setVocalGain(cue.targetGain);
           setActiveCueType(cue.cueType);
@@ -1181,11 +1186,12 @@ export default function App() {
       if (animId) cancelAnimationFrame(animId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [lyrics, isSmartVocalCue, smartCues, vocalGain, isPlaying, youTubeEmbedId]);
+  }, [lyrics, isSmartVocalCue, smartCues, vocalGain, isCleanTrack, isPlaying, youTubeEmbedId]);
 
   // 3. Load a song into Web Audio Engine (Instant Fast-Path Playback)
   const loadSongIntoEngine = async (song: SongItem, autoPlay = false) => {
     try {
+      setIsCleanTrack(false);
       setScoreModalState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
       audioEngine.clearBuffers();
       audioEngine.resumeContextSync();
@@ -1950,6 +1956,7 @@ export default function App() {
     setVocalGain(0.0);
     setIsSmartVocalCue(false);
     setActiveCueType(null);
+    setIsCleanTrack(false);
   };
 
 
@@ -2043,6 +2050,7 @@ export default function App() {
     if (val > 0.05) {
       setIsSmartVocalCue(false);
       setActiveCueType(null);
+      setIsCleanTrack(false);
     } else {
       if (currentSong?.vocalAutomation) {
         audioEngine.setVocalAutomationConfig(currentSong.vocalAutomation);
@@ -2050,6 +2058,25 @@ export default function App() {
     }
     setVocalGain(val);
     audioEngine.setVocalGain(val);
+  }, [currentSong]);
+
+  const handleToggleCleanTrack = useCallback(() => {
+    setIsCleanTrack((prev) => {
+      const next = !prev;
+      if (next) {
+        // Al Activar (ON): fuerza la voz a 0, apaga y desactiva visualmente Voz Guía y Guía Coros
+        setVocalGain(0.0);
+        audioEngine.setVocalGain(0.0);
+        setIsSmartVocalCue(false);
+        setActiveCueType(null);
+      } else {
+        // Al Desactivar (OFF): restaura las curvas y volumen propio de la canción sin encender artificialmente los otros dos
+        if (currentSong?.vocalAutomation) {
+          audioEngine.setVocalAutomationConfig(currentSong.vocalAutomation);
+        }
+      }
+      return next;
+    });
   }, [currentSong]);
 
   const handleMusicGainChange = useCallback((val: number) => {
@@ -2163,6 +2190,7 @@ export default function App() {
   };
 
   const handleSelectSongForPlayback = useCallback((song: SongItem) => {
+    setIsCleanTrack(false);
     setQueue((prevQueue) =>
       prevQueue.filter(
         (q) =>
@@ -2375,6 +2403,8 @@ export default function App() {
                 });
               }}
               vocalGain={vocalGain}
+              isCleanTrack={isCleanTrack}
+              onToggleCleanTrack={handleToggleCleanTrack}
               onToggleVocalGuide={() => {
                 const nextGain = vocalGain > 0.05 ? 0.0 : 0.40;
                 if (nextGain > 0.05) {
@@ -2527,6 +2557,8 @@ export default function App() {
         onTogglePlay={() => (isPlaying ? handlePause() : handlePlay())}
         vocalGain={vocalGain}
         onVocalGainChange={handleVocalGainChange}
+        isCleanTrack={isCleanTrack}
+        onToggleCleanTrack={handleToggleCleanTrack}
         isSmartVocalCue={isSmartVocalCue}
         activeCueType={activeCueType}
         onToggleSmartVocalCue={() => {

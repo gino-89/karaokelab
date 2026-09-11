@@ -195,12 +195,6 @@ export async function exportFullLibraryWithAudioZip(
         songFolder.file('vocals.mp3', mp3Blob);
       }
 
-      // 3. Audio Bass Stem (if available)
-      if (song.stems?.bassBlob) {
-        const mp3Blob = await convertWavBlobToMp3_320kbps(song.stems.bassBlob);
-        songFolder.file('bass.mp3', mp3Blob);
-      }
-
       // 4. Formatted LRC Lyrics
       const lrcContent = formatLRC(song.lyrics || []);
       songFolder.file('lyrics.lrc', lrcContent);
@@ -235,6 +229,23 @@ export async function exportFullLibraryWithAudioZip(
   }
 
   // Root Manifest
+  const playerManifest = {
+    version: '1.0.0',
+    updatedAt: Date.now(),
+    profiles: profiles || [],
+    songs: rootManifest.songs.map((s, idx) => {
+      const sIdx = String(idx + 1).padStart(2, '0');
+      const fName = `${sIdx}_${sanitizeFilename(s.artist)} - ${sanitizeFilename(s.title)}`;
+      return {
+        ...s,
+        folder: fName,
+        audioFile: `${fName}/instrumental.mp3`,
+        vocalsFile: s.vocalAutomation || s.lyrics ? `${fName}/vocals.mp3` : undefined,
+        lrcFile: `${fName}/lyrics.lrc`,
+      };
+    }),
+  };
+  zip.file('manifest.json', JSON.stringify(playerManifest, null, 2));
   zip.file('library_manifest.json', JSON.stringify(rootManifest, null, 2));
 
   if (onProgress) onProgress(85, 'Comprimiendo archivo ZIP con audios y stems...');
@@ -293,7 +304,7 @@ export async function updateExistingZipWithSongs(
     songs: [],
   };
 
-  const manifestFile = zip.file('library_manifest.json');
+  const manifestFile = zip.file('manifest.json') || zip.file('library_manifest.json');
   if (manifestFile) {
     try {
       const text = await manifestFile.async('text');
@@ -331,10 +342,6 @@ export async function updateExistingZipWithSongs(
       if (song.stems?.vocalsBlob) {
         const mp3Blob = await convertWavBlobToMp3_320kbps(song.stems.vocalsBlob);
         songFolder.file('vocals.mp3', mp3Blob);
-      }
-      if (song.stems?.bassBlob) {
-        const mp3Blob = await convertWavBlobToMp3_320kbps(song.stems.bassBlob);
-        songFolder.file('bass.mp3', mp3Blob);
       }
 
       const lrcContent = formatLRC(song.lyrics || []);
@@ -552,7 +559,7 @@ async function importLibraryFromZip(
         if (!fileObj) continue;
         const blob = await fileObj.async('blob');
         if (aPath.includes('instrumental')) instBlob = blob;
-        else if (aPath.includes('vocals') || aPath.includes('voz')) vocBlob = blob;
+        else if (aPath.toLowerCase().includes('vocal') || aPath.toLowerCase().includes('voz')) vocBlob = blob;
         else if (!mainAudioBlob) mainAudioBlob = blob;
       }
 
@@ -617,13 +624,25 @@ async function importLibraryFromZip(
 
           if (fileName.includes('instrumental')) {
             instrumentalBlob = await fObj.async('blob');
-          } else if (fileName.includes('vocals') || fileName.includes('voz')) {
+          } else if (fileName.includes('vocal') || fileName.includes('voz')) {
             vocalsBlob = await fObj.async('blob');
           } else if (fileName.includes('bass') || fileName.includes('bajo')) {
             bassBlob = await fObj.async('blob');
           } else if (/\.(mp3|wav|ogg|m4a|flac)$/i.test(fileName)) {
             genericAudioBlob = await fObj.async('blob');
           }
+        }
+
+        // Direct lookup from metadata (manifest.json / song.json)
+        if (!vocalsBlob && songMeta.vocalsFile) {
+          const vName = songMeta.vocalsFile.split('/').pop() || songMeta.vocalsFile;
+          const vFile = zip.file(`${folderPrefix}${vName}`) || zip.file(songMeta.vocalsFile) || zip.file(`${folderPrefix}vocals.mp3`) || zip.file(`${folderPrefix}vocal.mp3`);
+          if (vFile) vocalsBlob = await vFile.async('blob');
+        }
+        if (!instrumentalBlob && songMeta.audioFile) {
+          const aName = songMeta.audioFile.split('/').pop() || songMeta.audioFile;
+          const aFile = zip.file(`${folderPrefix}${aName}`) || zip.file(songMeta.audioFile) || zip.file(`${folderPrefix}instrumental.mp3`);
+          if (aFile) instrumentalBlob = await aFile.async('blob');
         }
 
         let finalLyrics = songMeta.lyrics || [];

@@ -77,7 +77,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
   };
 
   /**
-   * Hardware Console Studio Fader Strip (Identical architecture to playback slider)
+   * Hardware Console Studio Fader Strip (High-Precision Studio Fader)
    */
   const StudioFaderStrip = ({
     title,
@@ -106,6 +106,135 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
   }) => {
     const isMuted = value <= 0.001;
     const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+    const trackRef = React.useRef<HTMLDivElement>(null);
+    const isDraggingRef = React.useRef(false);
+    const lastClientXRef = React.useRef(0);
+    const currentValueRef = React.useRef(value);
+
+    // Sync ref when value prop changes outside of dragging
+    React.useEffect(() => {
+      if (!isDraggingRef.current) {
+        currentValueRef.current = value;
+      }
+    }, [value]);
+
+    // 3. Rueda del Ratón / Trackpad (onWheel): 2% normal, 0.5% con Shift (non-passive to prevent scroll)
+    React.useEffect(() => {
+      const el = trackRef.current;
+      if (!el) return;
+
+      const handleWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const isUp = e.deltaY < 0 || e.deltaX > 0;
+        const isDown = e.deltaY > 0 || e.deltaX < 0;
+        if (!isUp && !isDown) return;
+
+        const stepVal = e.shiftKey ? 0.005 : 0.02; // 0.5% con Shift, 2% estándar
+        const dir = isUp ? 1 : -1;
+
+        const current = currentValueRef.current;
+        const next = Math.max(min, Math.min(max, Math.round((current + dir * stepVal) * 1000) / 1000));
+        currentValueRef.current = next;
+        onChange(next);
+      };
+
+      el.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+        el.removeEventListener('wheel', handleWheel);
+      };
+    }, [min, max, onChange]);
+
+    // 1 & 2. Arrastre Continuo (window pointermove) + Modo Micro-Ajuste con Shift (5x más lento)
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return; // Solo clic primario
+      e.preventDefault();
+      e.stopPropagation();
+
+      const track = trackRef.current;
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      if (!rect.width) return;
+
+      track.focus();
+
+      if (!e.shiftKey) {
+        // Clic directo en la barra salta a esa posición
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const clickedVal = min + ratio * (max - min);
+        const rounded = Math.round(clickedVal * 1000) / 1000;
+        currentValueRef.current = rounded;
+        onChange(rounded);
+      } else {
+        // Con Shift presionado, inicia micro-ajuste desde el valor actual sin saltar
+        currentValueRef.current = value;
+      }
+
+      lastClientXRef.current = e.clientX;
+      isDraggingRef.current = true;
+
+      const onPointerMove = (ev: PointerEvent) => {
+        if (!isDraggingRef.current || !trackRef.current) return;
+        const currentRect = trackRef.current.getBoundingClientRect();
+        const trackW = currentRect.width || 1;
+        const dx = ev.clientX - lastClientXRef.current;
+        lastClientXRef.current = ev.clientX;
+
+        // Modo Micro-Ajuste: al arrastrar con Shift pulsado, la velocidad se reduce 5 veces (0.2x)
+        const speed = ev.shiftKey ? 0.2 : 1.0;
+        const range = max - min;
+        const deltaVal = (dx / trackW) * range * speed;
+
+        const newVal = Math.max(min, Math.min(max, currentValueRef.current + deltaVal));
+        currentValueRef.current = newVal;
+        onChange(Math.round(newVal * 1000) / 1000);
+      };
+
+      const onPointerUp = () => {
+        isDraggingRef.current = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+      };
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    };
+
+    // 4. Doble Click: Restablece instantáneamente el canal a 100% (0.0 dB)
+    const handleDoubleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      currentValueRef.current = unityPoint;
+      onChange(unityPoint);
+    };
+
+    // 5. Flechas del Teclado: Permite ajustar con flechas izquierda/derecha (2% o 0.5% con Shift)
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const stepVal = e.shiftKey ? 0.005 : 0.02;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const next = Math.max(min, Math.min(max, Math.round((value + stepVal) * 1000) / 1000));
+        currentValueRef.current = next;
+        onChange(next);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = Math.max(min, Math.min(max, Math.round((value - stepVal) * 1000) / 1000));
+        currentValueRef.current = next;
+        onChange(next);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        currentValueRef.current = min;
+        onChange(min);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        currentValueRef.current = max;
+        onChange(max);
+      }
+    };
 
     return (
       <div className="flex-1 min-w-[110px] bg-[#0c0e17] border border-slate-700/70 rounded-xl p-3 flex flex-col justify-between shadow-md relative overflow-hidden group">
@@ -136,20 +265,32 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
           </div>
         </div>
 
-        {/* ── Exact Same Architecture as Playback Slider ── */}
-        <div className="relative py-1.5 flex flex-col justify-center select-none my-1">
-          {/* Reference Ticks */}
-          <div className="flex justify-between text-[8px] font-mono text-slate-500 mb-1 px-0.5">
+        {/* ── Reference Ticks ── */}
+        <div className="relative py-1 flex flex-col justify-center select-none my-0.5">
+          <div className="flex justify-between text-[8px] font-mono text-slate-500 mb-1 px-0.5 pointer-events-none">
             <span>0%</span>
             <span>50%</span>
             <span className="text-slate-200 font-bold">100% (0dB)</span>
             <span>{max >= 2.0 ? '200%' : '150%'}</span>
           </div>
 
-          {/* Interactive Range Track (Exact same structure as playback slider) */}
-          <div className="relative h-6 flex items-center">
+          {/* Área ampliada de 32px (h-8) con Arrastre Continuo, Rueda, Doble Clic y Teclado */}
+          <div
+            ref={trackRef}
+            role="slider"
+            aria-label={title}
+            aria-valuemin={min}
+            aria-valuemax={max}
+            aria-valuenow={value}
+            tabIndex={0}
+            onPointerDown={handlePointerDown}
+            onDoubleClick={handleDoubleClick}
+            onKeyDown={handleKeyDown}
+            className="relative h-8 flex items-center cursor-pointer select-none touch-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/60 rounded-lg group/track"
+            title={`${title}: ${Math.round(value * 100)}% (${dbLabel(value)}) · Doble clic: 100% (0dB) · Shift: micro-ajuste (0.2%) · Rueda: volumen`}
+          >
             {/* Background Rail */}
-            <div className="w-full h-2.5 bg-slate-950 border border-slate-700/80 rounded-full overflow-hidden relative shadow-inner">
+            <div className="w-full h-2.5 bg-slate-950 border border-slate-700/80 rounded-full overflow-hidden relative shadow-inner pointer-events-none">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -164,22 +305,8 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
 
             {/* Glowing Hardware Thumb Knob */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-slate-900 shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-10"
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-slate-900 shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-10 group-hover/track:scale-110 transition-transform"
               style={{ left: `${pct}%` }}
-            />
-
-            {/* Live Interactive Range Slider for Dragging & Clicking */}
-            <input
-              type="range"
-              min={min}
-              max={max}
-              step={step}
-              value={value}
-              onChange={(e) => onChange(parseFloat(e.target.value))}
-              onInput={(e) => onChange(parseFloat((e.target as HTMLInputElement).value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-              style={{ touchAction: 'pan-x' }}
-              title={`${title}: ${Math.round(value * 100)}% (${dbLabel(value)})`}
             />
           </div>
         </div>
