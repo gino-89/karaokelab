@@ -324,9 +324,10 @@ input[type="range"].slider-vertical {
     overscroll-behavior: contain !important;
   }
 
-  /* Song titles in library on iPad: multiline line-clamp-2, slightly smaller font so the full title fits */
+  /* Song titles in library on iPad: clear bold font spanning full top row, allowing 2 lines if very long */
   .library-song-title {
-    font-size: 11px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
     line-height: 1.25 !important;
     white-space: normal !important;
     display: -webkit-box !important;
