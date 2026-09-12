@@ -323,5 +323,23 @@ input[type="range"].slider-vertical {
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain !important;
   }
+
+  /* Song titles in library on iPad: multiline line-clamp-2, slightly smaller font so the full title fits */
+  .library-song-title {
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    white-space: normal !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    word-break: break-word !important;
+  }
+
+  .library-song-meta {
+    font-size: 9.5px !important;
+    gap: 0.25rem !important;
+  }
 }
 

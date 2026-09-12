@@ -1167,10 +1167,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         </div>
 
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                          <span
+                            className="library-song-title text-xs font-semibold truncate text-slate-200 group-hover:text-white"
+                            title={song.title}
+                          >
                             {song.title}
                           </span>
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                          <div className="library-song-meta flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
                             <span>{song.artist || 'Desconocido'}</span>
                             <span>·</span>
                             <span>{fmt(song.duration)}</span>
@@ -1410,10 +1413,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             </div>
 
                             <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                              <span
+                                className="library-song-title text-xs font-semibold truncate text-slate-200 group-hover:text-white"
+                                title={song.title}
+                              >
                                 {song.title}
                               </span>
-                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                              <div className="library-song-meta flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
                                 <span>{song.artist || 'Desconocido'}</span>
                                 <span>·</span>
                                 <span>{fmt(song.duration)}</span>
