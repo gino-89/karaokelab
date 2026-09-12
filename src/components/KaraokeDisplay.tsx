@@ -1209,54 +1209,89 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </div>
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 font-mono mt-1">
               {songArtist && <span className="truncate max-w-[130px] font-medium text-slate-300">{songArtist} ·</span>}
-              <div className="flex items-center bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 shrink-0">
-                <span className="text-amber-300 font-bold">{bpm || 120} BPM</span>
+              {/* Modern Digital BPM Capsule */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/90 border border-slate-800 shadow-inner shrink-0 group hover:border-cyan-500/40 transition-colors">
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]" />
+                  <span className="text-xs font-mono font-black text-white tracking-tight">
+                    {bpm || 120}
+                  </span>
+                  <span className="text-[9px] font-mono font-extrabold text-[#00f0ff] tracking-wider">
+                    BPM
+                  </span>
+                </div>
                 {onUpdateBpm && (
-                  <div className="flex items-center ml-1.5 pl-1 border-l border-slate-700 text-slate-400">
-                    <button onClick={() => onUpdateBpm(Math.max(40, (bpm || 120) - 1))} className="hover:text-white px-1.5 py-0.5 font-bold cursor-pointer transition-colors active:scale-90">−</button>
-                    <button onClick={() => onUpdateBpm(Math.min(240, (bpm || 120) + 1))} className="hover:text-white px-1.5 py-0.5 font-bold cursor-pointer transition-colors active:scale-90">+</button>
+                  <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => onUpdateBpm(Math.max(40, (bpm || 120) - 1))}
+                      className="w-4 h-4 rounded bg-slate-900 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/30 flex items-center justify-center font-mono font-bold text-[10px] cursor-pointer transition-all active:scale-75"
+                      title="Reducir BPM (-1)"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateBpm(Math.min(240, (bpm || 120) + 1))}
+                      className="w-4 h-4 rounded bg-slate-900 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/30 flex items-center justify-center font-mono font-bold text-[10px] cursor-pointer transition-all active:scale-75"
+                      title="Aumentar BPM (+1)"
+                    >
+                      +
+                    </button>
                   </div>
                 )}
               </div>
-              {/* Exact Pitch Shifter / Key Transpose Module from Console */}
-              <div className="bg-[#0c0e17] border border-slate-700/80 rounded-xl px-2 py-0.5 flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300 font-mono leading-none">
-                  Tono:
+
+              {/* Modern Digital Tone / Key Capsule */}
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/90 border transition-all shadow-inner shrink-0 ${
+                pitchShift !== 0
+                  ? 'border-[#ff007f]/50 shadow-[0_0_12px_rgba(255,0,127,0.2)]'
+                  : 'border-slate-800 hover:border-amber-500/40'
+              }`}>
+                <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider text-slate-400">
+                  TONO
                 </span>
 
-                <div className="flex items-center gap-1 bg-slate-950 px-1 py-0.5 rounded-lg border border-slate-800">
+                <div className="flex items-center gap-1">
                   <button
+                    type="button"
                     onClick={() => onPitchShiftChange && onPitchShiftChange(Math.max(-6, pitchShift - 1))}
-                    className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer transition-all active:scale-90"
-                    title="Bajar 1 semitono"
+                    className="w-4 h-4 rounded bg-slate-900 hover:bg-pink-500/20 text-slate-400 hover:text-pink-300 border border-slate-800 hover:border-pink-500/30 flex items-center justify-center font-mono font-bold text-[10px] cursor-pointer transition-all active:scale-75"
+                    title="Bajar 1 semitono (-1)"
                   >
                     −
                   </button>
 
-                  <div className="min-w-[62px] text-center px-1">
-                    <span className="text-[11px] font-bold text-amber-300 font-mono block leading-tight">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-900/80 border border-slate-800 min-w-[56px] justify-center">
+                    <span className={`text-xs font-mono font-black ${pitchShift !== 0 ? 'text-[#ff007f]' : 'text-amber-300'}`}>
                       {detectedKey ? transposeKey(detectedKey, pitchShift) : 'Am'}
                     </span>
-                    <span className="text-[8px] font-mono text-slate-400 block">
-                      {pitchShift === 0 ? 'Original' : `${pitchShift > 0 ? '+' : ''}${pitchShift}st`}
+                    <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded ${
+                      pitchShift === 0
+                        ? 'bg-slate-800 text-slate-400'
+                        : 'bg-[#ff007f]/20 text-[#ff007f] font-black'
+                    }`}>
+                      {pitchShift === 0 ? 'ORG' : `${pitchShift > 0 ? '+' : ''}${pitchShift}`}
                     </span>
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => onPitchShiftChange && onPitchShiftChange(Math.min(6, pitchShift + 1))}
-                    className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer transition-all active:scale-90"
-                    title="Subir 1 semitono"
+                    className="w-4 h-4 rounded bg-slate-900 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 border border-slate-800 hover:border-emerald-500/30 flex items-center justify-center font-mono font-bold text-[10px] cursor-pointer transition-all active:scale-75"
+                    title="Subir 1 semitono (+1)"
                   >
                     +
                   </button>
 
                   {pitchShift !== 0 && (
                     <button
+                      type="button"
                       onClick={() => onPitchShiftChange && onPitchShiftChange(0)}
-                      className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-slate-800 cursor-pointer ml-0.5 active:scale-90"
+                      className="w-4 h-4 rounded bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-500/40 flex items-center justify-center cursor-pointer ml-0.5 transition-all active:scale-75 shadow-sm"
                       title="Restablecer a tono original"
                     >
-                      <RefreshCw className="w-2.5 h-2.5" />
+                      <RotateCcw className="w-2.5 h-2.5" />
                     </button>
                   )}
                 </div>
