@@ -42,7 +42,7 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
   onToggleCasting,
   hostPeerId,
 }) => {
-  const [activeTab, setActiveTab] = useState<'screen' | 'chromecast' | 'airplay' | 'smarttv'>('chromecast');
+  const [activeTab, setActiveTab] = useState<'screen' | 'chromecast' | 'airplay' | 'smarttv'>('screen');
   const [copiedLink, setCopiedLink] = useState(false);
   const [supportAirPlay, setSupportAirPlay] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -246,30 +246,6 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
           {/* Navigation Tabs */}
           <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
             <button
-              onClick={() => setActiveTab('chromecast')}
-              className={`py-2 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === 'chromecast'
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Cast className="w-3.5 h-3.5" />
-              <span className="truncate">Chromecast</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('airplay')}
-              className={`py-2 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === 'airplay'
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Laptop className="w-3.5 h-3.5" />
-              <span className="truncate">AirPlay</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('screen')}
               className={`py-2 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeTab === 'screen'
@@ -292,69 +268,33 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
               <QrCode className="w-3.5 h-3.5" />
               <span className="truncate">Smart TV QR</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('chromecast')}
+              className={`py-2 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeTab === 'chromecast'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Cast className="w-3.5 h-3.5" />
+              <span className="truncate">Chromecast</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('airplay')}
+              className={`py-2 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeTab === 'airplay'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Laptop className="w-3.5 h-3.5" />
+              <span className="truncate">AirPlay</span>
+            </button>
           </div>
 
-          {/* TAB 1: CHROMECAST */}
-          {activeTab === 'chromecast' && (
-            <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-3 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-white font-bold text-sm">
-                  <Cast className="w-4 h-4 text-emerald-400" />
-                  <span>Transmitir a Chromecast / Google TV</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
-                  Búsqueda Wi-Fi
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">
-                Al hacer clic, se abrirá la lista de dispositivos **Chromecast, Google TV y Smart TVs** disponibles en tu red Wi-Fi para transmitir solo el Modo TV.
-              </p>
-
-              <button
-                onClick={handleChromecast}
-                disabled={isScanning}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-50"
-              >
-                {isScanning ? <Search className="w-4 h-4 animate-spin" /> : <Cast className="w-4 h-4" />}
-                <span>Buscar y Conectar Dispositivos Chromecast</span>
-              </button>
-            </div>
-          )}
-
-          {/* TAB 2: AIRPLAY */}
-          {activeTab === 'airplay' && (
-            <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-3 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-white font-bold text-sm">
-                  <Laptop className="w-4 h-4 text-purple-400" />
-                  <span>AirPlay (Apple TV & Smart TVs con AirPlay 2)</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">
-                  Apple AirPlay
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">
-                Abre la pantalla de Modo TV y activa el menú nativo de **AirPlay** para seleccionar tu **Apple TV, Roku, Samsung o LG con AirPlay 2**.
-              </p>
-
-              <button
-                onClick={handleNativeAirPlay}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-purple-500/30"
-              >
-                <Cast className="w-4 h-4" />
-                <span>Abrir Selector de Dispositivos AirPlay</span>
-              </button>
-
-              <div className="p-3 bg-purple-950/40 rounded-xl border border-purple-500/20 text-[11px] text-purple-200 flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Tip de Mac:</strong> También puedes usar el icono de duplicación en la barra superior de tu Mac (<strong>Centro de Control → Duplicar Pantalla</strong>) para enviar la ventana a tu Apple TV.
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: 2ND SCREEN / HDMI / PROJECTOR */}
+          {/* TAB 1: 2ND SCREEN / HDMI / PROJECTOR */}
           {activeTab === 'screen' && (
             <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between">
@@ -379,7 +319,7 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: SMART TV DIRECT QR */}
+          {/* TAB 2: SMART TV DIRECT QR */}
           {activeTab === 'smarttv' && (
             <div className="p-4 rounded-2xl bg-amber-950/20 border border-amber-500/30 space-y-3 flex flex-col items-center text-center animate-in fade-in">
               <div className="flex items-center gap-2 text-white font-bold text-sm">
@@ -431,6 +371,66 @@ export const CastTvModal: React.FC<CastTvModalProps> = ({
                   {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedLink ? '¡Copiado!' : 'Copiar'}</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: CHROMECAST */}
+          {activeTab === 'chromecast' && (
+            <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-white font-bold text-sm">
+                  <Cast className="w-4 h-4 text-emerald-400" />
+                  <span>Transmitir a Chromecast / Google TV</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+                  Búsqueda Wi-Fi
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Al hacer clic, se abrirá la lista de dispositivos **Chromecast, Google TV y Smart TVs** disponibles en tu red Wi-Fi para transmitir solo el Modo TV.
+              </p>
+
+              <button
+                onClick={handleChromecast}
+                disabled={isScanning}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-50"
+              >
+                {isScanning ? <Search className="w-4 h-4 animate-spin" /> : <Cast className="w-4 h-4" />}
+                <span>Buscar y Conectar Dispositivos Chromecast</span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 4: AIRPLAY */}
+          {activeTab === 'airplay' && (
+            <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-white font-bold text-sm">
+                  <Laptop className="w-4 h-4 text-purple-400" />
+                  <span>AirPlay (Apple TV & Smart TVs con AirPlay 2)</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">
+                  Apple AirPlay
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Abre la pantalla de Modo TV y activa el menú nativo de **AirPlay** para seleccionar tu **Apple TV, Roku, Samsung o LG con AirPlay 2**.
+              </p>
+
+              <button
+                onClick={handleNativeAirPlay}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-purple-500/30"
+              >
+                <Cast className="w-4 h-4" />
+                <span>Abrir Selector de Dispositivos AirPlay</span>
+              </button>
+
+              <div className="p-3 bg-purple-950/40 rounded-xl border border-purple-500/20 text-[11px] text-purple-200 flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Tip de Mac:</strong> También puedes usar el icono de duplicación en la barra superior de tu Mac (<strong>Centro de Control → Duplicar Pantalla</strong>) para enviar la ventana a tu Apple TV.
+                </span>
               </div>
             </div>
           )}
