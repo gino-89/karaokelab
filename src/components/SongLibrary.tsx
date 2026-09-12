@@ -1160,109 +1160,99 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                       <div
                         key={song.id}
                         onClick={() => setSongActionTarget(song)}
-                        className="flex flex-col gap-1 px-3 py-2 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
+                        className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
                       >
-                        {/* Fila Superior: Icono y Nombre a todo el ancho */}
-                        <div className="flex items-center gap-2 min-w-0 w-full">
-                          <div className="shrink-0 w-6 h-6 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-colors">
-                            <Music2 className="w-3 h-3 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                          </div>
-                          <span
-                            className="library-song-title text-xs sm:text-[12.5px] font-bold text-slate-200 group-hover:text-white truncate flex-1 leading-snug"
-                            title={song.title}
-                          >
-                            {song.title}
-                          </span>
+                        <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-colors">
+                          <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
                         </div>
 
-                        {/* Fila Inferior: Metadatos a la izquierda y Botones a la derecha */}
-                        <div className="flex items-center justify-between gap-2 w-full pl-8">
-                          <div className="library-song-meta flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate min-w-0">
-                            <span className="truncate">{song.artist || 'Desconocido'}</span>
-                            <span className="text-slate-600">·</span>
-                            <span className="shrink-0">{fmt(song.duration)}</span>
-                            <span className="text-slate-600">·</span>
-                            <span className="text-[#00f0ff] shrink-0">{song.bpm} BPM</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                            {song.title}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                            <span>{song.artist || 'Desconocido'}</span>
+                            <span>·</span>
+                            <span>{fmt(song.duration)}</span>
+                            <span>·</span>
+                            <span className="text-[#00f0ff]">{song.bpm} BPM</span>
                             {song.genre && (
-                              <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9px] shrink-0">
+                              <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9px]">
                                 {song.genre}
                               </span>
                             )}
                             {song.stems?.instrumentalBlob && (
-                              <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9px] shrink-0">
+                              <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9px]">
                                 ✓ Stems
                               </span>
                             )}
                           </div>
+                        </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            {/* Favorite Star Button */}
-                            {(() => {
-                              const isFav = getIsSongFavorite(song.id);
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleStarClick(e, song)}
-                                  className={`p-1 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
-                                    ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                                    : 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
-                                    }`}
-                                  title={
-                                    isGuestMode
-                                      ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
-                                      : activeProfile && activeProfile.id !== 'profile_all'
-                                      ? isFav
-                                        ? `Quitar de favoritas de ${activeProfile.name}`
-                                        : `Añadir a favoritas de ${activeProfile.name}`
-                                      : 'Asignar canción a perfil de cantante'
-                                  }
-                                >
-                                  <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
-                                </button>
-                              );
-                            })()}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(() => {
+                            const isFav = getIsSongFavorite(song.id);
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => handleStarClick(e, song)}
+                                className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
+                                  ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                                  : 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
+                                  }`}
+                                title={
+                                  isGuestMode
+                                    ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
+                                    : activeProfile && activeProfile.id !== 'profile_all'
+                                    ? isFav
+                                      ? `Quitar de favoritas de ${activeProfile.name}`
+                                      : `Añadir a favoritas de ${activeProfile.name}`
+                                    : 'Asignar canción a perfil de cantante'
+                                }
+                              >
+                                <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
+                              </button>
+                            );
+                          })()}
 
-                            {/* Queue Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddToQueue(song);
+                            }}
+                            className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all ${inQueue
+                              ? 'border-[#00ff9d]/40 bg-[#00ff9d]/10 text-[#00ff9d]'
+                              : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-[#00f0ff]/60 hover:bg-[#00f0ff]/15'
+                              }`}
+                            title={inQueue ? 'Ya está en la cola' : 'Agregar a la cola de reproducción'}
+                          >
+                            {inQueue ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
+                              </>
+                            ) : (
+                              <>
+                                <ListPlus className="w-3.5 h-3.5 text-[#00f0ff]" />
+                                <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
+                              </>
+                            )}
+                          </button>
+
+                          {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onAddToQueue(song);
+                                setSongToDelete(song);
                               }}
-                              className={`px-2 py-0.5 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all ${inQueue
-                                ? 'border-[#00ff9d]/40 bg-[#00ff9d]/10 text-[#00ff9d]'
-                                : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-[#00f0ff]/60 hover:bg-[#00f0ff]/15'
-                                }`}
-                              title={inQueue ? 'Ya está en la cola' : 'Agregar a la cola de reproducción'}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#ff007f] hover:bg-[#ff007f]/10 cursor-pointer transition-all"
+                              title="Eliminar de la biblioteca"
                             >
-                              {inQueue ? (
-                                <>
-                                  <Check className="w-3 h-3 text-[#00ff9d]" />
-                                  <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ListPlus className="w-3 h-3 text-[#00f0ff]" />
-                                  <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
-                                </>
-                              )}
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-
-                            {/* Delete button (Todos profile only) */}
-                            {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSongToDelete(song);
-                                }}
-                                className="p-1 rounded-lg text-slate-400 hover:text-[#ff007f] hover:bg-[#ff007f]/10 cursor-pointer transition-all"
-                                title="Eliminar de la biblioteca"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -1413,109 +1403,91 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           <div
                             key={song.id}
                             onClick={() => setSongActionTarget(song)}
-                            className="flex flex-col gap-1 px-3 py-2 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
+                            className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all group hover:bg-slate-800/50 rounded-xl select-none"
                           >
-                            {/* Fila Superior: Icono y Nombre a todo el ancho */}
-                            <div className="flex items-center gap-2 min-w-0 w-full">
-                              <div className="shrink-0 w-6 h-6 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-colors">
-                                <Music2 className="w-3 h-3 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                              </div>
-                              <span
-                                className="library-song-title text-xs sm:text-[12.5px] font-bold text-slate-200 group-hover:text-white truncate flex-1 leading-snug"
-                                title={song.title}
-                              >
-                                {song.title}
-                              </span>
+                            <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-colors">
+                              <Music2 className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
                             </div>
 
-                            {/* Fila Inferior: Metadatos a la izquierda y Botones a la derecha */}
-                            <div className="flex items-center justify-between gap-2 w-full pl-8">
-                              <div className="library-song-meta flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate min-w-0">
-                                <span className="truncate">{song.artist || 'Desconocido'}</span>
-                                <span className="text-slate-600">·</span>
-                                <span className="shrink-0">{fmt(song.duration)}</span>
-                                <span className="text-slate-600">·</span>
-                                <span className="text-[#00f0ff] shrink-0">{song.bpm} BPM</span>
-                                {song.genre && (
-                                  <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9px] shrink-0">
-                                    {song.genre}
-                                  </span>
-                                )}
-                                {song.stems?.instrumentalBlob && (
-                                  <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9px] shrink-0">
-                                    ✓ Stems
-                                  </span>
-                                )}
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                                {song.title}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                                <span>{song.artist || 'Desconocido'}</span>
+                                <span>·</span>
+                                <span>{fmt(song.duration)}</span>
+                                <span>·</span>
+                                <span className="text-[#00f0ff]">{song.bpm} BPM</span>
                               </div>
+                            </div>
 
-                              <div className="flex items-center gap-1 shrink-0">
-                                {/* Favorite Star Button */}
-                                {(() => {
-                                  const isFav = getIsSongFavorite(song.id);
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleStarClick(e, song)}
-                                      className={`p-1 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
-                                        ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                                        : 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
-                                        }`}
-                                      title={
-                                        isGuestMode
-                                          ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
-                                          : activeProfile && activeProfile.id !== 'profile_all'
-                                          ? isFav
-                                            ? `Quitar de favoritas de ${activeProfile.name}`
-                                            : `Añadir a favoritas de ${activeProfile.name}`
-                                          : 'Asignar canción a perfil de cantante'
-                                      }
-                                    >
-                                      <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
-                                    </button>
-                                  );
-                                })()}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {/* Favorite Star Button */}
+                              {(() => {
+                                const isFav = getIsSongFavorite(song.id);
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleStarClick(e, song)}
+                                    className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-all ${isFav
+                                      ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                                      : 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-amber-300 hover:border-amber-500/40'
+                                      }`}
+                                    title={
+                                      isGuestMode
+                                        ? isFav ? 'Quitar de mis favoritas' : 'Añadir a mis favoritas'
+                                        : activeProfile && activeProfile.id !== 'profile_all'
+                                        ? isFav
+                                          ? `Quitar de favoritas de ${activeProfile.name}`
+                                          : `Añadir a favoritas de ${activeProfile.name}`
+                                        : 'Asignar canción a perfil de cantante'
+                                    }
+                                  >
+                                    <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400 text-amber-400' : ''}`} />
+                                  </button>
+                                );
+                              })()}
 
-                                {/* Queue Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAddToQueue(song);
+                                }}
+                                className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all ${inQueue
+                                  ? 'border-[#00ff9d]/40 bg-[#00ff9d]/10 text-[#00ff9d]'
+                                  : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-[#00f0ff]/60 hover:bg-[#00f0ff]/15'
+                                  }`}
+                                title={inQueue ? 'Ya está en la cola' : 'Agregar a la cola de reproducción'}
+                              >
+                                {inQueue ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ListPlus className="w-3.5 h-3.5 text-[#00f0ff]" />
+                                    <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {/* Delete button only appears in Todos and is hidden in guest mode */}
+                              {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onAddToQueue(song);
+                                    setSongToDelete(song);
                                   }}
-                                  className={`px-2 py-0.5 rounded-lg border text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all ${inQueue
-                                    ? 'border-[#00ff9d]/40 bg-[#00ff9d]/10 text-[#00ff9d]'
-                                    : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-[#00f0ff]/60 hover:bg-[#00f0ff]/15'
-                                    }`}
-                                  title={inQueue ? 'Ya está en la cola' : 'Agregar a la cola de reproducción'}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#ff007f] hover:bg-[#ff007f]/10 cursor-pointer transition-all"
+                                  title="Eliminar de la biblioteca"
                                 >
-                                  {inQueue ? (
-                                    <>
-                                      <Check className="w-3 h-3 text-[#00ff9d]" />
-                                      <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ListPlus className="w-3 h-3 text-[#00f0ff]" />
-                                      <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
-                                    </>
-                                  )}
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-
-                                {/* Delete button (Todos profile only) */}
-                                {(!activeProfile || activeProfile.id === 'profile_all') && !isGuestMode && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSongToDelete(song);
-                                    }}
-                                    className="p-1 rounded-lg text-slate-400 hover:text-[#ff007f] hover:bg-[#ff007f]/10 cursor-pointer transition-all"
-                                    title="Eliminar de la biblioteca"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
+                              )}
                             </div>
                           </div>
                         );
