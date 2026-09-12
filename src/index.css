@@ -288,3 +288,40 @@ input[type="range"].slider-vertical {
   animation: cyberPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* ==========================================================================
+   DEDICATED IPAD & TABLET SINGLE-SCREEN STUDIO OPTIMIZATIONS
+   Applies exclusively to iPad/tablets (768px - 1180px)
+   Keeps lyrics big & teleprompter untouched, fits dashboard in one screen
+   ========================================================================== */
+@media screen and (min-width: 768px) and (max-width: 1180px) {
+  /* Prevent horizontal cut-off / spill */
+  body, html {
+    overflow-x: hidden;
+  }
+
+  /* Compact padding on main studio container on iPad */
+  main.studio-main-dashboard {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    gap: 0.5rem !important;
+  }
+
+  /* iPad Library Card height fits viewport without extending page height */
+  .ipad-responsive-library {
+    height: calc(100vh - 4.25rem) !important;
+    min-height: 480px !important;
+    max-height: 840px !important;
+  }
+
+  /* iPad Mixer Deck compact density */
+  .mixer-deck-container .studio-fader-strip {
+    padding: 0.45rem 0.6rem !important;
+  }
+
+  /* Smooth finger scrolling for internal library & queue lists */
+  .ipad-scroll-touch {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+}
+

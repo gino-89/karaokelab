@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   }, [showImportMenu]);
 
   return (
-    <header className="flex flex-wrap justify-between items-center border-b border-white/10 py-2 px-3 sm:px-5 bg-[#080811] sticky top-0 z-40 gap-2">
+    <header className="flex flex-nowrap justify-between items-center border-b border-white/10 py-1.5 px-2 sm:px-4 bg-[#080811] sticky top-0 z-40 gap-1.5 sm:gap-2 max-w-full overflow-x-auto sm:overflow-visible">
       {/* Hidden File & Folder Inputs */}
       <input
         ref={fileInputRef}
@@ -101,10 +101,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       <button
         type="button"
         onClick={onOpenAboutModal}
-        className="flex items-center gap-2.5 text-left group cursor-pointer p-0.5 rounded-xl hover:bg-white/5 transition-all shrink-0"
+        className="flex items-center gap-2 text-left group cursor-pointer p-0.5 rounded-xl hover:bg-white/5 transition-all shrink-0"
         title="Información del Sistema // KaraokeLab Studio (Creada por Gino El Arquitecto)"
       >
-        <div className="relative w-9 h-9 shrink-0 rounded-xl overflow-hidden border border-cyan-500/40 shadow-[0_0_12px_rgba(0,240,255,0.4)] group-hover:shadow-[0_0_20px_rgba(255,0,127,0.7)] group-hover:scale-105 transition-all duration-300">
+        <div className="relative w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl overflow-hidden border border-cyan-500/40 shadow-[0_0_12px_rgba(0,240,255,0.4)] group-hover:shadow-[0_0_20px_rgba(255,0,127,0.7)] group-hover:scale-105 transition-all duration-300">
           <img
             src="/logo-highres.jpg"
             alt="KaraokeLab Logo"
@@ -115,27 +115,27 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           )}
         </div>
         <div>
-          <h1 className="text-lg sm:text-xl font-black tracking-normal italic uppercase leading-none flex items-center font-mono">
+          <h1 className="text-base sm:text-lg font-black tracking-normal italic uppercase leading-none flex items-center font-mono">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-300 group-hover:brightness-125 transition-all">
               KARAOKE
             </span>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400 ml-1 pr-2 inline-block">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400 ml-1 pr-1 inline-block">
               LAB
             </span>
           </h1>
-          <span className="text-[8.5px] font-mono text-cyan-300/90 tracking-widest block font-extrabold mt-0.5 group-hover:text-pink-300 transition-colors uppercase">
+          <span className="text-[7.5px] sm:text-[8.5px] font-mono text-cyan-300/90 tracking-widest block font-extrabold mt-0.5 group-hover:text-pink-300 transition-colors uppercase">
             EXPERIMENTA TU VOZ // DSP ENGINE
           </span>
         </div>
       </button>
 
       {/* Telemetry & High Density Studio Actions */}
-      <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+      <div className="flex items-center gap-1.5 flex-nowrap justify-end shrink-0">
         {/* Real-time Hardware Telemetry (Clickable for DSP Settings) */}
         <button
           type="button"
           onClick={onOpenDspSettings}
-          className="hidden lg:flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-tight opacity-85 hover:opacity-100 cursor-pointer px-2 py-1 rounded-lg hover:bg-cyan-500/10 border border-slate-800 hover:border-cyan-500/40 transition-all group"
+          className="hidden 2xl:flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-tight opacity-85 hover:opacity-100 cursor-pointer px-2 py-1 rounded-lg hover:bg-cyan-500/10 border border-slate-800 hover:border-cyan-500/40 transition-all group shrink-0"
           title="Abrir Ajustes de Latencia y Motor DSP"
         >
           <span className="w-2 h-2 rounded-full bg-[#00ff9d] animate-pulse" />
@@ -145,18 +145,19 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         </button>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap shrink-0">
 
           {/* Quick Import Folder / USB Button */}
           {onImportSyncedFolder && (
             <button
               id="btn-quick-upload"
               onClick={onImportSyncedFolder}
-              className="px-2.5 py-1 rounded-xl border border-amber-500/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-400 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+              className="px-2 sm:px-2.5 py-1 rounded-xl border border-amber-500/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-400 text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-sm shrink-0"
               title="Cargar carpeta o memoria USB sincronizada"
             >
-              <FolderUp className="w-3.5 h-3.5 text-amber-400" />
-              <span>Importar Carpeta / USB</span>
+              <FolderUp className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="hidden xl:inline">Importar Carpeta / USB</span>
+              <span className="inline xl:hidden text-[10px]">USB</span>
             </button>
           )}
 
@@ -165,11 +166,12 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <button
               id="btn-qr-modal"
               onClick={onOpenQrModal}
-              className="px-2.5 py-1 rounded-xl border border-indigo-500/60 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-2 sm:px-2.5 py-1 rounded-xl border border-indigo-500/60 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shrink-0"
               title="Mostrar Código QR de la biblioteca para celulares"
             >
-              <QrCode className="w-3.5 h-3.5 text-indigo-400" />
-              <span>QR Biblioteca</span>
+              <QrCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="hidden xl:inline">QR Biblioteca</span>
+              <span className="inline xl:hidden text-[10px]">QR</span>
             </button>
           )}
 
@@ -178,15 +180,16 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <button
               id="btn-chat-modal"
               onClick={onOpenChatModal}
-              className={`relative px-2.5 py-1 rounded-xl text-[11px] font-extrabold uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 ${
+              className={`relative px-2 sm:px-2.5 py-1 rounded-xl text-[10px] sm:text-[11px] font-extrabold uppercase transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-sm hover:scale-105 active:scale-95 shrink-0 ${
                 unreadChatCount && unreadChatCount > 0
                   ? 'border border-pink-400 bg-gradient-to-r from-pink-600 via-purple-600 to-pink-500 text-white shadow-[0_0_22px_rgba(255,0,127,0.7)] animate-pulse ring-2 ring-pink-500/50'
                   : 'border border-pink-500/60 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20'
               }`}
               title="Abrir Chat de la Sala en Vivo"
             >
-              <MessageSquare className={`w-3.5 h-3.5 ${unreadChatCount && unreadChatCount > 0 ? 'text-white animate-bounce' : 'text-pink-400'}`} />
-              <span>Chat de la Sala</span>
+              <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${unreadChatCount && unreadChatCount > 0 ? 'text-white animate-bounce' : 'text-pink-400'}`} />
+              <span className="hidden xl:inline">Chat de la Sala</span>
+              <span className="inline xl:hidden text-[10px]">Chat</span>
               {unreadChatCount && unreadChatCount > 0 ? (
                 <span className="px-1.5 py-0.5 rounded-full bg-white text-pink-700 font-mono text-[9.5px] font-black flex items-center justify-center -mr-1 shadow-md animate-bounce">
                   {unreadChatCount}
@@ -200,41 +203,43 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <button
               id="btn-cast-tv"
               onClick={onOpenCastModal}
-              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-2 sm:px-2.5 py-1 rounded-xl border text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shrink-0 ${
                 isCastingActive
                   ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
                   : 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400'
               }`}
               title="Transmitir Modo TV a Chromecast, AirPlay o 2da Pantalla"
             >
-              <Radio className={`w-3.5 h-3.5 ${isCastingActive ? 'animate-pulse text-emerald-400' : 'text-cyan-400'}`} />
-              <span>{isCastingActive ? 'TV en Vivo' : 'Transmitir TV'}</span>
+              <Radio className={`w-3.5 h-3.5 shrink-0 ${isCastingActive ? 'animate-pulse text-emerald-400' : 'text-cyan-400'}`} />
+              <span className="hidden sm:inline">{isCastingActive ? 'TV en Vivo' : 'Transmitir TV'}</span>
+              <span className="inline sm:hidden">{isCastingActive ? 'TV' : 'Cast'}</span>
             </button>
           )}
 
           {/* 1-Click Silent Folder / USB Sync with Player */}
           {onSyncToFolder && (
-            <div className="flex items-center">
+            <div className="flex items-center shrink-0">
               <button
                 id="btn-sync-folder"
                 onClick={onSyncToFolder}
                 disabled={isFolderSyncing}
-                className="px-2.5 py-1 border border-amber-400/70 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 hover:from-amber-500/30 hover:to-yellow-500/30 text-[11px] font-bold uppercase transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1 shadow-sm rounded-l-xl hover:scale-105 active:scale-95"
+                className="px-2 sm:px-2.5 py-1 border border-amber-400/70 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 hover:from-amber-500/30 hover:to-yellow-500/30 text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1 shadow-sm rounded-l-xl hover:scale-105 active:scale-95 shrink-0"
                 title={
                   syncTargetFolder
                     ? `Sincronizar canciones nuevas con: ${syncTargetFolder}`
                     : 'Seleccionar carpeta o USB para sincronizar con el Player'
                 }
               >
-                <span className="text-amber-400">{isFolderSyncing ? '⏳' : '⚡'}</span>
-                <span>{isFolderSyncing ? 'Sincronizando...' : 'Sincronizar Cambios'}</span>
+                <span className="text-amber-400 shrink-0">{isFolderSyncing ? '⏳' : '⚡'}</span>
+                <span className="hidden xl:inline">{isFolderSyncing ? 'Sincronizando...' : 'Sincronizar Cambios'}</span>
+                <span className="inline xl:hidden text-[10px]">{isFolderSyncing ? 'Sync...' : 'Sync'}</span>
               </button>
 
               {onChangeSyncFolder && (
                 <button
                   onClick={onChangeSyncFolder}
                   disabled={isFolderSyncing}
-                  className="px-1.5 py-1 border border-l-0 border-amber-400/70 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-[11px] font-bold transition-all cursor-pointer rounded-r-xl"
+                  className="px-1.5 py-1 border border-l-0 border-amber-400/70 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer rounded-r-xl shrink-0"
                   title="Cambiar carpeta de destino o memoria USB"
                 >
                   ⚙️
@@ -248,11 +253,11 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <button
               id="btn-share-songs"
               onClick={onOpenShareModal || onOpenPublishModal}
-              className="px-2.5 py-1 rounded-xl border border-cyan-400/60 bg-gradient-to-r from-cyan-500/15 to-purple-500/15 text-cyan-300 hover:from-cyan-500/25 hover:to-purple-500/25 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95"
+              className="px-2 sm:px-2.5 py-1 rounded-xl border border-cyan-400/60 bg-gradient-to-r from-cyan-500/15 to-purple-500/15 text-cyan-300 hover:from-cyan-500/25 hover:to-purple-500/25 text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-sm hover:scale-105 active:scale-95 shrink-0"
               title="Compartir canciones a Google Drive, WhatsApp, celulares o Web Player"
             >
-              <span className="text-cyan-400">🔗</span>
-              <span>Compartir</span>
+              <span className="text-cyan-400 shrink-0">🔗</span>
+              <span className="hidden sm:inline">Compartir</span>
             </button>
           )}
 
@@ -261,23 +266,24 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <button
               id="btn-clear-cache"
               onClick={onClearCache}
-              className="px-2 py-1 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1"
+              className="px-2 py-1 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 shrink-0"
               title="Borrar todo el caché y resetear la biblioteca"
             >
-              <span>🗑️</span>
+              <span className="shrink-0">🗑️</span>
               <span className="hidden xl:inline">Limpiar</span>
             </button>
           )}
 
-          {/* Fullscreen Party */}
+          {/* Fullscreen Party (Rightmost, always visible & never clipped) */}
           <button
             id="btn-party-mode"
             onClick={onOpenPartyMode}
             disabled={!hasSongLoaded}
-            className="px-2.5 py-1 rounded-xl border border-[#00f0ff]/50 bg-[#00f0ff]/10 text-[#00f0ff] text-[11px] font-bold uppercase hover:bg-[#00f0ff]/20 hover:shadow-[0_0_12px_rgba(0,240,255,0.4)] transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+            className="px-2.5 sm:px-3 py-1 rounded-xl border border-[#00f0ff]/60 bg-[#00f0ff]/15 text-[#00f0ff] text-[10.5px] sm:text-[11px] font-black uppercase hover:bg-[#00f0ff]/25 hover:shadow-[0_0_12px_rgba(0,240,255,0.4)] transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1 sm:gap-1.5 shrink-0 shadow-sm mr-0.5"
+            title="Abrir Pantalla Completa (Modo Escenario)"
           >
-            <Tv className="w-3.5 h-3.5" />
-            <span>Fullscreen</span>
+            <Tv className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-extrabold">Fullscreen</span>
           </button>
         </div>
       </div>

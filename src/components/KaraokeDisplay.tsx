@@ -1656,10 +1656,10 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         </div>
 
         {/* ── Transport Controls Bar ── */}
-        <div className="px-3 sm:px-6 py-3 bg-slate-950/95 border-t border-slate-800/80 shadow-2xl">
-          <div className="flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-between gap-3 w-full">
+        <div className="px-3 sm:px-6 py-2.5 sm:py-3 bg-slate-950/95 border-t border-slate-800/80 shadow-2xl">
+          <div className="flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between gap-2.5 sm:gap-3 w-full">
             {/* Left: Vocal Guide Controls (Voz Guía y Guía Coros arriba, Pista Limpia debajo) */}
-            <div className="flex flex-col gap-1.5 w-full max-w-[230px] sm:max-w-[250px] shrink-0 order-2 lg:order-1 mx-auto lg:mx-0">
+            <div className="flex flex-col gap-1.5 w-full max-w-[230px] sm:max-w-[250px] shrink-0 order-2 md:order-1 mx-auto md:mx-0">
               <div className="grid grid-cols-2 gap-1.5 w-full">
                 <button
                   type="button"
@@ -1722,12 +1722,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </div>
 
             {/* Center: Primary Transport Controls (Stop, Play/Pause, Replay, Next) - DEAD CENTER IN THE MIDDLE */}
-            <div className="flex items-center justify-center gap-2.5 sm:gap-3 shrink-0 py-1 order-1 lg:order-2">
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3 shrink-0 py-0.5 order-1 md:order-2">
               <button
                 type="button"
                 onClick={onStop}
                 style={{ touchAction: 'manipulation' }}
-                className="w-10 h-10 rounded-full border border-slate-700/80 bg-slate-900 hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-sm"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-slate-700/80 bg-slate-900 hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-sm"
                 title="Detener"
               >
                 <Square className="w-4 h-4 text-slate-300 fill-current" />
@@ -1737,12 +1737,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 type="button"
                 onClick={isPlaying ? onPause : onPlay}
                 style={{ touchAction: 'manipulation' }}
-                className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 hover:brightness-110 text-slate-950 flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition-all active:scale-95"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 hover:brightness-110 text-slate-950 flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition-all active:scale-95"
                 title={isPlaying ? 'Pausar' : 'Reproducir'}
               >
                 {isPlaying
-                  ? <Pause className="w-6 h-6 fill-current" />
-                  : <Play className="w-6 h-6 fill-current ml-0.5" />
+                  ? <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+                  : <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current ml-0.5" />
                 }
               </button>
 
@@ -1750,8 +1750,8 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 type="button"
                 onClick={() => onSeek(0)}
                 style={{ touchAction: 'manipulation' }}
-                className="w-10 h-10 rounded-full border border-slate-700/80 bg-slate-900 hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-sm"
-                title="Reiniciar Canción"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-slate-700/80 bg-slate-900 hover:bg-slate-800 flex items-center justify-center cursor-pointer transition-all active:scale-90 shadow-sm"
+                title="Reiniciar Canción (Desde 00:00)"
               >
                 <RotateCcw className="w-4 h-4 text-slate-300" />
               </button>
@@ -1773,7 +1773,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </div>
 
             {/* Right: Sync Offset Calibration Box (Ultra-compact) */}
-            <div className="flex items-center justify-center lg:justify-end gap-1.5 shrink-0 order-3 lg:order-3">
+            <div className="flex items-center justify-center md:justify-end gap-1.5 shrink-0 order-3 md:order-3">
               <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400 bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1.5 shadow-sm">
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold hidden sm:inline mr-0.5">Calibrar:</span>
                 <button

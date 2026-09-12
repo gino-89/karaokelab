@@ -237,7 +237,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
     };
 
     return (
-      <div className="flex-1 min-w-[110px] bg-[#0c0e17] border border-slate-700/70 rounded-xl p-3 flex flex-col justify-between shadow-md relative overflow-hidden group">
+      <div className="studio-fader-strip flex-1 min-w-[110px] bg-[#0c0e17] border border-slate-700/70 rounded-xl p-2 sm:p-3 flex flex-col justify-between shadow-md relative overflow-hidden group">
         {/* Top Header: Channel Name & Percent / Decibel Readout */}
         <div className="flex items-center justify-between gap-1 mb-2">
           <div className="flex flex-col min-w-0">
@@ -349,7 +349,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
   };
 
   return (
-    <div className="bg-[#080911] border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+    <div className="mixer-deck-container bg-[#080911] border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl flex flex-col">
       {/* ── Console Header ─────────────────────────────────── */}
       <div className="px-3.5 py-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -374,7 +374,7 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
       </div>
 
       {/* ── Studio Channel Faders Strips ────────────────── */}
-      <div className="p-2.5 sm:p-3 flex flex-col gap-2.5">
+      <div className="p-2 sm:p-3 flex flex-col gap-2 sm:gap-2.5">
         {/* Quick Vocal Presence & Ad-libs Presets Strip */}
         <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl bg-slate-950/80 border border-slate-800">
           <span className="text-[10px] font-mono font-bold text-slate-400 pl-1 hidden sm:inline">Presencia Vocal:</span>

@@ -2440,8 +2440,8 @@ export default function App() {
       )}
 
       {/* Main Dashboard */}
-      <main className="flex-1 w-full max-w-[1600px] mx-auto px-2 sm:px-4 py-3 flex flex-col gap-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
+      <main className="studio-main-dashboard flex-1 w-full max-w-[1600px] mx-auto px-2 sm:px-4 py-2 sm:py-3 flex flex-col gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1">
           {/* Left Column: Processing Queue & Song Requests */}
           <div className="lg:col-span-3 flex flex-col gap-3">
             <SongQueue
@@ -2598,37 +2598,43 @@ export default function App() {
               stems={currentSong?.stems}
             />
             {/* ── ACTION BAR: Stems + Video ─────────────────── */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <button
                 onClick={() => currentSong && handleDownloadStem(currentSong, 'instrumental')}
                 disabled={!currentSong?.stems?.instrumentalBlob}
-                className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-2 rounded-xl border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all shadow-sm"
                 title="Descargar Pista Karaoke WAV"
               >
-                <span className="text-base">⬇</span>
-                <span className="text-xs font-bold uppercase tracking-wider">PISTA KARAOKE</span>
-                <span className="text-[10px] text-emerald-400/70">WAV Calidad Máster</span>
+                <span className="text-sm sm:text-base shrink-0">⬇</span>
+                <div className="flex flex-col items-center sm:items-start text-center sm:text-left min-w-0">
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">PISTA KARAOKE</span>
+                  <span className="text-[8px] sm:text-[9.5px] text-emerald-400/70 hidden md:inline">WAV Calidad Máster</span>
+                </div>
               </button>
 
               <button
                 onClick={() => setIsVideoStudioOpen(true)}
-                className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border border-indigo-500/60 bg-indigo-950/60 hover:bg-indigo-900/80 text-white cursor-pointer transition-all shadow-md"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-2 rounded-xl border border-indigo-500/60 bg-indigo-950/60 hover:bg-indigo-900/80 text-white cursor-pointer transition-all shadow-md"
                 title="Generar Video Karaoke HD"
               >
-                <span className="text-base">✨</span>
-                <span className="text-xs font-bold uppercase tracking-wider">ESTUDIO DE VIDEO</span>
-                <span className="text-[10px] text-indigo-300/70">Video MP4 / WEBM HD</span>
+                <span className="text-sm sm:text-base shrink-0">✨</span>
+                <div className="flex flex-col items-center sm:items-start text-center sm:text-left min-w-0">
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">ESTUDIO DE VIDEO</span>
+                  <span className="text-[8px] sm:text-[9.5px] text-indigo-300/70 hidden md:inline">Video MP4 / WEBM HD</span>
+                </div>
               </button>
 
               <button
                 onClick={() => currentSong && handleDownloadStem(currentSong, 'vocals')}
                 disabled={!currentSong?.stems?.vocalsBlob}
-                className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border border-purple-500/40 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-2 rounded-xl border border-purple-500/40 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all shadow-sm"
                 title="Descargar Vocales Aisladas WAV"
               >
-                <span className="text-base">⬇</span>
-                <span className="text-xs font-bold uppercase tracking-wider">VOCALES AI</span>
-                <span className="text-[10px] text-purple-400/70">WAV Aislado</span>
+                <span className="text-sm sm:text-base shrink-0">⬇</span>
+                <div className="flex flex-col items-center sm:items-start text-center sm:text-left min-w-0">
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">VOCALES AI</span>
+                  <span className="text-[8px] sm:text-[9.5px] text-purple-400/70 hidden md:inline">WAV Aislado</span>
+                </div>
               </button>
             </div>
           </div>
