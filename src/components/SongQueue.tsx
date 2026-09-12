@@ -70,17 +70,23 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
 
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-bold text-white truncate max-w-full">
+                <span className="text-[13px] font-bold text-white truncate max-w-full" title={currentSong.title}>
                   {currentSong.title}
                 </span>
-                <span className="flex items-center gap-1 text-[8px] font-mono font-black text-[#00ff9d] bg-[#00ff9d]/20 px-1.5 py-0.5 rounded border border-[#00ff9d]/40 shrink-0">
+                <span className="flex items-center gap-1 text-[8.5px] font-mono font-black text-[#00ff9d] bg-[#00ff9d]/20 px-1.5 py-0.5 rounded border border-[#00ff9d]/40 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00ff9d] animate-ping" />
                   {isPlaying ? '● SONANDO' : 'EN PAUSA'}
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-slate-300 truncate">
-                {currentSong.artist || 'KaraokeLab'} · <span className="text-slate-400">{fmt(currentSong.duration)}</span> · <span className="text-[#00f0ff] font-bold">{currentSong.bpm} BPM</span> · <span className="text-amber-300 font-bold">{currentSong.key}</span>
-              </span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-300 truncate mt-0.5">
+                <span className="text-slate-200 font-semibold truncate">{currentSong.artist || 'KaraokeLab'}</span>
+                <span>·</span>
+                <span className="text-slate-400">{fmt(currentSong.duration)}</span>
+                <span>·</span>
+                <span className="text-[#00f0ff] font-bold">{currentSong.bpm} BPM</span>
+                <span>·</span>
+                <span className="text-amber-300 font-bold">{currentSong.key}</span>
+              </div>
             </div>
           </div>
 
@@ -184,18 +190,18 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                   {/* Line 1: Song title on top */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-semibold truncate text-white" title={songTitle}>
+                    <span className="text-xs sm:text-[12.5px] font-bold truncate text-white" title={songTitle}>
                       {songTitle}
                     </span>
                     {item.requestedBy && (
                       <span
-                        className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded-full border border-cyan-500/40 shrink-0 shadow-sm"
+                        className="inline-flex items-center gap-1 text-[9.5px] font-bold text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded-full border border-cyan-500/40 shrink-0 shadow-sm"
                         title={`Canción pedida por ${item.requestedBy}${item.tableNumber ? ` (${item.tableNumber})` : ''}`}
                       >
                         <span className="text-[10px]">🎤</span>
                         <span>{item.requestedBy}</span>
                         {item.tableNumber && (
-                          <span className="px-1.5 py-0.2 rounded bg-pink-500/30 text-pink-300 border border-pink-500/50 text-[8.5px] font-black ml-0.5">
+                          <span className="px-1.5 py-0.2 rounded bg-pink-500/30 text-pink-300 border border-pink-500/50 text-[9px] font-black ml-0.5">
                             🪑 {item.tableNumber}
                           </span>
                         )}
@@ -203,14 +209,14 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                     )}
                   </div>
 
-                  {/* Line 2: Artist name below the song name */}
+                  {/* Line 2: Artist name below the song name + Duration + BPM + Key */}
                   {isReady && (
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate">
-                      <span className="text-slate-300 font-medium truncate">{songArtist || 'Desconocido'}</span>
+                    <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 truncate mt-0.5">
+                      <span className="text-slate-200 font-medium truncate">{songArtist || 'Desconocido'}</span>
                       {item.songData?.duration ? (
                         <>
                           <span>·</span>
-                          <span>{fmt(item.songData.duration)}</span>
+                          <span className="text-slate-400">{fmt(item.songData.duration)}</span>
                         </>
                       ) : null}
                       {item.songData?.bpm ? (
@@ -219,14 +225,20 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                           <span className="text-[#00f0ff] font-bold">{item.songData.bpm} BPM</span>
                         </>
                       ) : null}
+                      {item.songData?.key ? (
+                        <>
+                          <span>·</span>
+                          <span className="text-amber-300 font-bold">{item.songData.key}</span>
+                        </>
+                      ) : null}
                     </div>
                   )}
 
                   {isProcessing && item.currentStep && (
-                    <span className="text-[9px] font-mono text-[#00f0ff] truncate">{item.currentStep}</span>
+                    <span className="text-[10px] font-mono text-[#00f0ff] truncate">{item.currentStep}</span>
                   )}
                   {isError && (
-                    <span className="text-[9px] font-mono text-[#ff007f]">{item.errorMsg || 'Error al procesar'}</span>
+                    <span className="text-[10px] font-mono text-[#ff007f]">{item.errorMsg || 'Error al procesar'}</span>
                   )}
                   {isProcessing && (
                     <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1">
