@@ -19,6 +19,7 @@ import {
 import { importSongsFromFolder, syncSongsToFolder } from '../services/folderSyncService';
 import { extractYouTubeVideoId, fetchYouTubeVideoTitle } from '../services/videoBackgroundService';
 import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
+import { searchMatches } from '../utils/textUtils';
 
 interface SongLibraryProps {
   savedSongs: SongItem[];
@@ -499,13 +500,12 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   // Filtered and Sorted song list
   const filteredSongs = useMemo(() => {
     let result = savedSongs.filter((song) => {
-      // 1. Text Search Filter
+      // 1. Text Search Filter (Accent & Diacritic Insensitive)
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchTitle = song.title.toLowerCase().includes(q);
-        const matchArtist = song.artist?.toLowerCase().includes(q);
-        const matchAlbum = song.album?.toLowerCase().includes(q);
-        const matchGenre = song.genre?.toLowerCase().includes(q);
+        const matchTitle = searchMatches(song.title, searchQuery);
+        const matchArtist = searchMatches(song.artist, searchQuery);
+        const matchAlbum = searchMatches(song.album, searchQuery);
+        const matchGenre = searchMatches(song.genre, searchQuery);
         if (!matchTitle && !matchArtist && !matchAlbum && !matchGenre) {
           return false;
         }
@@ -547,14 +547,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
     return result;
   }, [savedSongs, searchQuery, selectedArtist, selectedGenre, sortBy, activeProfile]);
 
-  // Filtered YouTube Favorites
+  // Filtered YouTube Favorites (Accent & Diacritic Insensitive)
   const filteredYouTubeFavorites = useMemo(() => {
     if (!youtubeFavorites || youtubeFavorites.length === 0) return [];
     return youtubeFavorites.filter((yt) => {
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchTitle = yt.title.toLowerCase().includes(q);
-        const matchChannel = yt.channel.toLowerCase().includes(q);
+        const matchTitle = searchMatches(yt.title, searchQuery);
+        const matchChannel = searchMatches(yt.channel, searchQuery);
         if (!matchTitle && !matchChannel) return false;
       }
       if (activeProfile && activeProfile.id !== 'profile_all') {

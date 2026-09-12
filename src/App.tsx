@@ -30,6 +30,7 @@ import { videoRecorder } from './services/videoRecorder';
 import { analyzeSmartVocalCues, getActiveSmartCue } from './services/smartCueAnalyzer';
 import { Header } from './components/Header';
 import { AlertCircle, X, MessageSquare, Send, MessageCircle } from 'lucide-react';
+import { searchMatches } from './utils/textUtils';
 import { KaraokeDisplay } from './components/KaraokeDisplay';
 import { MixerDeck } from './components/MixerDeck';
 import { SongQueue } from './components/SongQueue';
@@ -562,8 +563,7 @@ export default function App() {
         const matchedSong = latestSongs.find(
           (s) =>
             (id && s.id === id) ||
-            (title && s.title && s.title.toLowerCase().trim() === title.toLowerCase().trim()) ||
-            (title && s.title && s.title.toLowerCase().includes(title.toLowerCase()))
+            (title && searchMatches(s.title, title))
         );
 
         if (matchedSong) {

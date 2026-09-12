@@ -21,6 +21,7 @@ import {
   ExternalLink,
   MessageCircle,
 } from 'lucide-react';
+import { searchMatches } from '../utils/textUtils';
 
 interface ShareSongModalProps {
   isOpen: boolean;
@@ -87,9 +88,8 @@ export function ShareSongModal({
   const filteredLibrary = useMemo(() => {
     const list = savedSongs || [];
     if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase().trim();
     return list.filter(
-      (s) => (s?.title || '').toLowerCase().includes(q) || (s?.artist || '').toLowerCase().includes(q)
+      (s) => searchMatches(s?.title, searchQuery) || searchMatches(s?.artist, searchQuery)
     );
   }, [savedSongs, searchQuery]);
 
