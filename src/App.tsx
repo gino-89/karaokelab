@@ -1829,7 +1829,10 @@ export default function App() {
         fileName: song.title,
         status: 'ready',
         progress: 100,
-        songData: song,
+        songData: {
+          ...song,
+          key: song.key || 'Am',
+        },
       };
       showAlertToast(`➕ "${song.title}" agregada a la cola`);
       return [...prev, newItem];
