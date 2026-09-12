@@ -142,6 +142,25 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
             const isError = item.status === 'error';
             const isProcessing = !isReady && !isError;
 
+            // Extract clean title (line 1) and artist (line 2)
+            const songTitle = item.songData?.title || (() => {
+              let name = item.fileName.replace(/^🎬\s*\[YouTube\]\s*/i, '');
+              name = name.replace(/\.[^/.]+$/, '');
+              if (name.includes(' - ')) {
+                return name.split(' - ')[0].trim();
+              }
+              return name;
+            })();
+
+            const songArtist = item.songData?.artist || (() => {
+              let name = item.fileName.replace(/^🎬\s*\[YouTube\]\s*/i, '');
+              name = name.replace(/\.[^/.]+$/, '');
+              if (name.includes(' - ')) {
+                return name.split(' - ').slice(1).join(' - ').trim();
+              }
+              return '';
+            })();
+
             return (
               <div
                 key={item.id}
@@ -163,9 +182,10 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                 </div>
 
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                  {/* Line 1: Song title on top */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-semibold truncate text-white">
-                      {item.fileName}
+                    <span className="text-[11px] font-semibold truncate text-white" title={songTitle}>
+                      {songTitle}
                     </span>
                     {item.requestedBy && (
                       <span
@@ -183,16 +203,27 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                     )}
                   </div>
 
+                  {/* Line 2: Artist name below the song name */}
+                  {isReady && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate">
+                      <span className="text-slate-300 font-medium truncate">{songArtist || 'Desconocido'}</span>
+                      {item.songData?.duration ? (
+                        <>
+                          <span>·</span>
+                          <span>{fmt(item.songData.duration)}</span>
+                        </>
+                      ) : null}
+                      {item.songData?.bpm ? (
+                        <>
+                          <span>·</span>
+                          <span className="text-[#00f0ff] font-bold">{item.songData.bpm} BPM</span>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+
                   {isProcessing && item.currentStep && (
                     <span className="text-[9px] font-mono text-[#00f0ff] truncate">{item.currentStep}</span>
-                  )}
-                  {isReady && item.songData && (
-                    <span className="text-[9px] font-mono text-slate-400 flex items-center gap-1 flex-wrap">
-                      <span>{fmt(item.songData.duration)} · <span className="text-[#00f0ff]">{item.songData.bpm} BPM</span> · {item.songData.key}</span>
-                      {item.requestedBy && (
-                        <span className="text-cyan-400 font-bold">· Pedido por: {item.requestedBy}</span>
-                      )}
-                    </span>
                   )}
                   {isError && (
                     <span className="text-[9px] font-mono text-[#ff007f]">{item.errorMsg || 'Error al procesar'}</span>

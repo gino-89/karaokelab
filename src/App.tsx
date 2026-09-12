@@ -575,7 +575,7 @@ export default function App() {
 
             const newItem: QueueItem = {
               id: `queue_remote_${matchedSong.id}_${Date.now()}`,
-              fileName: `${matchedSong.title}${matchedSong.artist ? ' - ' + matchedSong.artist : ''}`,
+              fileName: matchedSong.title,
               status: 'ready',
               progress: 100,
               requestedBy: who,
@@ -1826,7 +1826,7 @@ export default function App() {
       }
       const newItem: QueueItem = {
         id: `queue_lib_${song.id}_${Date.now()}`,
-        fileName: `${song.title}${song.artist ? ' - ' + song.artist : ''}`,
+        fileName: song.title,
         status: 'ready',
         progress: 100,
         songData: song,
