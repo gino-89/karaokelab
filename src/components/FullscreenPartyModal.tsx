@@ -157,7 +157,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
   const seekProgress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#080811]/80 backdrop-blur-[2px] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden animate-in fade-in duration-300 pointer-events-auto">
+    <div className="fixed inset-0 z-50 bg-[#080811]/90 text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden animate-in fade-in duration-300 pointer-events-auto">
       {/* Background Pulsing Party Glow */}
       <div 
         className="absolute inset-0 pointer-events-none opacity-25 blur-3xl transition-all duration-700"
@@ -372,7 +372,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
         </div>
       </div>
 
-      <div className="relative z-10 flex flex-col gap-3 p-4 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 max-w-4xl mx-auto w-full shadow-2xl shrink-0">
+      <div className="relative z-10 flex flex-col gap-3 p-4 rounded-2xl bg-slate-900/95 border border-slate-700/80 max-w-4xl mx-auto w-full shadow-2xl shrink-0">
         
         {/* ── Live Playback Progress / Scrub Bar ── */}
         <div className="flex items-center gap-3 px-1">

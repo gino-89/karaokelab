@@ -172,7 +172,6 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   }
 
   const overlayOpacity = Math.max(0.15, Math.min(0.95, config.overlayOpacity ?? 0.55));
-  const blurPx = Math.max(0, Math.min(10, config.blurAmount ?? 1));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
@@ -204,7 +203,6 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             height: '56.25vw',
             minHeight: '100vh',
             minWidth: '177.77vh',
-            filter: blurPx > 0 ? `blur(${blurPx}px)` : 'none',
           }}
           onLoad={() => {
             try {
