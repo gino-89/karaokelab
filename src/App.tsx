@@ -1177,14 +1177,25 @@ export default function App() {
 
     // 2. Background resilient fallback interval (continues updating and broadcasting TV state when tab is hidden/switched)
     intervalId = setInterval(() => {
-      if (document.hidden && audioEngine.getIsPlaying()) {
+      if (document.hidden && (audioEngine.getIsPlaying() || isPlaying)) {
         tick(performance.now());
       }
     }, 40);
 
+    // 3. Instant resync to hardware audio clock when user switches back to the tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden && audioEngine.getIsPlaying()) {
+        const exactT = audioEngine.getCurrentTime();
+        setCurrentTime(exactT);
+        tick(performance.now());
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (animId) cancelAnimationFrame(animId);
       if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [lyrics, isSmartVocalCue, smartCues, vocalGain, isCleanTrack, isPlaying, youTubeEmbedId]);
 
@@ -2036,6 +2047,57 @@ export default function App() {
       setDuration(d);
     }
   }, []);
+
+  // ── MediaSession OS Integration (Lock screen, media keys, Control Center & Background Playback) ──
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
+
+    if (currentSong) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentSong.title,
+          artist: currentSong.artist || 'KaraokeLab',
+          album: currentSong.album || 'KaraokeLab Web Player',
+          artwork: [
+            { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          ],
+        });
+      } catch (_) {}
+    }
+
+    try {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        handlePlay();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        handlePause();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        handleSeek(0);
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        handleTrackEnded();
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined) {
+          handleSeek(details.seekTime);
+        }
+      });
+    } catch (_) {}
+
+    return () => {
+      try {
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('seekto', null);
+      } catch (_) {}
+    };
+  }, [currentSong, isPlaying, bpm, lyrics]);
 
   const handleOpenAboutModal = useCallback(() => setIsAboutModalOpen(true), []);
   const handleOpenPartyMode = useCallback(() => setIsPartyMode(true), []);

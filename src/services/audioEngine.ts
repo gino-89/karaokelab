@@ -49,6 +49,32 @@ export class AudioEngine {
   private micGain = 1.0;
   private onTrackEndCallbacks: Set<() => void> = new Set();
 
+  // Continuous background audio keep-alive (inaudible hardware stream anchor)
+  private keepAliveAudio: HTMLAudioElement | null = null;
+
+  private startKeepAlive() {
+    if (typeof window === 'undefined') return;
+    try {
+      if (!this.keepAliveAudio) {
+        // 1-second silent WAV loop (base64 encoded)
+        this.keepAliveAudio = new Audio(
+          'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'
+        );
+        this.keepAliveAudio.loop = true;
+        this.keepAliveAudio.volume = 0.001;
+      }
+      this.keepAliveAudio.play().catch(() => {});
+    } catch (_) {}
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveAudio) {
+      try {
+        this.keepAliveAudio.pause();
+      } catch (_) {}
+    }
+  }
+
   public onTrackEnded(callback: () => void): () => void {
     this.onTrackEndCallbacks.add(callback);
     return () => {
@@ -322,6 +348,7 @@ export class AudioEngine {
       }
 
       this.isPlaying = true;
+      this.startKeepAlive();
       return;
     }
 
@@ -353,6 +380,7 @@ export class AudioEngine {
       }
 
       this.isPlaying = true;
+      this.startKeepAlive();
     }
   }
 
@@ -361,6 +389,7 @@ export class AudioEngine {
     this.pauseOffset = this.getCurrentTime();
     this.stopSource();
     this.isPlaying = false;
+    this.stopKeepAlive();
   }
 
   public stop() {
@@ -370,6 +399,7 @@ export class AudioEngine {
     this.instrumentalBuffer = null;
     this.pauseOffset = 0;
     this.isPlaying = false;
+    this.stopKeepAlive();
   }
 
   private stopSource() {
