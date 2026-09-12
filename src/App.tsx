@@ -2440,10 +2440,10 @@ export default function App() {
       )}
 
       {/* Main Dashboard */}
-      <main className="studio-main-dashboard flex-1 w-full max-w-[1600px] mx-auto px-2 sm:px-4 py-2 sm:py-3 flex flex-col gap-3 sm:gap-4">
+      <main className="studio-main-dashboard flex-1 w-full max-w-[1600px] xl:max-w-[1850px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 xl:px-6 py-2 sm:py-3 flex flex-col gap-3 sm:gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1">
           {/* Left Column: Processing Queue & Song Requests */}
-          <div className="lg:col-span-3 flex flex-col gap-3">
+          <div className="lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col gap-3">
             <SongQueue
               queue={queue}
               currentSong={currentSong}
@@ -2457,7 +2457,7 @@ export default function App() {
           </div>
 
           {/* Center: Karaoke Stage (dominant) with integrated transport + mixer */}
-          <div className="lg:col-span-6 flex flex-col gap-4">
+          <div className="lg:col-span-6 xl:col-span-5 2xl:col-span-5 flex flex-col gap-4">
             <KaraokeDisplay
               lyrics={lyrics}
               currentLyric={currentLyric}
@@ -2639,8 +2639,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right: Upload + Library */}
-          <div className="lg:col-span-3 flex flex-col gap-4">
+          {/* Right: Upload + Library (Expanded on Mac & PC desktop) */}
+          <div className="lg:col-span-3 xl:col-span-4 2xl:col-span-4 flex flex-col gap-4">
             <SongLibrary
               savedSongs={savedSongs}
               currentSongId={currentSong?.id}

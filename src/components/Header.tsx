@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   }, [showImportMenu]);
 
   return (
-    <header className="flex flex-nowrap justify-between items-center border-b border-white/10 py-1.5 px-2 sm:px-4 bg-[#080811] sticky top-0 z-40 gap-1.5 sm:gap-2 max-w-full overflow-x-auto sm:overflow-visible">
+    <header className="flex flex-nowrap justify-between items-center border-b border-white/10 py-1.5 px-2 sm:px-4 xl:px-6 bg-[#080811] sticky top-0 z-40 gap-1.5 sm:gap-2 max-w-full overflow-x-auto sm:overflow-visible">
       {/* Hidden File & Folder Inputs */}
       <input
         ref={fileInputRef}
