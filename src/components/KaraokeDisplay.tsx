@@ -1417,7 +1417,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         )}
 
         {/* ── TELEPROMPTER LYRICS / YOUTUBE STAGE ── */}
-        <div className="flex flex-col justify-between items-center text-center px-6 py-5 h-[280px] select-none relative bg-[#06070e] overflow-hidden">
+        <div className="karaoke-teleprompter-stage flex flex-col justify-between items-center text-center px-6 py-5 select-none relative bg-[#06070e] overflow-hidden">
           {youTubeEmbedId ? (
             <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20">
               <iframe
@@ -1510,7 +1510,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               </div>
 
               {/* SLOT 2: ACTIVE LINE STAGE WITH CLEAN LUMINOUS TYPOGRAPHY */}
-              <div className="h-[140px] w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden z-10">
+              <div className="teleprompter-active-line-slot w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden z-10">
                 {!isPlaying ? (
                   <div className="flex flex-col items-center justify-center gap-2.5 text-center opacity-60">
                     <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">

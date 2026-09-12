@@ -686,8 +686,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
       {/* ── Library Card ─────────────────────────────── */}
       <div
-        style={!isGuestMode ? { height: '945px', minHeight: '800px' } : undefined}
-        className={`ipad-responsive-library bg-[#0c0e17] border border-slate-700/70 rounded-2xl flex flex-col shadow-lg relative ${!isGuestMode ? 'overflow-hidden' : ''}`}
+        className={`studio-responsive-library ipad-responsive-library bg-[#0c0e17] border border-slate-700/70 rounded-2xl flex flex-col shadow-lg relative ${!isGuestMode ? 'overflow-hidden' : ''}`}
       >
         {/* Header with Expand Button - Fixed boundary layout */}
         <div className="px-3 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-2 relative z-30 rounded-t-2xl">

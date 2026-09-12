@@ -119,7 +119,7 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
       )}
 
       {/* Queue Items List (Upcoming Tracks) */}
-      <div className="flex flex-col max-h-72 overflow-y-auto divide-y divide-slate-850">
+      <div className="queue-items-scroll-list flex flex-col max-h-72 overflow-y-auto divide-y divide-slate-850">
         {(() => {
           const upcomingQueue = queue.filter(
             (item) =>

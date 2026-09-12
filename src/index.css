@@ -289,62 +289,180 @@ input[type="range"].slider-vertical {
 }
 
 /* ==========================================================================
-   DEDICATED IPAD & TABLET SINGLE-SCREEN STUDIO OPTIMIZATIONS
-   Applies exclusively to iPad/tablets (768px - 1180px)
-   Keeps lyrics big & teleprompter untouched, fits dashboard in one screen
+   UNIVERSAL RESPONSIVE SCREEN ADAPTATION SYSTEM
+   Detects and adapts dynamically to ANY screen size:
+   - 19" Monitors & Laptops (1366x768 / 1440x900 / max-height <= 820px)
+   - iPad & Tablets (768px - 1279px) [Strictly Preserved Compact Layout]
+   - 24" Standard Desktop (1920x1080)
+   - 27"-32" QHD / 2K Displays (2560x1440)
+   - 32"-55" 4K / UHD TV Displays (3840x2160)
    ========================================================================== */
+
+/* Base component sizing across standard desktop (1920x1080) */
+.karaoke-teleprompter-stage {
+  height: 280px;
+}
+
+.teleprompter-active-line-slot {
+  height: 140px;
+}
+
+.queue-items-scroll-list {
+  max-height: 18rem;
+}
+
+.studio-responsive-library {
+  height: calc(100vh - 5.5rem);
+  min-height: 520px;
+  max-height: 945px;
+}
+
+/* 1. COMPACT MONITORS & LAPTOPS (19" - 21.5" displays: 1366x768, 1440x900, or any display where max-height: 820px and min-width: 1280px) */
+@media screen and (max-height: 820px) and (min-width: 1280px) {
+  html {
+    font-size: 15px;
+  }
+
+  main.studio-main-dashboard {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    gap: 0.45rem !important;
+  }
+
+  .karaoke-teleprompter-stage {
+    height: 230px !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+  }
+
+  .teleprompter-active-line-slot {
+    height: 110px !important;
+  }
+
+  .queue-items-scroll-list {
+    max-height: 14rem !important;
+  }
+
+  .studio-responsive-library {
+    height: calc(100vh - 4.25rem) !important;
+    min-height: 440px !important;
+    max-height: 720px !important;
+  }
+
+  .mixer-deck-container .studio-fader-strip {
+    padding: 0.35rem 0.5rem !important;
+  }
+}
+
+/* 2. DEDICATED IPAD & TABLETS (768px - 1279px) - STRICTLY PROTECTED ORIGINAL COMPACT LAYOUT */
 @media screen and (min-width: 768px) and (max-width: 1279px) {
-  /* Prevent horizontal cut-off / spill */
   body, html {
     overflow-x: hidden;
   }
 
-  /* Compact padding on main studio container on iPad */
   main.studio-main-dashboard {
     padding-top: 0.35rem !important;
     padding-bottom: 0.35rem !important;
     gap: 0.5rem !important;
   }
 
-  /* iPad Library Card height fits viewport without extending page height */
-  .ipad-responsive-library {
+  .ipad-responsive-library,
+  .studio-responsive-library {
     height: calc(100vh - 4.25rem) !important;
     min-height: 480px !important;
     max-height: 840px !important;
   }
 
-  /* iPad Mixer Deck compact density */
   .mixer-deck-container .studio-fader-strip {
     padding: 0.45rem 0.6rem !important;
   }
 
-  /* Smooth finger scrolling for internal library & queue lists */
   .ipad-scroll-touch {
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain !important;
   }
 
-  /* On iPad: hide "Encolar" / "En cola" text label, leaving only the icon to maximize space for title & artist */
   .library-queue-text {
     display: none !important;
   }
 
-  /* On iPad: keep library song title compact at 11px to fit more text */
   .library-song-title {
     font-size: 11px !important;
   }
 
-  /* On iPad: keep library song metadata at 10px */
   .library-song-meta {
     font-size: 10px !important;
   }
 
-  /* On iPad: keep queue song title and meta compact */
   .queue-song-title {
     font-size: 11px !important;
   }
+
   .queue-song-meta {
     font-size: 10px !important;
   }
 }
+
+/* 3. LARGE MONITORS / 27" - 32" QHD / 2K DISPLAYS (min-width: 2000px and min-height: 1000px) */
+@media screen and (min-width: 2000px) and (min-height: 1000px) {
+  html {
+    font-size: 17.5px;
+  }
+
+  main.studio-main-dashboard {
+    max-width: min(96vw, 2560px) !important;
+    gap: 1.25rem !important;
+  }
+
+  .karaoke-teleprompter-stage {
+    height: 340px !important;
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  .teleprompter-active-line-slot {
+    height: 170px !important;
+  }
+
+  .queue-items-scroll-list {
+    max-height: 26rem !important;
+  }
+
+  .studio-responsive-library {
+    height: calc(100vh - 6rem) !important;
+    max-height: 1250px !important;
+  }
+}
+
+/* 4. ULTRA-LARGE MONITORS / 32" - 55" 4K / UHD DISPLAYS (min-width: 3000px and min-height: 1500px) */
+@media screen and (min-width: 3000px) and (min-height: 1500px) {
+  html {
+    font-size: 21px;
+  }
+
+  main.studio-main-dashboard {
+    max-width: min(96vw, 3600px) !important;
+    gap: 1.75rem !important;
+  }
+
+  .karaoke-teleprompter-stage {
+    height: 440px !important;
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  .teleprompter-active-line-slot {
+    height: 220px !important;
+  }
+
+  .queue-items-scroll-list {
+    max-height: 38rem !important;
+  }
+
+  .studio-responsive-library {
+    height: calc(100vh - 7rem) !important;
+    max-height: 1800px !important;
+  }
+}
+
 
