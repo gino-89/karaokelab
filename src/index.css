@@ -323,5 +323,15 @@ input[type="range"].slider-vertical {
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: contain !important;
   }
+
+  /* On iPad: hide "Encolar" / "En cola" text label, leaving only the icon to maximize space for title & artist */
+  .library-queue-text {
+    display: none !important;
+  }
+
+  /* On iPad: slightly reduce song title font size to 11px to fit more text */
+  .library-song-title {
+    font-size: 11px !important;
+  }
 }
 

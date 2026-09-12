@@ -1167,7 +1167,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                         </div>
 
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                          <span
+                            className="library-song-title text-xs font-semibold truncate text-slate-200 group-hover:text-white"
+                            title={song.title}
+                          >
                             {song.title}
                           </span>
                           <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
@@ -1229,13 +1232,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                           >
                             {inQueue ? (
                               <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
+                                <Check className="w-3.5 h-3.5 shrink-0" />
+                                <span className="library-queue-text text-[10px] font-bold text-[#00ff9d]">En cola</span>
                               </>
                             ) : (
                               <>
-                                <ListPlus className="w-3.5 h-3.5 text-[#00f0ff]" />
-                                <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
+                                <ListPlus className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
+                                <span className="library-queue-text text-[10px] font-bold text-[#00f0ff]">Encolar</span>
                               </>
                             )}
                           </button>
@@ -1410,7 +1413,10 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             </div>
 
                             <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-xs font-semibold truncate text-slate-200 group-hover:text-white">
+                              <span
+                                className="library-song-title text-xs font-semibold truncate text-slate-200 group-hover:text-white"
+                                title={song.title}
+                              >
                                 {song.title}
                               </span>
                               <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
@@ -1463,13 +1469,13 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                               >
                                 {inQueue ? (
                                   <>
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-bold text-[#00ff9d]">En cola</span>
+                                    <Check className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="library-queue-text text-[10px] font-bold text-[#00ff9d]">En cola</span>
                                   </>
                                 ) : (
                                   <>
-                                    <ListPlus className="w-3.5 h-3.5 text-[#00f0ff]" />
-                                    <span className="text-[10px] font-bold text-[#00f0ff]">Encolar</span>
+                                    <ListPlus className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
+                                    <span className="library-queue-text text-[10px] font-bold text-[#00f0ff]">Encolar</span>
                                   </>
                                 )}
                               </button>
