@@ -132,7 +132,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
   const [selectedArtist, setSelectedArtist] = useState<string>('ALL');
   const [selectedGenre, setSelectedGenre] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'artist' | 'bpm' | 'duration'>('recent');
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [libraryTab, setLibraryTab] = useState<'local' | 'youtube'>('local');
   const [showLibraryMenu, setShowLibraryMenu] = useState(false);
 
