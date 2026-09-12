@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LyricLine, AudioStems, ArtistRole, VideoBackgroundConfig } from '../types';
-import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders } from 'lucide-react';
+import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders, Tv } from 'lucide-react';
 import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractAllArtistsFromMetadata, titleCaseArtist, FEMALE_PALETTE, MALE_PALETTE, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo } from '../services/lrcParser';
 import { searchLrclib, searchLrclibSuggestions, LrcSuggestion } from '../services/lrcApi';
 import { searchGeniusSuggestions, fetchGeniusLyricsByUrl, searchGeniusLyricsOnline, GeniusHitSuggestion } from '../services/geniusLyricsApi';
@@ -1197,18 +1197,30 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       {/* ── PROFESSIONAL KARAOKE TELEPROMPTER STAGE ───── */}
       <div className="relative bg-[#0c0e17] border border-slate-700/70 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
         {/* Top Title & Calibration Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-3 sm:px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 gap-2.5">
-          <div className="flex flex-col min-w-0 w-full md:w-auto">
-            <div className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-bold text-white tracking-tight truncate max-w-md">{songTitle || '— Selecciona una canción —'}</span>
+        <div className="flex flex-col px-3 sm:px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 gap-2">
+          {/* Row 1: Song Title - Artist & Duet Tag */}
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+                {songTitle || '— Selecciona una canción —'}
+                {songArtist && (
+                  <span className="font-medium text-slate-400 ml-1.5 font-sans">
+                    - {songArtist}
+                  </span>
+                )}
+              </span>
               {isDuetMode && (
                 <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-black bg-[#ff007f]/20 text-[#ff007f] border border-[#ff007f]/50 shadow-[0_0_8px_rgba(255,0,127,0.3)] shrink-0 animate-pulse">
                   👥 MODO DUETO
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 font-mono mt-1">
-              {songArtist && <span className="truncate max-w-[130px] font-medium text-slate-300">{songArtist} ·</span>}
+          </div>
+
+          {/* Row 2: Left (BPM & TONO) <----> Right (Editar & Modo TV) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+            {/* Left Controls: BPM & Tono */}
+            <div className="flex items-center gap-1.5 flex-wrap">
               {/* Modern Digital BPM Capsule */}
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/90 border border-slate-800 shadow-inner shrink-0 group hover:border-cyan-500/40 transition-colors">
                 <div className="flex items-center gap-1">
@@ -1297,30 +1309,35 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end md:self-center">
-            <button
-              onClick={() => setShowLyricTools(!showLyricTools)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
-                showLyricTools
-                  ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
-                  : 'bg-slate-800 border-slate-700 text-slate-200 hover:text-white'
-              }`}
-              title="Herramientas de Edición (Fondo, Voz Guía, Letras y Sincronización)"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-              <span>Editar</span>
-              {showLyricTools ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
+            {/* Right Controls: Editar & Modo TV */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowLyricTools(!showLyricTools)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-inner ${
+                  showLyricTools
+                    ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                    : 'bg-slate-950/90 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+                }`}
+                title="Herramientas de Edición (Fondo, Voz Guía, Letras y Sincronización)"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Editar</span>
+                {showLyricTools ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+              </button>
 
-            <button
-              onClick={onOpenPartyMode}
-              disabled={!hasSong}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-md active:scale-95"
-            >
-              Modo TV
-            </button>
+              <button
+                type="button"
+                onClick={onOpenPartyMode}
+                disabled={!hasSong}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-md active:scale-95 border border-emerald-400/50"
+                title="Abrir Modo TV en pantalla completa"
+              >
+                <Tv className="w-3.5 h-3.5 text-slate-950" />
+                <span>Modo TV</span>
+              </button>
+            </div>
           </div>
         </div>
 
