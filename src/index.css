@@ -333,5 +333,10 @@ input[type="range"].slider-vertical {
   .library-song-title {
     font-size: 11px !important;
   }
+
+  /* On iPad: keep library song metadata at 10px */
+  .library-song-meta {
+    font-size: 10px !important;
+  }
 }
 

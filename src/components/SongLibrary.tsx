@@ -1168,24 +1168,26 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
                         <div className="flex flex-col min-w-0 flex-1">
                           <span
-                            className="library-song-title text-xs font-semibold truncate text-slate-200 group-hover:text-white"
+                            className="library-song-title text-[13px] font-bold truncate text-slate-200 group-hover:text-white"
                             title={song.title}
                           >
                             {song.title}
                           </span>
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
-                            <span>{song.artist || 'Desconocido'}</span>
+                          <div className="library-song-meta flex items-center gap-1.5 text-[11.5px] font-mono text-slate-400 truncate mt-0.5">
+                            <span className="text-slate-200 font-medium truncate">{song.artist || 'Desconocido'}</span>
                             <span>·</span>
-                            <span>{fmt(song.duration)}</span>
+                            <span className="text-slate-400">{fmt(song.duration)}</span>
                             <span>·</span>
-                            <span className="text-[#00f0ff]">{song.bpm} BPM</span>
+                            <span className="text-[#00f0ff] font-bold">{song.bpm} BPM</span>
+                            <span>·</span>
+                            <span className="text-amber-300 font-bold">{song.key || 'Am'}</span>
                             {song.genre && (
-                              <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9px]">
+                              <span className="text-amber-300 bg-amber-400/10 px-1 rounded text-[9.5px]">
                                 {song.genre}
                               </span>
                             )}
                             {song.stems?.instrumentalBlob && (
-                              <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9px]">
+                              <span className="text-[#00ff9d] bg-[#00ff9d]/15 px-1 rounded text-[9.5px]">
                                 ✓ Stems
                               </span>
                             )}
@@ -1414,17 +1416,19 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
 
                             <div className="flex flex-col min-w-0 flex-1">
                               <span
-                                className="library-song-title text-xs font-semibold truncate text-slate-200 group-hover:text-white"
+                                className="library-song-title text-[13px] font-bold truncate text-slate-200 group-hover:text-white"
                                 title={song.title}
                               >
                                 {song.title}
                               </span>
-                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 truncate mt-0.5">
-                                <span>{song.artist || 'Desconocido'}</span>
+                              <div className="library-song-meta flex items-center gap-1.5 text-[11.5px] font-mono text-slate-400 truncate mt-0.5">
+                                <span className="text-slate-200 font-medium truncate">{song.artist || 'Desconocido'}</span>
                                 <span>·</span>
-                                <span>{fmt(song.duration)}</span>
+                                <span className="text-slate-400">{fmt(song.duration)}</span>
                                 <span>·</span>
-                                <span className="text-[#00f0ff]">{song.bpm} BPM</span>
+                                <span className="text-[#00f0ff] font-bold">{song.bpm} BPM</span>
+                                <span>·</span>
+                                <span className="text-amber-300 font-bold">{song.key || 'Am'}</span>
                               </div>
                             </div>
 
