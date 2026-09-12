@@ -171,7 +171,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return null;
   }
 
-  const overlayOpacity = Math.max(0.15, Math.min(0.95, config.overlayOpacity ?? 0.55));
+  // Tastefully darkened overlay (68% dark tint) for crystal-clear lyric legibility without hiding the video
+  const overlayOpacity = Math.max(0.68, Math.min(0.95, config.overlayOpacity ?? 0.68));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
