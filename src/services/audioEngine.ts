@@ -49,21 +49,122 @@ export class AudioEngine {
   private micGain = 1.0;
   private onTrackEndCallbacks: Set<() => void> = new Set();
 
-  // Continuous background audio keep-alive (inaudible hardware stream anchor)
+  // Continuous background audio keep-alive (hardware audio pipeline anchor for iOS/iPadOS Safari)
   private keepAliveAudio: HTMLAudioElement | null = null;
+  private silentWavUrl: string | null = null;
+
+  /**
+   * Generates a valid 2-second 22050Hz 16-bit mono PCM silent WAV Blob URL.
+   * This is 100% inaudible (pure zeros), but provides a valid audio stream that prevents
+   * iOS / iPadOS WebKit power watchdogs from aborting or suspending background audio.
+   */
+  private getSilentWavUrl(): string {
+    if (this.silentWavUrl) return this.silentWavUrl;
+    try {
+      const sampleRate = 22050;
+      const numSamples = sampleRate * 2; // 2 seconds
+      const dataSize = numSamples * 2; // 16-bit mono = 2 bytes per sample
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      // 'RIFF' chunk descriptor
+      view.setUint8(0, 0x52); view.setUint8(1, 0x49); view.setUint8(2, 0x46); view.setUint8(3, 0x46);
+      view.setUint32(4, 36 + dataSize, true);
+      // 'WAVE' format
+      view.setUint8(8, 0x57); view.setUint8(9, 0x41); view.setUint8(10, 0x56); view.setUint8(11, 0x45);
+      // 'fmt ' subchunk
+      view.setUint8(12, 0x66); view.setUint8(13, 0x6d); view.setUint8(14, 0x74); view.setUint8(15, 0x20);
+      view.setUint32(16, 16, true); // Subchunk1Size
+      view.setUint16(20, 1, true);  // AudioFormat (1 = PCM)
+      view.setUint16(22, 1, true);  // NumChannels (1 = Mono)
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true); // ByteRate
+      view.setUint16(32, 2, true);  // BlockAlign
+      view.setUint16(34, 16, true); // BitsPerSample
+      // 'data' subchunk
+      view.setUint8(36, 0x64); view.setUint8(37, 0x61); view.setUint8(38, 0x74); view.setUint8(39, 0x61);
+      view.setUint32(40, dataSize, true);
+      // Bytes 44+ are automatically 0s (pure silence)
+
+      const blob = new Blob([view], { type: 'audio/wav' });
+      this.silentWavUrl = URL.createObjectURL(blob);
+      return this.silentWavUrl;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  private initKeepAliveAudio(): HTMLAudioElement | null {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return null;
+    try {
+      if (!this.keepAliveAudio) {
+        let el = document.getElementById('karaokelab-ios-audio-anchor') as HTMLAudioElement | null;
+        if (!el) {
+          el = document.createElement('audio');
+          el.id = 'karaokelab-ios-audio-anchor';
+          el.setAttribute('playsinline', 'true');
+          el.setAttribute('webkit-playsinline', 'true');
+          el.setAttribute('x-webkit-airplay', 'allow');
+          el.style.position = 'fixed';
+          el.style.left = '-9999px';
+          el.style.top = '-9999px';
+          el.style.width = '1px';
+          el.style.height = '1px';
+          el.style.opacity = '0.01';
+          el.style.pointerEvents = 'none';
+          document.body.appendChild(el);
+        }
+        el.loop = true;
+        el.preload = 'auto';
+        // Non-zero volume prevents iOS WebKit power daemon from flagging the element as muted,
+        // while the PCM data itself is 100% digital silence (amplitude 0).
+        el.volume = 1.0;
+        const wavUrl = this.getSilentWavUrl();
+        if (wavUrl && el.src !== wavUrl) {
+          el.src = wavUrl;
+        }
+        this.keepAliveAudio = el;
+      }
+      return this.keepAliveAudio;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Pre-unlocks audio playback directly in response to a user interaction (touch/click).
+   * Guarantees iOS / iPadOS Safari marks both the AudioContext and media element as user-activated.
+   */
+  public unlockAudioForIOS() {
+    if (typeof window === 'undefined') return;
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx.state === 'suspended' || (ctx.state as any) === 'interrupted') {
+        ctx.resume().catch(() => {});
+      }
+      const audio = this.initKeepAliveAudio();
+      if (audio && audio.paused && !this.isPlaying) {
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise
+            .then(() => {
+              if (!this.isPlaying && this.keepAliveAudio) {
+                this.keepAliveAudio.pause();
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch (_) {}
+  }
 
   private startKeepAlive() {
     if (typeof window === 'undefined') return;
     try {
-      if (!this.keepAliveAudio) {
-        // 1-second silent WAV loop (base64 encoded)
-        this.keepAliveAudio = new Audio(
-          'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'
-        );
-        this.keepAliveAudio.loop = true;
-        this.keepAliveAudio.volume = 0.001;
+      const audio = this.initKeepAliveAudio();
+      if (audio) {
+        audio.play().catch(() => {});
       }
-      this.keepAliveAudio.play().catch(() => {});
     } catch (_) {}
   }
 
@@ -104,6 +205,11 @@ export class AudioEngine {
       } catch (_) {
         this.ctx = new AudioContextClass();
       }
+      this.ctx.onstatechange = () => {
+        if (this.isPlaying && (this.ctx?.state === 'suspended' || (this.ctx?.state as any) === 'interrupted')) {
+          this.ctx.resume().catch(() => {});
+        }
+      };
       this.initNodes();
     }
     return this.ctx;
@@ -124,6 +230,11 @@ export class AudioEngine {
 
         this.ctx.close().catch(() => {});
         this.ctx = new AudioContextClass({ latencyHint: mode });
+        this.ctx.onstatechange = () => {
+          if (this.isPlaying && (this.ctx?.state === 'suspended' || (this.ctx?.state as any) === 'interrupted')) {
+            this.ctx.resume().catch(() => {});
+          }
+        };
         this.initNodes();
 
         if (currentInstBuf && currentVocBuf) {
@@ -143,8 +254,11 @@ export class AudioEngine {
 
   public resumeContextSync() {
     try {
-      if (this.ctx && this.ctx.state === 'suspended') {
-        this.ctx.resume();
+      if (this.ctx && (this.ctx.state === 'suspended' || (this.ctx.state as any) === 'interrupted')) {
+        this.ctx.resume().catch(() => {});
+      }
+      if (this.isPlaying && this.keepAliveAudio && this.keepAliveAudio.paused) {
+        this.keepAliveAudio.play().catch(() => {});
       }
     } catch (_) {}
   }

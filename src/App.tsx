@@ -429,6 +429,23 @@ export default function App() {
     };
   }, []);
 
+  // ── iOS / iPadOS Safari Audio Activation Unlocker ──
+  useEffect(() => {
+    const handleInitialUserGesture = () => {
+      audioEngine.unlockAudioForIOS();
+    };
+
+    window.addEventListener('touchstart', handleInitialUserGesture, { passive: true, once: true });
+    window.addEventListener('pointerdown', handleInitialUserGesture, { passive: true, once: true });
+    window.addEventListener('click', handleInitialUserGesture, { passive: true, once: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleInitialUserGesture);
+      window.removeEventListener('pointerdown', handleInitialUserGesture);
+      window.removeEventListener('click', handleInitialUserGesture);
+    };
+  }, []);
+
   // ── Karaoke Performance Score & Next Song Transition Modal ──
   const [scoringMode, setScoringMode] = useState<'fiesta' | 'real' | 'off'>(() => {
     return (localStorage.getItem('karaokelab_scoring_mode') as 'fiesta' | 'real' | 'off') || 'fiesta';
@@ -1098,13 +1115,14 @@ export default function App() {
     let animId: number | null = null;
     let intervalId: any = null;
     let lastFlushTime = 0;
+    let lastMediaSessionSync = 0;
 
     const tick = (timestamp = performance.now()) => {
       if (audioEngine.getIsPlaying()) {
         const t = audioEngine.getCurrentTime();
-        const d = audioEngine.getDuration() || duration;
+        const d = audioEngine.getDuration();
 
-        // Auto-advance watchdog: if local audio has reached the end of the song
+        // Check if track reached the end
         if (d > 2 && t >= d - 0.4) {
           handleTrackEnded();
           return;
@@ -1128,6 +1146,20 @@ export default function App() {
             if (activeIdx !== currentIndexRef.current) {
               currentIndexRef.current = activeIdx;
               setCurrentIndex(activeIdx);
+            }
+          }
+
+          // Periodic OS MediaSession position synchronization for iOS lock screen / Control Center
+          if (timestamp - lastMediaSessionSync >= 2500) {
+            lastMediaSessionSync = timestamp;
+            if (typeof window !== 'undefined' && 'mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && d > 0) {
+              try {
+                navigator.mediaSession.setPositionState({
+                  duration: Math.max(1, d),
+                  playbackRate: 1.0,
+                  position: Math.max(0, Math.min(t, d)),
+                });
+              } catch (_) {}
             }
           }
         }
@@ -1182,20 +1214,34 @@ export default function App() {
       }
     }, 40);
 
-    // 3. Instant resync to hardware audio clock when user switches back to the tab
+    // 3. Instant resync to hardware audio clock when user switches back to the tab or app wakes up
     const handleVisibilityChange = () => {
+      if (audioEngine.getIsPlaying() || isPlaying) {
+        audioEngine.resumeContextSync();
+      }
       if (!document.hidden && audioEngine.getIsPlaying()) {
         const exactT = audioEngine.getCurrentTime();
         setCurrentTime(exactT);
         tick(performance.now());
       }
     };
+
+    const handleWakeSync = () => {
+      if (audioEngine.getIsPlaying() || isPlaying) {
+        audioEngine.resumeContextSync();
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWakeSync);
+    window.addEventListener('pageshow', handleWakeSync);
 
     return () => {
       if (animId) cancelAnimationFrame(animId);
       if (intervalId) clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWakeSync);
+      window.removeEventListener('pageshow', handleWakeSync);
     };
   }, [lyrics, isSmartVocalCue, smartCues, vocalGain, isCleanTrack, isPlaying, youTubeEmbedId]);
 
@@ -1983,6 +2029,9 @@ export default function App() {
 
   // 7. Transport Controls Handlers
   const handlePlay = async () => {
+    // Immediately unlock audio context & iOS background audio anchor within user gesture stack
+    audioEngine.unlockAudioForIOS();
+
     // If score modal is currently open, ignore automated handlePlay calls
     if (scoreModalState.isOpen) {
       console.log('⚠️ Score modal is currently open. Ignoring automated handlePlay call.');
@@ -2039,6 +2088,15 @@ export default function App() {
   const handleSeek = (seconds: number) => {
     audioEngine.seek(seconds);
     setCurrentTime(seconds);
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: Math.max(1, duration),
+          playbackRate: isPlaying ? 1.0 : 0.0,
+          position: Math.max(0, Math.min(seconds, duration)),
+        });
+      } catch (_) {}
+    }
   };
 
   const handleTimeUpdate = useCallback((t: number, d?: number) => {
@@ -2068,6 +2126,16 @@ export default function App() {
 
     try {
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+      if ('setPositionState' in navigator.mediaSession && duration > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(1, duration),
+            playbackRate: isPlaying ? 1.0 : 0.0,
+            position: Math.max(0, Math.min(currentTime, duration)),
+          });
+        } catch (_) {}
+      }
 
       navigator.mediaSession.setActionHandler('play', () => {
         handlePlay();
