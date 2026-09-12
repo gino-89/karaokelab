@@ -70,7 +70,7 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
 
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs xl:text-[13.5px] font-bold text-white truncate max-w-full" title={currentSong.title}>
+                <span className="queue-song-title text-xs xl:text-[13.5px] font-bold text-white truncate max-w-full" title={currentSong.title}>
                   {currentSong.title}
                 </span>
                 <span className="flex items-center gap-1 text-[8px] xl:text-[8.5px] font-mono font-black text-[#00ff9d] bg-[#00ff9d]/20 px-1.5 py-0.5 rounded border border-[#00ff9d]/40 shrink-0">
@@ -78,8 +78,8 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                   {isPlaying ? '● SONANDO' : 'EN PAUSA'}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] xl:text-[11.5px] font-mono text-slate-300 truncate mt-0.5">
-                <span className="text-slate-200 font-semibold truncate">{currentSong.artist || 'KaraokeLab'}</span>
+              <div className="queue-song-meta flex items-center gap-1.5 text-[10px] xl:text-[11.5px] font-mono text-slate-300 truncate mt-0.5">
+                <span className="text-slate-200 font-semibold">{currentSong.artist || 'KaraokeLab'}</span>
                 <span>·</span>
                 <span className="text-slate-400">{fmt(currentSong.duration)}</span>
                 <span>·</span>
@@ -190,7 +190,7 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
                 <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                   {/* Line 1: Song title on top */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] xl:text-[13px] font-semibold xl:font-bold truncate text-white" title={songTitle}>
+                    <span className="queue-song-title text-[11px] xl:text-[13px] font-semibold xl:font-bold truncate text-white" title={songTitle}>
                       {songTitle}
                     </span>
                     {item.requestedBy && (
@@ -211,8 +211,8 @@ export const SongQueue: React.FC<SongQueueProps> = React.memo(({
 
                   {/* Line 2: Artist name below the song name + Duration + BPM + Key (Key only on desktop) */}
                   {isReady && (
-                    <div className="flex items-center gap-1.5 text-[10px] xl:text-[11.5px] font-mono text-slate-400 truncate mt-0.5">
-                      <span className="text-slate-200 font-medium truncate">{songArtist || 'Desconocido'}</span>
+                    <div className="queue-song-meta flex items-center gap-1.5 text-[10px] xl:text-[11.5px] font-mono text-slate-400 truncate mt-0.5">
+                      <span className="text-slate-200 font-medium">{songArtist || 'Desconocido'}</span>
                       {item.songData?.duration ? (
                         <>
                           <span>·</span>

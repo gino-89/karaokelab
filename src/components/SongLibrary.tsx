@@ -1174,7 +1174,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                             {song.title}
                           </span>
                           <div className="library-song-meta flex items-center gap-1.5 text-[10px] xl:text-[11.5px] font-mono text-slate-400 truncate mt-0.5">
-                            <span className="text-slate-200 font-medium truncate">{song.artist || 'Desconocido'}</span>
+                            <span className="text-slate-200 font-medium">{song.artist || 'Desconocido'}</span>
                             <span>·</span>
                             <span className="text-slate-400">{fmt(song.duration)}</span>
                             <span>·</span>
@@ -1422,7 +1422,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                 {song.title}
                               </span>
                               <div className="library-song-meta flex items-center gap-1.5 text-[10px] xl:text-[11.5px] font-mono text-slate-400 truncate mt-0.5">
-                                <span className="text-slate-200 font-medium truncate">{song.artist || 'Desconocido'}</span>
+                                <span className="text-slate-200 font-medium">{song.artist || 'Desconocido'}</span>
                                 <span>·</span>
                                 <span className="text-slate-400">{fmt(song.duration)}</span>
                                 <span>·</span>

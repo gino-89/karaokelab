@@ -293,7 +293,7 @@ input[type="range"].slider-vertical {
    Applies exclusively to iPad/tablets (768px - 1180px)
    Keeps lyrics big & teleprompter untouched, fits dashboard in one screen
    ========================================================================== */
-@media screen and (min-width: 768px) and (max-width: 1180px) {
+@media screen and (min-width: 768px) and (max-width: 1279px) {
   /* Prevent horizontal cut-off / spill */
   body, html {
     overflow-x: hidden;
@@ -329,13 +329,21 @@ input[type="range"].slider-vertical {
     display: none !important;
   }
 
-  /* On iPad: slightly reduce song title font size to 11px to fit more text */
+  /* On iPad: keep library song title compact at 11px to fit more text */
   .library-song-title {
     font-size: 11px !important;
   }
 
   /* On iPad: keep library song metadata at 10px */
   .library-song-meta {
+    font-size: 10px !important;
+  }
+
+  /* On iPad: keep queue song title and meta compact */
+  .queue-song-title {
+    font-size: 11px !important;
+  }
+  .queue-song-meta {
     font-size: 10px !important;
   }
 }
