@@ -171,8 +171,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return null;
   }
 
-  // Tastefully darkened overlay (68% dark tint) for crystal-clear lyric legibility without hiding the video
-  const overlayOpacity = Math.max(0.68, Math.min(0.95, config.overlayOpacity ?? 0.68));
+  // Deep cinematic contrast overlay (82% dark tint) for effortless lyric readability
+  const overlayOpacity = Math.max(0.82, Math.min(0.96, config.overlayOpacity ?? 0.82));
 
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
@@ -186,7 +186,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       {/* Scaled & Centered 16:9 Frame - Scaled 1.45x to crop top title and bottom bars */}
       <div
         className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
-          isVideoVisible ? 'opacity-100' : 'opacity-0'
+          isVideoVisible ? 'opacity-85' : 'opacity-0'
         }`}
         style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
       >
@@ -233,6 +233,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         style={{
           backgroundColor: `rgba(4, 6, 12, ${overlayOpacity})`,
           transform: 'translateZ(0)',
+        }}
+      />
+
+      {/* Center Reading Spotlight: subtle dark halo right where the lyrics sit so text always pops effortlessly */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(4, 6, 12, 0.45) 0%, rgba(4, 6, 12, 0.15) 70%, transparent 100%)',
         }}
       />
 
