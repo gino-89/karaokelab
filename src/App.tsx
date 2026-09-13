@@ -1360,8 +1360,9 @@ export default function App() {
         let backgroundLyricsUpdated = false;
         let enrichedLyrics = finalSongLyrics;
 
-        // Auto-fetch LRCLIB in background only if completely missing
-        if ((!rawLrcVal || enrichedLyrics.length === 0) && typeof navigator !== 'undefined' && navigator.onLine) {
+        // Auto-fetch LRCLIB in background ONLY if lyrics are completely missing
+        const hasExistingWords = enrichedLyrics.some((l) => l.words && l.words.length > 0);
+        if (!hasExistingWords && enrichedLyrics.length === 0 && typeof navigator !== 'undefined' && navigator.onLine) {
           try {
             const queryTerm = song.artist && song.artist !== 'Desconocido' ? `${song.artist} ${song.title}` : song.title;
             const autoLrcRes = await searchLrclib(queryTerm, song.duration);
@@ -1370,6 +1371,17 @@ export default function App() {
               backgroundLyricsUpdated = true;
             }
           } catch (_) {}
+        }
+
+        // If song had lyrics but was missing rawLrc string, generate it locally without touching LRCLIB!
+        if (!rawLrcVal && enrichedLyrics.length > 0 && !backgroundLyricsUpdated) {
+          const locallyEnriched: SongItem = {
+            ...updatedSong,
+            lyrics: enrichedLyrics,
+            rawLrc: formatLRC(enrichedLyrics),
+            updatedAt: updatedSong.updatedAt || Date.now(),
+          };
+          saveSongToDB(locallyEnriched).catch(() => {});
         }
 
         if (backgroundLyricsUpdated) {

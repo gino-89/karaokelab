@@ -704,7 +704,7 @@ export async function importSongsFromFolder(
         videoBgMode: s.videoBgMode,
         videoBgCustomUrl: s.videoBgCustomUrl,
         vocalAutomation: s.vocalAutomation,
-        rawLrc: s.rawLrc,
+        rawLrc: s.rawLrc || (s.lyrics && s.lyrics.length > 0 ? formatLRC(s.lyrics) : undefined),
         lyrics: s.lyrics || [],
         originalFileName: s.audioFile || `${s.title}.mp3`,
         createdAt: s.createdAt || Date.now(),
