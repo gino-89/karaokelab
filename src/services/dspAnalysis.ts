@@ -389,3 +389,75 @@ function pearsonCorrelation(chroma: Float32Array, profile: number[], shift: numb
   const den = Math.sqrt(denX * denY);
   return den === 0 ? 0 : num / den;
 }
+
+/**
+ * Target RMS standard in dBFS (equivalent to ~ -14 LUFS standard across YouTube / Spotify / Karaoke).
+ */
+export const TARGET_LOUDNESS_RMS_DB = -14.0;
+
+export interface LoudnessAnalysis {
+  rmsDb: number;
+  gainOffsetDb: number;
+  gainMultiplier: number;
+  peakDb: number;
+}
+
+/**
+ * Calculates perceived loudness (RMS) and recommended gain offset (dB)
+ * for universal volume normalization.
+ * Performs fast downsampled window analysis (~15-25ms execution time).
+ */
+export function calculateAudioLoudness(
+  buffer: AudioBuffer,
+  targetDb: number = TARGET_LOUDNESS_RMS_DB
+): LoudnessAnalysis {
+  const numChannels = buffer.numberOfChannels;
+  const length = buffer.length;
+  if (length === 0) {
+    return { rmsDb: targetDb, gainOffsetDb: 0, gainMultiplier: 1.0, peakDb: 0 };
+  }
+
+  // Fast stride sampling: sample every 8th frame for ultra-fast, accurate RMS calculation
+  const stride = 8;
+  let sumSquares = 0;
+  let sampledCount = 0;
+  let peakAbs = 0;
+
+  for (let c = 0; c < numChannels; c++) {
+    const data = buffer.getChannelData(c);
+    for (let i = 0; i < length; i += stride) {
+      const sample = data[i];
+      const absVal = Math.abs(sample);
+      if (absVal > peakAbs) peakAbs = absVal;
+      sumSquares += sample * sample;
+      sampledCount++;
+    }
+  }
+
+  const rms = sampledCount > 0 ? Math.sqrt(sumSquares / sampledCount) : 0;
+  // Guard against complete silence
+  const rmsDb = rms > 1e-6 ? 20 * Math.log10(rms) : -60.0;
+  const peakDb = peakAbs > 1e-6 ? 20 * Math.log10(peakAbs) : -60.0;
+
+  // Ideal gain offset to reach targetDb
+  let gainOffsetDb = targetDb - rmsDb;
+
+  // Safety clamps:
+  // Max boost: +8.5 dB (to prevent over-amplifying low noise floors or quiet acoustic intros)
+  // Max cut: -8.0 dB (to avoid burying intentionally soft tracks)
+  gainOffsetDb = Math.max(-8.0, Math.min(8.5, gainOffsetDb));
+
+  // If the offset is negligible (< 0.4 dB), don't touch it
+  if (Math.abs(gainOffsetDb) < 0.4) {
+    gainOffsetDb = 0;
+  }
+
+  const gainMultiplier = Math.pow(10, gainOffsetDb / 20);
+
+  return {
+    rmsDb: Math.round(rmsDb * 10) / 10,
+    gainOffsetDb: Math.round(gainOffsetDb * 10) / 10,
+    gainMultiplier,
+    peakDb: Math.round(peakDb * 10) / 10,
+  };
+}

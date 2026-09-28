@@ -105,6 +105,7 @@ export interface SongItem {
   videoBgMode?: VideoBackgroundMode;
   videoBgCustomUrl?: string;
   vocalAutomation?: VocalAutomationConfig;
+  gainDb?: number; // Volume normalization offset in dB (RMS calibration)
   createdAt: number;
   updatedAt?: number;
 }
@@ -140,6 +141,8 @@ export interface AudioEngineTelemetry {
   micGain: number;
   isRecordingVideo: boolean;
   recordingProgress: number;
+  autoGainEnabled?: boolean;
+  autoGainDb?: number;
 }
 
 export interface LRCLibSearchResult {

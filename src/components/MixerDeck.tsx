@@ -18,6 +18,9 @@ interface MixerDeckProps {
   hasSongLoaded: boolean;
   detectedKey?: string;
   stems?: AudioStems;
+  autoGainEnabled?: boolean;
+  autoGainDb?: number;
+  onToggleAutoGain?: () => void;
 }
 
 export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
@@ -36,6 +39,9 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
   hasSongLoaded,
   detectedKey = 'Am',
   stems,
+  autoGainEnabled = true,
+  autoGainDb = 0,
+  onToggleAutoGain,
 }) => {
   const [previousVocalGain, setPreviousVocalGain] = useState(1.0);
   const [previousMusicGain, setPreviousMusicGain] = useState(1.0);
@@ -362,7 +368,27 @@ export const MixerDeck: React.FC<MixerDeckProps> = React.memo(({
         </div>
 
         {/* Hardware Status Badges */}
-        <div className="flex items-center gap-2 text-[9px] font-mono text-slate-400">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[9px] font-mono text-slate-400">
+          {onToggleAutoGain && (
+            <button
+              type="button"
+              onClick={onToggleAutoGain}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                autoGainEnabled
+                  ? 'bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)] hover:bg-amber-900/60'
+                  : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+              title={
+                autoGainEnabled
+                  ? `Auto-Nivel RMS Activo (${(autoGainDb ?? 0) > 0 ? '+' : ''}${(autoGainDb ?? 0).toFixed(1)} dB). Clic para desactivar.`
+                  : 'Auto-Nivel RMS Desactivado. Clic para activar.'
+              }
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${autoGainEnabled ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
+              <span>RMS: {autoGainEnabled ? (autoGainDb && Math.abs(autoGainDb) >= 0.1 ? `${autoGainDb > 0 ? '+' : ''}${autoGainDb.toFixed(1)}dB` : 'ON') : 'OFF'}</span>
+            </button>
+          )}
+
           <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-emerald-300">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Phase-Preserved

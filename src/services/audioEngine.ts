@@ -23,9 +23,16 @@ export class AudioEngine {
   // Nodes for Mixing & Gain Control
   private vocalGainNode: GainNode | null = null;
   private musicGainNode: GainNode | null = null;
+  private trackGainNode: GainNode | null = null;
   private masterGainNode: GainNode | null = null;
+  private limiterNode: DynamicsCompressorNode | null = null;
   public analyserNode: AnalyserNode | null = null;
   public mediaStreamDest: MediaStreamAudioDestinationNode | null = null;
+
+  // Auto-Gain Loudness Normalization State
+  private autoGainEnabled: boolean = typeof window !== 'undefined' ? localStorage.getItem('karaokelab_auto_gain') !== 'false' : true;
+  private currentGainOffsetDb: number = 0;
+  private autoGainMultiplier: number = 1.0;
 
   // Microphone Nodes
   private micStream: MediaStream | null = null;
@@ -265,10 +272,30 @@ export class AudioEngine {
 
   private initNodes() {
     if (!this.ctx) return;
+
+    // 1. Transparent Safety Brickwall Limiter (prevents digital clipping/saturation)
+    if (!this.limiterNode) {
+      try {
+        this.limiterNode = this.ctx.createDynamicsCompressor();
+        this.limiterNode.threshold.setValueAtTime(-0.8, this.ctx.currentTime);
+        this.limiterNode.knee.setValueAtTime(0, this.ctx.currentTime);
+        this.limiterNode.ratio.setValueAtTime(20, this.ctx.currentTime);
+        this.limiterNode.attack.setValueAtTime(0.002, this.ctx.currentTime);
+        this.limiterNode.release.setValueAtTime(0.05, this.ctx.currentTime);
+        this.limiterNode.connect(this.ctx.destination);
+      } catch (e) {
+        console.warn('DynamicsCompressorNode fallback:', e);
+      }
+    }
+
     if (!this.masterGainNode) {
       this.masterGainNode = this.ctx.createGain();
       this.masterGainNode.gain.setValueAtTime(this.masterGain, this.ctx.currentTime);
-      this.masterGainNode.connect(this.ctx.destination);
+      if (this.limiterNode) {
+        this.masterGainNode.connect(this.limiterNode);
+      } else {
+        this.masterGainNode.connect(this.ctx.destination);
+      }
     }
     if (!this.analyserNode) {
       this.analyserNode = this.ctx.createAnalyser();
@@ -284,15 +311,24 @@ export class AudioEngine {
         console.warn('createMediaStreamDestination fallback:', e);
       }
     }
+
+    // 2. Track Auto-Gain Calibration Node (scales music + vocals by song RMS target, bypasses mic)
+    if (!this.trackGainNode) {
+      this.trackGainNode = this.ctx.createGain();
+      const initialMultiplier = this.autoGainEnabled ? this.autoGainMultiplier : 1.0;
+      this.trackGainNode.gain.setValueAtTime(initialMultiplier, this.ctx.currentTime);
+      this.trackGainNode.connect(this.masterGainNode);
+    }
+
     if (!this.vocalGainNode) {
       this.vocalGainNode = this.ctx.createGain();
       this.vocalGainNode.gain.setValueAtTime(this.vocalGain, this.ctx.currentTime);
-      this.vocalGainNode.connect(this.masterGainNode);
+      this.vocalGainNode.connect(this.trackGainNode);
     }
     if (!this.musicGainNode) {
       this.musicGainNode = this.ctx.createGain();
       this.musicGainNode.gain.setValueAtTime(this.musicGain, this.ctx.currentTime);
-      this.musicGainNode.connect(this.masterGainNode);
+      this.musicGainNode.connect(this.trackGainNode);
     }
   }
 
@@ -672,6 +708,51 @@ export class AudioEngine {
     this.masterGain = Math.max(0, Math.min(val, 2.5));
     if (this.masterGainNode && this.ctx) {
       this.masterGainNode.gain.setValueAtTime(this.masterGain, this.ctx.currentTime);
+    }
+  }
+
+  public getMasterGain(): number {
+    return this.masterGain;
+  }
+
+  /**
+   * Sets the volume calibration offset in dB for the current song.
+   * If auto-gain is enabled, it applies this gain to the trackGainNode.
+   */
+  public setTrackGainOffset(gainOffsetDb: number) {
+    this.currentGainOffsetDb = gainOffsetDb;
+    this.autoGainMultiplier = Math.pow(10, gainOffsetDb / 20);
+    this.applyTrackGain();
+  }
+
+  public getCurrentGainOffsetDb(): number {
+    return this.currentGainOffsetDb;
+  }
+
+  public getAutoGainEnabled(): boolean {
+    return this.autoGainEnabled;
+  }
+
+  public setAutoGainEnabled(enabled: boolean) {
+    this.autoGainEnabled = enabled;
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('karaokelab_auto_gain', String(enabled));
+      }
+    } catch (_) {}
+    this.applyTrackGain();
+  }
+
+  private applyTrackGain() {
+    if (this.trackGainNode && this.ctx) {
+      const target = this.autoGainEnabled ? this.autoGainMultiplier : 1.0;
+      try {
+        this.trackGainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.trackGainNode.gain.setValueAtTime(this.trackGainNode.gain.value, this.ctx.currentTime);
+        this.trackGainNode.gain.linearRampToValueAtTime(target, this.ctx.currentTime + 0.05);
+      } catch (_) {
+        this.trackGainNode.gain.setValueAtTime(target, this.ctx.currentTime);
+      }
     }
   }
 

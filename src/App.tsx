@@ -3,7 +3,7 @@ import { SongItem, QueueItem, LyricLine, SingerProfile, YouTubeFavoriteTrack, Vi
 import { VocalAutomationModal } from './components/VocalAutomationModal';
 import { audioEngine, audioBufferToWavBlob } from './services/audioEngine';
 import { separateAudioStems } from './services/stemSeparator';
-import { analyzeStudioBPMAndKey, detectVocalPhrases } from './services/dspAnalysis';
+import { analyzeStudioBPMAndKey, detectVocalPhrases, calculateAudioLoudness } from './services/dspAnalysis';
 import { parseLRC, generateGenericLyrics, detectIsDuetLyrics, formatLRC, parseArtistsFromLRC } from './services/lrcParser';
 import { loadVideoBackgroundConfig, saveVideoBackgroundConfig, searchOfficialVideo } from './services/videoBackgroundService';
 import { calibrateLyricsWithVocalStem } from './services/vocalSyncCalibrator';
@@ -76,6 +76,8 @@ export default function App() {
   const [isLooping, setIsLooping] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
   const [micGain, setMicGain] = useState(1.0);
+  const [autoGainEnabled, setAutoGainEnabled] = useState<boolean>(() => audioEngine.getAutoGainEnabled());
+  const [autoGainDb, setAutoGainDb] = useState<number>(() => audioEngine.getCurrentGainOffsetDb());
 
   // Synchronized Lyrics & Smart Vocal Cues
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
@@ -1291,6 +1293,7 @@ export default function App() {
 
       setYouTubeEmbedId(null);
 
+      let songGainDb = song.gainDb;
       if (song.stems?.instrumentalBlob) {
         const instArrayBuf = await song.stems.instrumentalBlob.arrayBuffer();
         const instBuf = await audioEngine.decodeAudio(instArrayBuf.slice(0));
@@ -1300,15 +1303,36 @@ export default function App() {
         }
         audioEngine.setStemBuffers(instBuf, vocBuf);
         durationVal = instBuf.duration;
+
+        // Auto-Gain Loudness Calibration (RMS)
+        if (songGainDb === undefined && instBuf) {
+          const loudness = calculateAudioLoudness(instBuf);
+          songGainDb = loudness.gainOffsetDb;
+        }
       } else if (song.audioBlob && song.audioBlob.size > 100) {
         const arrayBuf = await song.audioBlob.arrayBuffer();
         const buffer = await audioEngine.decodeAudio(arrayBuf.slice(0));
         audioEngine.setAudioBuffer(buffer);
         durationVal = buffer.duration;
+
+        // Auto-Gain Loudness Calibration (RMS)
+        if (songGainDb === undefined && buffer) {
+          const loudness = calculateAudioLoudness(buffer);
+          songGainDb = loudness.gainOffsetDb;
+        }
       } else {
         // Song has no local audio - show notification
         showAlertToast(`ℹ️ "${song.title}" no tiene audio local. Importa el archivo MP3 para reproducirla.`);
         return;
+      }
+
+      // Apply Auto-Gain calibration to audio engine
+      if (songGainDb !== undefined) {
+        audioEngine.setTrackGainOffset(songGainDb);
+        setAutoGainDb(songGainDb);
+      } else {
+        audioEngine.setTrackGainOffset(0);
+        setAutoGainDb(0);
       }
 
       // 2. Duet Mode Check
@@ -1319,11 +1343,17 @@ export default function App() {
       const updatedSong: SongItem = {
         ...song,
         duration: durationVal,
+        gainDb: songGainDb,
         lyrics: finalSongLyrics,
         artistsList: songArtistsList,
         rawLrc: rawLrcVal || (finalSongLyrics.length > 0 ? formatLRC(finalSongLyrics, songArtistsList) : undefined),
         isDuet: isDuetVal,
       };
+
+      if (songGainDb !== undefined && song.gainDb !== songGainDb) {
+        saveSongToDB(updatedSong).catch(() => {});
+        setSavedSongs((prev) => prev.map((s) => (s.id === updatedSong.id ? updatedSong : s)));
+      }
 
       setCurrentSong(updatedSong);
       setDuration(durationVal);
@@ -2042,6 +2072,13 @@ export default function App() {
     }, 4500);
   };
 
+  const handleToggleAutoGain = useCallback(() => {
+    const next = !audioEngine.getAutoGainEnabled();
+    audioEngine.setAutoGainEnabled(next);
+    setAutoGainEnabled(next);
+    showAlertToast(next ? '⚡ Auto-Nivel RMS Activado (-14 dBFS Target)' : '🔕 Auto-Nivel RMS Desactivado');
+  }, []);
+
   // 7. Transport Controls Handlers
   const handlePlay = async () => {
     // Immediately unlock audio context & iOS background audio anchor within user gesture stack
@@ -2611,6 +2648,9 @@ export default function App() {
               hasSongLoaded={!!currentSong}
               detectedKey={detectedKey}
               stems={currentSong?.stems}
+              autoGainEnabled={autoGainEnabled}
+              autoGainDb={autoGainDb}
+              onToggleAutoGain={handleToggleAutoGain}
             />
             {/* ── ACTION BAR: Stems + Video ─────────────────── */}
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -2819,6 +2859,9 @@ export default function App() {
         onUpdateSyncDelay={handleUpdateSyncDelay}
         scoringMode={scoringMode}
         onUpdateScoringMode={handleUpdateScoringMode}
+        autoGainEnabled={autoGainEnabled}
+        onToggleAutoGain={handleToggleAutoGain}
+        autoGainDb={autoGainDb}
       />
 
       {/* ── Modal de Información del Sistema / About (Gino El Arquitecto) ── */}

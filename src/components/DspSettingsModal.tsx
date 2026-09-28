@@ -9,6 +9,9 @@ interface DspSettingsModalProps {
   onUpdateSyncDelay: (newDelay: number) => void;
   scoringMode?: 'fiesta' | 'real' | 'off';
   onUpdateScoringMode?: (mode: 'fiesta' | 'real' | 'off') => void;
+  autoGainEnabled?: boolean;
+  onToggleAutoGain?: () => void;
+  autoGainDb?: number;
 }
 
 export const DspSettingsModal: React.FC<DspSettingsModalProps> = ({
@@ -18,6 +21,9 @@ export const DspSettingsModal: React.FC<DspSettingsModalProps> = ({
   onUpdateSyncDelay,
   scoringMode = 'fiesta',
   onUpdateScoringMode,
+  autoGainEnabled = true,
+  onToggleAutoGain,
+  autoGainDb = 0,
 }) => {
   const [latencyMode, setLatencyMode] = useState<'interactive' | 'balanced' | 'playback'>('interactive');
   const [telemetry, setTelemetry] = useState({
@@ -96,6 +102,46 @@ export const DspSettingsModal: React.FC<DspSettingsModalProps> = ({
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Auto-Gain Loudness Normalization & Limiter */}
+        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1">
+                <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Normalización RMS & Limitador</span>
+              </span>
+              <span className="px-1.5 py-0.2 rounded text-[8.5px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                -14 dBFS Target
+              </span>
+            </div>
+            <p className="text-[10.5px] text-slate-400 leading-tight">
+              Calibra automáticamente cada canción al mismo volumen y previene saturación con limitador de picos.
+              {autoGainEnabled && autoGainDb !== undefined && Math.abs(autoGainDb) >= 0.1 && (
+                <span className="text-amber-300 font-mono font-semibold ml-1">
+                  (Pista actual: {autoGainDb > 0 ? '+' : ''}{autoGainDb.toFixed(1)} dB)
+                </span>
+              )}
+            </p>
+          </div>
+
+          {onToggleAutoGain && (
+            <button
+              type="button"
+              onClick={onToggleAutoGain}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                autoGainEnabled ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-slate-800'
+              }`}
+              title={autoGainEnabled ? 'Desactivar normalización' : 'Activar normalización'}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  autoGainEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          )}
         </div>
 
         {/* Scoring Mode Selector */}
