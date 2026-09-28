@@ -23,6 +23,8 @@ export interface TvStatePayload {
     nextSinger?: any;
   } | null;
   bpm?: number;
+  detectedKey?: string;
+  pitchShift?: number;
   isDuetMode?: boolean;
   youTubeEmbedId?: string | null;
   videoBgConfig?: VideoBackgroundConfig;

@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { getDuetSinger } from './KaraokeDisplay';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
 import { cleanLyricText, titleCaseArtist, resolveArtistInfo } from '../services/lrcParser';
+import { transposeKey } from '../services/dspAnalysis';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundSelectorModal } from './VideoBackgroundSelectorModal';
 import { loadVideoBackgroundConfig, saveVideoBackgroundConfig, searchOfficialVideo } from '../services/videoBackgroundService';
@@ -29,6 +30,8 @@ interface FullscreenPartyModalProps {
   activeCueType?: 'intro' | 'chorus' | 'outro' | null;
   onToggleSmartVocalCue?: () => void;
   bpm: number;
+  detectedKey?: string;
+  pitchShift?: number;
   syncDelay?: number;
   onUpdateSyncDelay?: (val: number) => void;
   isDuetMode?: boolean;
@@ -61,6 +64,8 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
   activeCueType = null,
   onToggleSmartVocalCue,
   bpm,
+  detectedKey = 'Am',
+  pitchShift = 0,
   syncDelay = 0.0,
   onUpdateSyncDelay,
   isDuetMode = false,
@@ -190,7 +195,41 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                 </span>
               )}
             </h1>
-            {songArtist && <p className="text-sm font-medium text-slate-400">{songArtist}</p>}
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {songArtist && <p className="text-sm font-medium text-slate-400 mr-1">{songArtist}</p>}
+
+              {/* BPM Capsule */}
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-inner shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]" />
+                <span className="text-xs font-mono font-black text-white tracking-tight">
+                  {bpm || 120}
+                </span>
+                <span className="text-[9px] font-mono font-extrabold text-[#00f0ff] tracking-wider">
+                  BPM
+                </span>
+              </div>
+
+              {/* Escala / Tono Capsule */}
+              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-slate-950/80 border transition-all shadow-inner shrink-0 ${
+                pitchShift !== 0
+                  ? 'border-[#ff007f]/50 shadow-[0_0_12px_rgba(255,0,127,0.2)]'
+                  : 'border-slate-800'
+              }`}>
+                <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider text-slate-400">
+                  ESCALA
+                </span>
+                <span className={`text-xs font-mono font-black ${pitchShift !== 0 ? 'text-[#ff007f]' : 'text-amber-300'}`}>
+                  {detectedKey ? transposeKey(detectedKey, pitchShift || 0) : 'Am'}
+                </span>
+                <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded ${
+                  !pitchShift || pitchShift === 0
+                    ? 'bg-slate-800 text-slate-400'
+                    : 'bg-[#ff007f]/20 text-[#ff007f] font-black'
+                }`}>
+                  {!pitchShift || pitchShift === 0 ? 'ORG' : `${pitchShift > 0 ? '+' : ''}${pitchShift}`}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

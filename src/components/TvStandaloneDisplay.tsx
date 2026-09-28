@@ -3,6 +3,7 @@ import { tvBroadcast, TvStatePayload } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
 import { cleanLyricText, resolveArtistInfo } from '../services/lrcParser';
+import { transposeKey } from '../services/dspAnalysis';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
 import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
@@ -202,6 +203,9 @@ export const TvStandaloneDisplay: React.FC = () => {
     nextSongRequestedBy,
     isDuetMode,
     youTubeEmbedId,
+    bpm = 120,
+    detectedKey = 'Am',
+    pitchShift = 0,
   } = tvState || {};
 
   const safeLyrics = Array.isArray(lyrics) ? lyrics : [];
@@ -361,9 +365,43 @@ export const TvStandaloneDisplay: React.FC = () => {
             <h1 className="text-xl sm:text-2xl font-black text-white truncate max-w-xl">
               {songTitle || 'Selecciona una Canción'}
             </h1>
-            <p className="text-xs font-mono text-cyan-400 font-bold">
-              {songArtist || 'KaraokeLab TV'}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs font-mono text-cyan-400 font-bold truncate max-w-xs">
+                {songArtist || 'KaraokeLab TV'}
+              </p>
+
+              {/* BPM Capsule */}
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-inner shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]" />
+                <span className="text-xs font-mono font-black text-white tracking-tight">
+                  {bpm || 120}
+                </span>
+                <span className="text-[9px] font-mono font-extrabold text-[#00f0ff] tracking-wider">
+                  BPM
+                </span>
+              </div>
+
+              {/* Escala / Tono Capsule */}
+              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-slate-950/80 border transition-all shadow-inner shrink-0 ${
+                pitchShift !== 0
+                  ? 'border-[#ff007f]/50 shadow-[0_0_12px_rgba(255,0,127,0.2)]'
+                  : 'border-slate-800'
+              }`}>
+                <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider text-slate-400">
+                  ESCALA
+                </span>
+                <span className={`text-xs font-mono font-black ${pitchShift !== 0 ? 'text-[#ff007f]' : 'text-amber-300'}`}>
+                  {detectedKey ? transposeKey(detectedKey, pitchShift || 0) : 'Am'}
+                </span>
+                <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded ${
+                  !pitchShift || pitchShift === 0
+                    ? 'bg-slate-800 text-slate-400'
+                    : 'bg-[#ff007f]/20 text-[#ff007f] font-black'
+                }`}>
+                  {!pitchShift || pitchShift === 0 ? 'ORG' : `${pitchShift > 0 ? '+' : ''}${pitchShift}`}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

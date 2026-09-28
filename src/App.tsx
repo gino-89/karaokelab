@@ -925,15 +925,17 @@ export default function App() {
   const lastBroadcastRef = useRef<number>(0);
   const lastFullSyncRef = useRef<number>(0);
   const lastSongIdRef = useRef<string | null>(null);
+  const lastPitchShiftRef = useRef<number>(0);
 
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
       const now = performance.now();
       const isNewSong = currentSong?.id !== lastSongIdRef.current;
-      const isFullSyncNeeded = isNewSong || (now - lastFullSyncRef.current >= 2500) || !isPlaying;
+      const isPitchChanged = pitchShift !== lastPitchShiftRef.current;
+      const isFullSyncNeeded = isNewSong || isPitchChanged || (now - lastFullSyncRef.current >= 2500) || !isPlaying;
 
       // Broadcast every 60ms-80ms for ultra-smooth lyric tracking
-      if (now - lastBroadcastRef.current >= 60 || isNewSong || !isPlaying) {
+      if (now - lastBroadcastRef.current >= 60 || isNewSong || isPitchChanged || !isPlaying) {
         lastBroadcastRef.current = now;
         const activeProf = profiles.find((p) => p.id === activeProfileId);
         const nextQueueItem = queue[0];
@@ -952,6 +954,7 @@ export default function App() {
         if (isFullSyncNeeded || isIntermission) {
           lastFullSyncRef.current = now;
           lastSongIdRef.current = targetSong?.id || null;
+          lastPitchShiftRef.current = pitchShift;
 
           // Full state payload (sent on song change, play/pause, or periodic 2.5s heartbeat)
           const fullPayload = {
@@ -969,7 +972,9 @@ export default function App() {
             nextSongArtist: nextQueueItem?.songData?.artist,
             nextSongRequestedBy: nextQueueItem?.requestedBy,
             scoreModalState: scoreModalState.isOpen ? scoreModalState : null,
-            bpm: targetSong?.bpm || 120,
+            bpm: targetSong?.bpm || bpm || 120,
+            detectedKey: targetSong?.key || detectedKey || 'Am',
+            pitchShift: pitchShift || 0,
             isDuetMode,
             youTubeEmbedId: targetYtId,
             videoBgConfig: targetVideoBgConfig,
@@ -1010,6 +1015,9 @@ export default function App() {
     youTubeEmbedId,
     videoBgConfig,
     scoreModalState,
+    bpm,
+    detectedKey,
+    pitchShift,
   ]);
 
   if (isTvDisplayMode) {
@@ -2766,6 +2774,8 @@ export default function App() {
           });
         }}
         bpm={bpm}
+        detectedKey={detectedKey}
+        pitchShift={pitchShift}
         syncDelay={syncDelay}
         onUpdateSyncDelay={handleUpdateSyncDelay}
         isDuetMode={isDuetMode}
