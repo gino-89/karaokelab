@@ -387,8 +387,8 @@ export const TvStandaloneDisplay: React.FC = () => {
                   ? 'border-[#ff007f]/50 shadow-[0_0_12px_rgba(255,0,127,0.2)]'
                   : 'border-slate-800'
               }`}>
-                <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider text-slate-400">
-                  ESCALA
+                <span className="text-[9px] font-mono font-extrabold tracking-wider text-slate-400">
+                  Tono:
                 </span>
                 <span className={`text-xs font-mono font-black ${pitchShift !== 0 ? 'text-[#ff007f]' : 'text-amber-300'}`}>
                   {detectedKey ? transposeKey(detectedKey, pitchShift || 0) : 'Am'}
