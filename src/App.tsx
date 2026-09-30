@@ -1309,7 +1309,17 @@ export default function App() {
           const vocArrayBuf = await song.stems.vocalsBlob.arrayBuffer();
           vocBuf = await audioEngine.decodeAudio(vocArrayBuf.slice(0));
         }
-        audioEngine.setStemBuffers(instBuf, vocBuf);
+        let backingBuf: AudioBuffer | null = null;
+        if (song.stems.backingBlob) {
+          try {
+            const backingArrayBuf = await song.stems.backingBlob.arrayBuffer();
+            backingBuf = await audioEngine.decodeAudio(backingArrayBuf.slice(0));
+          } catch (bErr) {
+            console.warn('Error decodificando coros:', bErr);
+          }
+        }
+        audioEngine.setStemBuffers(instBuf, vocBuf, backingBuf);
+        audioEngine.setBackingGain(isCleanTrack ? 0.0 : 1.0);
         durationVal = instBuf.duration;
 
         // Auto-Gain Loudness Calibration (RMS)
@@ -1835,14 +1845,14 @@ export default function App() {
     });
   };
 
-  // 6. Handle File Uploads (Drag & Drop or Input)
-  const handleFilesSelected = (files: FileList | File[]) => {
+  // 6. Handle File Uploads (Drag & Drop or Input - Native 3-Stem & Folder Support)
+  const handleFilesSelected = async (files: FileList | File[]) => {
     const fileList = Array.from(files);
     if (fileList.length === 0) return;
 
-    // Check for .lrc file
-    const lrcFile = fileList.find((f) => f.name.toLowerCase().endsWith('.lrc'));
-    if (lrcFile) {
+    // Check if it's ONLY a single .lrc file dropped on the player
+    if (fileList.length === 1 && fileList[0].name.toLowerCase().endsWith('.lrc')) {
+      const lrcFile = fileList[0];
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
@@ -1859,12 +1869,263 @@ export default function App() {
         }
       };
       reader.readAsText(lrcFile);
+      return;
     }
 
-    // Process all audio files directly (loads 1st, saves all to library, NO queue additions)
-    const audioFiles = fileList.filter((f) => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac)$/i.test(f.name));
-    if (audioFiles.length > 0) {
-      processBatchAudioFiles(audioFiles);
+    // Group files by relative folder or stem base name
+    interface RawSongPackage {
+      groupKey: string;
+      folderName: string;
+      jsonFile?: File;
+      lrcFile?: File;
+      instrumentalFile?: File;
+      corosFile?: File;
+      vocalsFile?: File;
+      otherAudioFiles: File[];
+    }
+
+    const packageMap = new Map<string, RawSongPackage>();
+
+    for (const f of fileList) {
+      const relPath = (f as any).webkitRelativePath || '';
+      let groupKey = '';
+      let folderName = '';
+
+      if (relPath.includes('/')) {
+        const parts = relPath.split('/');
+        parts.pop();
+        groupKey = parts.join('/');
+        folderName = parts[parts.length - 1];
+      } else {
+        const nameNoExt = f.name.replace(/\.[^/.]+$/, '');
+        const stemMatch = nameNoExt.match(/^(.*?)\s*[-_]\s*(instrumental|coros|backing|vocals?|voz)$/i);
+        if (stemMatch) {
+          groupKey = stemMatch[1].trim().toLowerCase();
+          folderName = stemMatch[1].trim();
+        } else if (f.name.toLowerCase() === 'song.json') {
+          groupKey = '_root_song_json';
+          folderName = '';
+        } else if (f.name.toLowerCase().endsWith('.lrc')) {
+          groupKey = nameNoExt.trim().toLowerCase();
+          folderName = nameNoExt.trim();
+        } else {
+          groupKey = `single_${f.name}`;
+          folderName = nameNoExt;
+        }
+      }
+
+      if (!packageMap.has(groupKey)) {
+        packageMap.set(groupKey, {
+          groupKey,
+          folderName,
+          otherAudioFiles: [],
+        });
+      }
+      const pkg = packageMap.get(groupKey)!;
+
+      const lowerName = f.name.toLowerCase();
+      if (lowerName === 'song.json' || (lowerName.endsWith('.json') && !lowerName.includes('manifest'))) {
+        pkg.jsonFile = f;
+      } else if (lowerName.endsWith('.lrc')) {
+        pkg.lrcFile = f;
+      } else if (/\.(mp3|wav|ogg|m4a|flac)$/i.test(lowerName)) {
+        if (/(^|[ _.-])(instrumental|pista)(\.[a-z0-9]+)$/i.test(lowerName)) {
+          pkg.instrumentalFile = f;
+        } else if (/(^|[ _.-])(coros?|backing(\s*vocals?)?|adlibs?)(\.[a-z0-9]+)$/i.test(lowerName)) {
+          pkg.corosFile = f;
+        } else if (/(^|[ _.-])(vocals?|voz)(\.[a-z0-9]+)$/i.test(lowerName)) {
+          pkg.vocalsFile = f;
+        } else {
+          pkg.otherAudioFiles.push(f);
+        }
+      }
+    }
+
+    const packages = Array.from(packageMap.values());
+    const stemPackages: RawSongPackage[] = [];
+    const plainAudioFiles: File[] = [];
+
+    for (const pkg of packages) {
+      if (pkg.corosFile || pkg.vocalsFile || pkg.jsonFile || (pkg.instrumentalFile && pkg.lrcFile)) {
+        stemPackages.push(pkg);
+      } else {
+        if (pkg.instrumentalFile) plainAudioFiles.push(pkg.instrumentalFile);
+        if (pkg.otherAudioFiles.length > 0) plainAudioFiles.push(...pkg.otherAudioFiles);
+      }
+    }
+
+    // Process stemPackages (Instant official 3-stem detection: Instrumental + Coros + Vocals)
+    if (stemPackages.length > 0) {
+      const totalCount = stemPackages.length;
+      for (let i = 0; i < totalCount; i++) {
+        const pkg = stemPackages[i];
+        const isFirst = i === 0 && !currentSong;
+
+        let jsonMeta: any = null;
+        if (pkg.jsonFile) {
+          try {
+            jsonMeta = JSON.parse(await pkg.jsonFile.text());
+          } catch (_) {}
+        }
+
+        // Match audio files from json if not matched by filename
+        if (jsonMeta) {
+          if (!pkg.instrumentalFile && jsonMeta.audioFile) {
+            const target = jsonMeta.audioFile.split('/').pop().toLowerCase();
+            pkg.instrumentalFile = pkg.otherAudioFiles.find((f) => f.name.toLowerCase() === target);
+          }
+          if (!pkg.vocalsFile && jsonMeta.vocalsFile) {
+            const target = jsonMeta.vocalsFile.split('/').pop().toLowerCase();
+            pkg.vocalsFile = pkg.otherAudioFiles.find((f) => f.name.toLowerCase() === target);
+          }
+          if (!pkg.corosFile && (jsonMeta.backingVocalsFile || jsonMeta.hasBackingVocals)) {
+            const target = (jsonMeta.backingVocalsFile || 'coros.mp3').split('/').pop().toLowerCase();
+            pkg.corosFile = pkg.otherAudioFiles.find((f) => f.name.toLowerCase() === target || f.name.toLowerCase().includes('coros') || f.name.toLowerCase().includes('backing'));
+          }
+        }
+
+        if (!pkg.instrumentalFile && pkg.otherAudioFiles.length > 0) {
+          pkg.instrumentalFile = pkg.otherAudioFiles.shift();
+        }
+
+        const mainAudio = pkg.instrumentalFile || pkg.otherAudioFiles[0] || pkg.vocalsFile;
+        if (!mainAudio) continue;
+
+        const candidateName = jsonMeta?.title || pkg.folderName || mainAudio.name.replace(/\.[^/.]+$/, '');
+        const cleanInfo = cleanSongFilename(candidateName);
+        const finalTitle = jsonMeta?.title || cleanInfo.title || cleanInfo.query || candidateName;
+        const finalArtist = jsonMeta?.artist || cleanInfo.artist || 'Desconocido';
+
+        setDirectUploadProgress({
+          isProcessing: true,
+          fileName: `${finalTitle} (${[pkg.instrumentalFile ? 'Instrumental' : '', pkg.corosFile ? 'Coros' : '', pkg.vocalsFile ? 'Voz' : ''].filter(Boolean).join(' + ') || 'Audio'})`,
+          progress: 25,
+          step: 'Decodificando pistas oficiales de estudio...',
+          currentIndex: i + 1,
+          totalCount,
+        });
+
+        try {
+          const instArr = await mainAudio.arrayBuffer();
+          const instBuf = await audioEngine.decodeAudio(instArr.slice(0));
+
+          let vocBuf: AudioBuffer | null = null;
+          if (pkg.vocalsFile) {
+            try {
+              const vocArr = await pkg.vocalsFile.arrayBuffer();
+              vocBuf = await audioEngine.decodeAudio(vocArr.slice(0));
+            } catch (_) {}
+          }
+
+          let backBuf: AudioBuffer | null = null;
+          if (pkg.corosFile) {
+            try {
+              const backArr = await pkg.corosFile.arrayBuffer();
+              backBuf = await audioEngine.decodeAudio(backArr.slice(0));
+            } catch (_) {}
+          }
+
+          let finalBpm = jsonMeta?.bpm;
+          let finalKey = jsonMeta?.key;
+          if (!finalBpm || !finalKey) {
+            const detected = await analyzeStudioBPMAndKey(instBuf, mainAudio);
+            finalBpm = finalBpm || detected.bpm;
+            finalKey = finalKey || detected.key;
+          }
+
+          let finalLyrics: LyricLine[] = jsonMeta?.lyrics || [];
+          let finalRawLrc = jsonMeta?.rawLrc;
+
+          if (finalLyrics.length === 0 && pkg.lrcFile) {
+            try {
+              const lrcText = await pkg.lrcFile.text();
+              finalLyrics = parseLRC(lrcText);
+              finalRawLrc = lrcText;
+            } catch (_) {}
+          }
+
+          if (finalLyrics.length === 0) {
+            try {
+              const lyricsDiscovery = await discoverSongLyricsWithRoles(finalTitle, finalArtist, instBuf.duration);
+              finalLyrics = lyricsDiscovery.lyrics;
+              finalRawLrc = lyricsDiscovery.rawLrc;
+            } catch (_) {}
+          }
+
+          if (finalLyrics.length === 0) {
+            const phrases = vocBuf ? detectVocalPhrases(vocBuf) : [];
+            finalLyrics = generateGenericLyrics(finalTitle, finalArtist, instBuf.duration, phrases);
+          }
+
+          const hasCoros = Boolean(pkg.corosFile || jsonMeta?.hasBackingVocals);
+
+          const songData: SongItem = {
+            id: jsonMeta?.id || `song_stem_${Date.now()}_${Math.random().toString(36).substr(2, 6)}_${i}`,
+            title: finalTitle,
+            artist: finalArtist,
+            album: jsonMeta?.album || '',
+            duration: instBuf.duration,
+            bpm: finalBpm || 120,
+            key: finalKey || 'Am',
+            rawLrc: finalRawLrc,
+            lyrics: finalLyrics,
+            originalFileName: mainAudio.name,
+            audioBlob: mainAudio,
+            stems: {
+              instrumentalBlob: mainAudio,
+              vocalsBlob: pkg.vocalsFile,
+              backingBlob: pkg.corosFile,
+            },
+            hasBackingVocals: hasCoros,
+            backingVocalsFile: pkg.corosFile ? pkg.corosFile.name : jsonMeta?.backingVocalsFile,
+            genre: jsonMeta?.genre || 'General',
+            artistsList: jsonMeta?.artistsList,
+            syncOffset: jsonMeta?.syncOffset,
+            isDuet: jsonMeta?.isDuet,
+            videoBgId: jsonMeta?.videoBgId,
+            videoBgTitle: jsonMeta?.videoBgTitle,
+            videoBgMode: jsonMeta?.videoBgMode,
+            videoBgCustomUrl: jsonMeta?.videoBgCustomUrl,
+            vocalAutomation: jsonMeta?.vocalAutomation,
+            gainDb: jsonMeta?.gainDb,
+            createdAt: jsonMeta?.createdAt || Date.now(),
+            updatedAt: jsonMeta?.updatedAt || Date.now(),
+          };
+
+          await saveSongToDB(songData);
+          setSavedSongs((prev) => [songData, ...prev.filter((s) => s.id !== songData.id)]);
+
+          if (isFirst) {
+            audioEngine.setStemBuffers(instBuf, vocBuf, backBuf);
+            audioEngine.setBackingGain(isCleanTrack ? 0.0 : 1.0);
+            setCurrentSong(songData);
+            setDuration(instBuf.duration);
+            setBpm(songData.bpm);
+            setDetectedKey(songData.key);
+            setLyrics(finalLyrics);
+            setCurrentTime(0);
+            setCurrentIndex(-1);
+          }
+        } catch (err) {
+          console.error('Error procesando paquete multi-pista:', err);
+        }
+      }
+
+      setDirectUploadProgress({
+        isProcessing: false,
+        fileName: '',
+        progress: 100,
+        step: '',
+        currentIndex: 1,
+        totalCount: 1,
+      });
+
+      showAlertToast(`✓ ${stemPackages.length} canciones con pistas oficiales importadas.`);
+    }
+
+    // Process any remaining plain audio files
+    if (plainAudioFiles.length > 0) {
+      processBatchAudioFiles(plainAudioFiles);
     }
   };
 
@@ -2241,6 +2502,7 @@ export default function App() {
       setIsSmartVocalCue(false);
       setActiveCueType(null);
       setIsCleanTrack(false);
+      audioEngine.setBackingGain(1.0);
     } else {
       if (currentSong?.vocalAutomation) {
         audioEngine.setVocalAutomationConfig(currentSong.vocalAutomation);
@@ -2254,13 +2516,15 @@ export default function App() {
     setIsCleanTrack((prev) => {
       const next = !prev;
       if (next) {
-        // Al Activar (ON): fuerza la voz a 0, apaga y desactiva visualmente Voz Guía y Guía Coros
+        // Al Activar (ON): silencia coros (mute = 0), fuerza voz a 0, apaga y desactiva Voz Guía y Guía Coros
+        audioEngine.setBackingGain(0.0);
         setVocalGain(0.0);
         audioEngine.setVocalGain(0.0);
         setIsSmartVocalCue(false);
         setActiveCueType(null);
       } else {
-        // Al Desactivar (OFF): restaura las curvas y volumen propio de la canción sin encender artificialmente los otros dos
+        // Al Desactivar (OFF): vuelve a sonar Coros.mp3 a 100% (1.0)
+        audioEngine.setBackingGain(1.0);
         if (currentSong?.vocalAutomation) {
           audioEngine.setVocalAutomationConfig(currentSong.vocalAutomation);
         }
@@ -2598,9 +2862,10 @@ export default function App() {
               onToggleVocalGuide={() => {
                 const nextGain = vocalGain > 0.05 ? 0.0 : 0.40;
                 if (nextGain > 0.05) {
-                  // Apagar Guía Coros cuando se activa Dueto (40%)
                   setIsSmartVocalCue(false);
                   setActiveCueType(null);
+                  setIsCleanTrack(false);
+                  audioEngine.setBackingGain(1.0);
                 }
                 handleVocalGainChange(nextGain);
               }}
@@ -2610,7 +2875,8 @@ export default function App() {
                 setIsSmartVocalCue((prev) => {
                   const next = !prev;
                   if (next) {
-                    // Apagar Dueto (volumen de voz a 0) cuando se activa Guía Coros
+                    setIsCleanTrack(false);
+                    audioEngine.setBackingGain(1.0);
                     handleVocalGainChange(0.0);
                   } else {
                     audioEngine.setVocalGain(0.0);

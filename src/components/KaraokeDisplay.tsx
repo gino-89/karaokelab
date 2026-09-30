@@ -1716,36 +1716,30 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 <button
                   type="button"
                   onClick={onToggleVocalGuide}
-                  disabled={isCleanTrack}
                   style={{ touchAction: 'manipulation' }}
-                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate ${
-                    isCleanTrack
-                      ? 'border-slate-800/80 bg-slate-950/60 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
-                      : vocalGain > 0.05
-                      ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.4)] font-black cursor-pointer'
-                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600 cursor-pointer'
+                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate cursor-pointer ${
+                    !isCleanTrack && vocalGain > 0.05
+                      ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.4)] font-black'
+                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
                   }`}
-                  title={isCleanTrack ? 'Voz Guía desactivada en modo Pista Limpia' : 'Voz Guía: Activa la voz original del artista al 40% de volumen para acompañar tu canto'}
+                  title="Voz Guía (40%): Activa la voz original del artista al 40% de volumen continuo"
                 >
                   <Mic className={`w-3 h-3 shrink-0 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-300 animate-pulse' : 'text-slate-500'}`} />
                   <span className="truncate">
-                    {!isCleanTrack && vocalGain > 0.05 ? 'Voz Guía ON' : 'Voz Guía'}
+                    {!isCleanTrack && vocalGain > 0.05 ? 'Voz Guía: 40%' : 'Voz Guía (40%)'}
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={onToggleSmartVocalCue}
-                  disabled={isCleanTrack}
                   style={{ touchAction: 'manipulation' }}
-                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate ${
-                    isCleanTrack
-                      ? 'border-slate-800/80 bg-slate-950/60 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
-                      : isSmartVocalCue
-                      ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.4)] font-black cursor-pointer'
-                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600 cursor-pointer'
+                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate cursor-pointer ${
+                    !isCleanTrack && isSmartVocalCue
+                      ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.4)] font-black'
+                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
                   }`}
-                  title={isCleanTrack ? 'Guía Coros desactivada en modo Pista Limpia' : 'Guía Coros: Activa la voz original automáticamente solo en entradas de versos y coros'}
+                  title="Guía Coros: Activa la voz original automáticamente en entradas y coros"
                 >
                   <Sparkles className={`w-3 h-3 shrink-0 ${!isCleanTrack && isSmartVocalCue ? 'text-indigo-300 animate-spin' : 'text-slate-500'}`} />
                   <span className="truncate">
@@ -1754,7 +1748,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 </button>
               </div>
 
-              {/* Botón Maestro "Pista Limpia" (Bypass de Voz) debajo de los dos */}
+              {/* Botón Maestro "Pista Limpia" (Bypass de Voz y Silencio de Coros) */}
               <button
                 type="button"
                 onClick={onToggleCleanTrack}
@@ -1764,7 +1758,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                     ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.4)] font-black ring-1 ring-emerald-400/50'
                     : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
                 }`}
-                title="Pista Limpia: Fuerza 100% instrumental sin voz original ni guías"
+                title="Pista Limpia: Silencia los coros y voz original para que suene únicamente la instrumental pura"
               >
                 <Sparkles className={`w-3 h-3 shrink-0 ${isCleanTrack ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
                 <span className="truncate">

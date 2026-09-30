@@ -22,6 +22,7 @@ export interface LyricLine {
 export interface AudioStems {
   instrumentalBlob?: Blob; // Pista Karaoke (Instrumental sin voz)
   vocalsBlob?: Blob;       // Voz aislada
+  backingBlob?: Blob;      // Pista de Coros y Adlibs unificados
   bassBlob?: Blob;         // Pista de Bajo / Batería
 }
 
@@ -96,6 +97,8 @@ export interface SongItem {
   originalFileName: string;
   audioBlob?: Blob;
   stems?: AudioStems;
+  hasBackingVocals?: boolean;
+  backingVocalsFile?: string;
   genre?: string;
   artistsList?: ArtistRole[];
   syncOffset?: number;

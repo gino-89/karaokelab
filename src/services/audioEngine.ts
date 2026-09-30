@@ -14,14 +14,17 @@ export class AudioEngine {
   private audioBuffer: AudioBuffer | null = null;
   private instrumentalBuffer: AudioBuffer | null = null;
   private vocalsBuffer: AudioBuffer | null = null;
+  private backingBuffer: AudioBuffer | null = null;
 
   // SoundTouch PitchShifters
   private instrumentalPitchShifter: PitchShifter | null = null;
   private vocalPitchShifter: PitchShifter | null = null;
+  private backingPitchShifter: PitchShifter | null = null;
   private singlePitchShifter: PitchShifter | null = null;
 
   // Nodes for Mixing & Gain Control
   private vocalGainNode: GainNode | null = null;
+  private backingGainNode: GainNode | null = null;
   private musicGainNode: GainNode | null = null;
   private trackGainNode: GainNode | null = null;
   private masterGainNode: GainNode | null = null;
@@ -51,6 +54,7 @@ export class AudioEngine {
   // Volume gains
   private vocalGain = 1.0;
   private targetVocalGain = 1.0;
+  private backingGain = 1.0;
   private musicGain = 1.0;
   private masterGain = 1.0;
   private micGain = 1.0;
@@ -234,6 +238,7 @@ export class AudioEngine {
         const currentAudioBuf = this.audioBuffer;
         const currentInstBuf = this.instrumentalBuffer;
         const currentVocBuf = this.vocalsBuffer;
+        const currentBackBuf = this.backingBuffer;
 
         this.ctx.close().catch(() => {});
         this.ctx = new AudioContextClass({ latencyHint: mode });
@@ -244,8 +249,8 @@ export class AudioEngine {
         };
         this.initNodes();
 
-        if (currentInstBuf && currentVocBuf) {
-          this.setStemBuffers(currentInstBuf, currentVocBuf);
+        if (currentInstBuf) {
+          this.setStemBuffers(currentInstBuf, currentVocBuf, currentBackBuf);
         } else if (currentAudioBuf) {
           this.setAudioBuffer(currentAudioBuf);
         }
@@ -325,6 +330,11 @@ export class AudioEngine {
       this.vocalGainNode.gain.setValueAtTime(this.vocalGain, this.ctx.currentTime);
       this.vocalGainNode.connect(this.trackGainNode);
     }
+    if (!this.backingGainNode) {
+      this.backingGainNode = this.ctx.createGain();
+      this.backingGainNode.gain.setValueAtTime(this.backingGain, this.ctx.currentTime);
+      this.backingGainNode.connect(this.trackGainNode);
+    }
     if (!this.musicGainNode) {
       this.musicGainNode = this.ctx.createGain();
       this.musicGainNode.gain.setValueAtTime(this.musicGain, this.ctx.currentTime);
@@ -365,6 +375,7 @@ export class AudioEngine {
     this.audioBuffer = null;
     this.instrumentalBuffer = null;
     this.vocalsBuffer = null;
+    this.backingBuffer = null;
     this.pauseOffset = 0;
   }
 
@@ -373,14 +384,20 @@ export class AudioEngine {
     this.audioBuffer = buffer;
     this.instrumentalBuffer = null;
     this.vocalsBuffer = null;
+    this.backingBuffer = null;
     this.pauseOffset = 0;
     this.loopEnd = buffer.duration;
   }
 
-  public setStemBuffers(instrumental: AudioBuffer | null, vocals: AudioBuffer | null) {
+  public setStemBuffers(
+    instrumental: AudioBuffer | null,
+    vocals: AudioBuffer | null,
+    backing?: AudioBuffer | null
+  ) {
     this.stop();
     this.instrumentalBuffer = instrumental;
     this.vocalsBuffer = vocals;
+    this.backingBuffer = backing || null;
     if (instrumental) {
       this.audioBuffer = instrumental;
       this.loopEnd = instrumental.duration;
@@ -401,6 +418,24 @@ export class AudioEngine {
 
   public getVocalsBuffer(): AudioBuffer | null {
     return this.vocalsBuffer;
+  }
+
+  public getBackingBuffer(): AudioBuffer | null {
+    return this.backingBuffer;
+  }
+
+  public setBackingGain(val: number) {
+    this.backingGain = Math.max(0, Math.min(2.0, val));
+    if (this.backingGainNode && this.ctx) {
+      try {
+        this.backingGainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.backingGainNode.gain.setValueAtTime(this.backingGain, this.ctx.currentTime);
+      } catch (_) {}
+    }
+  }
+
+  public getBackingGain(): number {
+    return this.backingGain;
   }
 
   /**
@@ -489,11 +524,25 @@ export class AudioEngine {
         this.vocalPitchShifter.connect(this.vocalGainNode!);
       }
 
+      if (this.backingBuffer) {
+        this.backingPitchShifter = new PitchShifter(
+          ctx,
+          this.backingBuffer,
+          4096
+        );
+        this.backingPitchShifter.tempo = 1.0;
+        this.backingPitchShifter.pitchSemitones = this.pitchShiftSemitones;
+        this.backingPitchShifter.connect(this.backingGainNode!);
+      }
+
       if (startPos > 0 && dur > 0) {
         const ratio = Math.max(0, Math.min(0.999, startPos / dur));
         this.instrumentalPitchShifter.percentagePlayed = ratio;
         if (this.vocalPitchShifter) {
           this.vocalPitchShifter.percentagePlayed = ratio;
+        }
+        if (this.backingPitchShifter) {
+          this.backingPitchShifter.percentagePlayed = ratio;
         }
       }
 
@@ -546,6 +595,7 @@ export class AudioEngine {
     this.stopSource();
     this.audioBuffer = null;
     this.vocalsBuffer = null;
+    this.backingBuffer = null;
     this.instrumentalBuffer = null;
     this.pauseOffset = 0;
     this.isPlaying = false;
@@ -564,6 +614,12 @@ export class AudioEngine {
         this.vocalPitchShifter.disconnect();
       } catch (_) {}
       this.vocalPitchShifter = null;
+    }
+    if (this.backingPitchShifter) {
+      try {
+        this.backingPitchShifter.disconnect();
+      } catch (_) {}
+      this.backingPitchShifter = null;
     }
     if (this.singlePitchShifter) {
       try {
@@ -598,6 +654,10 @@ export class AudioEngine {
     if (this.vocalPitchShifter) {
       this.vocalPitchShifter.tempo = 1.0;
       this.vocalPitchShifter.pitchSemitones = semitones;
+    }
+    if (this.backingPitchShifter) {
+      this.backingPitchShifter.tempo = 1.0;
+      this.backingPitchShifter.pitchSemitones = semitones;
     }
     if (this.singlePitchShifter) {
       this.singlePitchShifter.tempo = 1.0;

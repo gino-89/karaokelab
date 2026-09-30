@@ -195,6 +195,11 @@ export async function exportFullLibraryWithAudioZip(
         songFolder.file('vocals.mp3', mp3Blob);
       }
 
+      if (song.stems?.backingBlob) {
+        const mp3Blob = await convertWavBlobToMp3_320kbps(song.stems.backingBlob);
+        songFolder.file('coros.mp3', mp3Blob);
+      }
+
       // 4. Formatted LRC Lyrics
       const lrcContent = formatLRC(song.lyrics || []);
       songFolder.file('lyrics.lrc', lrcContent);
@@ -216,6 +221,8 @@ export async function exportFullLibraryWithAudioZip(
         videoBgMode: song.videoBgMode,
         videoBgCustomUrl: song.videoBgCustomUrl,
         vocalAutomation: song.vocalAutomation,
+        hasBackingVocals: !!song.stems?.backingBlob || song.hasBackingVocals || false,
+        backingVocalsFile: song.stems?.backingBlob ? 'coros.mp3' : song.backingVocalsFile,
         rawLrc: song.rawLrc,
         lyrics: song.lyrics || [],
         originalFileName: song.originalFileName,
@@ -342,6 +349,11 @@ export async function updateExistingZipWithSongs(
       if (song.stems?.vocalsBlob) {
         const mp3Blob = await convertWavBlobToMp3_320kbps(song.stems.vocalsBlob);
         songFolder.file('vocals.mp3', mp3Blob);
+      }
+
+      if (song.stems?.backingBlob) {
+        const mp3Blob = await convertWavBlobToMp3_320kbps(song.stems.backingBlob);
+        songFolder.file('coros.mp3', mp3Blob);
       }
 
       const lrcContent = formatLRC(song.lyrics || []);
@@ -612,6 +624,7 @@ async function importLibraryFromZip(
 
         let instrumentalBlob: Blob | undefined;
         let vocalsBlob: Blob | undefined;
+        let backingBlob: Blob | undefined;
         let bassBlob: Blob | undefined;
         let genericAudioBlob: Blob | undefined;
 
@@ -624,6 +637,8 @@ async function importLibraryFromZip(
 
           if (fileName.includes('instrumental')) {
             instrumentalBlob = await fObj.async('blob');
+          } else if (fileName.includes('coros') || fileName.includes('backing')) {
+            backingBlob = await fObj.async('blob');
           } else if (fileName.includes('vocal') || fileName.includes('voz')) {
             vocalsBlob = await fObj.async('blob');
           } else if (fileName.includes('bass') || fileName.includes('bajo')) {
@@ -638,6 +653,11 @@ async function importLibraryFromZip(
           const vName = songMeta.vocalsFile.split('/').pop() || songMeta.vocalsFile;
           const vFile = zip.file(`${folderPrefix}${vName}`) || zip.file(songMeta.vocalsFile) || zip.file(`${folderPrefix}vocals.mp3`) || zip.file(`${folderPrefix}vocal.mp3`);
           if (vFile) vocalsBlob = await vFile.async('blob');
+        }
+        if (!backingBlob && ((songMeta as any).backingVocalsFile || (songMeta as any).hasBackingVocals)) {
+          const bName = (songMeta as any).backingVocalsFile?.split('/').pop() || 'coros.mp3';
+          const bFile = zip.file(`${folderPrefix}${bName}`) || zip.file((songMeta as any).backingVocalsFile || '') || zip.file(`${folderPrefix}coros.mp3`) || zip.file(`${folderPrefix}backing.mp3`);
+          if (bFile) backingBlob = await bFile.async('blob');
         }
         if (!instrumentalBlob && songMeta.audioFile) {
           const aName = songMeta.audioFile.split('/').pop() || songMeta.audioFile;
@@ -683,13 +703,16 @@ async function importLibraryFromZip(
             rawLrc: songMeta.rawLrc || existing.rawLrc,
             audioBlob: genericAudioBlob || existing.audioBlob,
             stems:
-              instrumentalBlob || vocalsBlob || bassBlob
+              instrumentalBlob || vocalsBlob || backingBlob || bassBlob
                 ? {
                     instrumentalBlob: instrumentalBlob || existing.stems?.instrumentalBlob,
                     vocalsBlob: vocalsBlob || existing.stems?.vocalsBlob,
+                    backingBlob: backingBlob || existing.stems?.backingBlob,
                     bassBlob: bassBlob || existing.stems?.bassBlob,
                   }
                 : existing.stems,
+            hasBackingVocals: !!backingBlob || !!existing.stems?.backingBlob || (songMeta as any).hasBackingVocals || false,
+            backingVocalsFile: (songMeta as any).backingVocalsFile || (backingBlob ? 'coros.mp3' : existing.backingVocalsFile),
             updatedAt: songMeta.updatedAt || Date.now(),
           };
           await saveSongToDB(updated);
@@ -720,13 +743,16 @@ async function importLibraryFromZip(
             updatedAt: songMeta.updatedAt || songMeta.createdAt || Date.now(),
             audioBlob: genericAudioBlob || instrumentalBlob,
             stems:
-              instrumentalBlob || vocalsBlob || bassBlob
+              instrumentalBlob || vocalsBlob || backingBlob || bassBlob
                 ? {
                     instrumentalBlob,
                     vocalsBlob,
+                    backingBlob,
                     bassBlob,
                   }
                 : undefined,
+            hasBackingVocals: !!backingBlob || (songMeta as any).hasBackingVocals || false,
+            backingVocalsFile: (songMeta as any).backingVocalsFile || (backingBlob ? 'coros.mp3' : undefined),
           };
           await saveSongToDB(newSong);
           mergedSongs.push(newSong);

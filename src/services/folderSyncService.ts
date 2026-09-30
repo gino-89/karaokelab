@@ -414,6 +414,15 @@ export async function syncSongsToFolder(
           await vocWritable.write(vocBlob);
           await vocWritable.close();
         }
+
+        // 2.5 Write Coros / Backing Vocals stem if present
+        if (song.stems?.backingBlob) {
+          const corosBlob = await convertWavBlobToMp3_320kbps(song.stems.backingBlob);
+          const corosHandle = await songDirHandle.getFileHandle('coros.mp3', { create: true });
+          const corosWritable = await corosHandle.createWritable();
+          await corosWritable.write(corosBlob);
+          await corosWritable.close();
+        }
       }
 
       // 3. Write LRC lyrics file (Always fast text)
@@ -443,6 +452,8 @@ export async function syncSongsToFolder(
         vocalAutomation: song.vocalAutomation,
         audioFile: 'instrumental.mp3',
         vocalsFile: song.stems?.vocalsBlob ? 'vocals.mp3' : undefined,
+        backingVocalsFile: song.stems?.backingBlob ? 'coros.mp3' : song.backingVocalsFile,
+        hasBackingVocals: !!song.stems?.backingBlob || song.hasBackingVocals || false,
         lrcFile: 'lyrics.lrc',
         lyrics: song.lyrics || [],
         createdAt: song.createdAt || Date.now(),
@@ -461,6 +472,7 @@ export async function syncSongsToFolder(
         audioFile: `${songFolder}/instrumental.mp3`,
         lrcFile: `${songFolder}/lyrics.lrc`,
         vocalsFile: song.stems?.vocalsBlob ? `${songFolder}/vocals.mp3` : undefined,
+        backingVocalsFile: song.stems?.backingBlob ? `${songFolder}/coros.mp3` : (song.backingVocalsFile ? `${songFolder}/${song.backingVocalsFile.split('/').pop()}` : undefined),
       };
 
       const matchIdx = updatedManifestSongs.findIndex(
@@ -568,10 +580,14 @@ export async function importSongsFromFolder(
 
         let instBlob: Blob | undefined;
         let vocBlob: Blob | undefined;
+        let backingBlob: Blob | undefined;
         let audioBlob: Blob | undefined;
 
         if (item.instrumental_base64) instBlob = base64ToBlob(item.instrumental_base64, 'audio/mp3');
         if (item.vocals_base64) vocBlob = base64ToBlob(item.vocals_base64, 'audio/mp3');
+        if ((item as any).coros_base64 || (item as any).backing_base64) {
+          backingBlob = base64ToBlob((item as any).coros_base64 || (item as any).backing_base64, 'audio/mp3');
+        }
         if (item.audio_base64) audioBlob = base64ToBlob(item.audio_base64, 'audio/mp3');
 
         const title = parsedMeta.title || item.folder_name.split(' - ').pop() || item.folder_name;
@@ -600,10 +616,13 @@ export async function importSongsFromFolder(
           createdAt: parsedMeta.createdAt || Date.now(),
           updatedAt: parsedMeta.updatedAt || Date.now(),
           audioBlob: instBlob || audioBlob,
-          stems: (instBlob || vocBlob) ? {
+          stems: (instBlob || vocBlob || backingBlob) ? {
             instrumentalBlob: instBlob,
             vocalsBlob: vocBlob,
+            backingBlob,
           } : undefined,
+          hasBackingVocals: !!backingBlob || parsedMeta.hasBackingVocals || false,
+          backingVocalsFile: parsedMeta.backingVocalsFile,
         };
 
         const matchIdx = mergedSongs.findIndex(
@@ -667,18 +686,59 @@ export async function importSongsFromFolder(
 
       let audioBlob: Blob | undefined;
       let vocalsBlob: Blob | undefined;
+      let backingBlob: Blob | undefined;
 
       try {
         if (s.folder) {
           const songFolderHandle = await _browserDirHandle.getDirectoryHandle(s.folder);
-          try {
-            const instHandle = await songFolderHandle.getFileHandle(s.audioFile?.split('/').pop() || 'instrumental.mp3');
-            audioBlob = await instHandle.getFile();
-          } catch (_) {}
-          try {
-            const vocHandle = await songFolderHandle.getFileHandle(s.vocalsFile?.split('/').pop() || 'vocals.mp3');
-            vocalsBlob = await vocHandle.getFile();
-          } catch (_) {}
+
+          // 1. Audio / Instrumental: audioFile, or *Instrumental.mp3, or instrumental.mp3
+          const instCandidates = [
+            s.audioFile?.split('/').pop() || '',
+            `${s.title} - Instrumental.mp3`,
+            'instrumental.mp3',
+            'Instrumental.mp3'
+          ].filter(Boolean);
+          for (const cand of instCandidates) {
+            try {
+              const h = await songFolderHandle.getFileHandle(cand);
+              audioBlob = await h.getFile();
+              if (audioBlob) break;
+            } catch (_) {}
+          }
+
+          // 2. Coros / Backing Vocals: backingVocalsFile, or *Coros.mp3, or coros.mp3, or backing.mp3
+          const corosCandidates = [
+            s.backingVocalsFile?.split('/').pop() || '',
+            `${s.title} - Coros.mp3`,
+            'coros.mp3',
+            'Coros.mp3',
+            `${s.title} - Backing.mp3`,
+            'backing.mp3',
+          ].filter(Boolean);
+          for (const cand of corosCandidates) {
+            try {
+              const h = await songFolderHandle.getFileHandle(cand);
+              backingBlob = await h.getFile();
+              if (backingBlob) break;
+            } catch (_) {}
+          }
+
+          // 3. Vocals: vocalsFile, or *Vocals.mp3, or vocals.mp3
+          const vocCandidates = [
+            s.vocalsFile?.split('/').pop() || '',
+            `${s.title} - Vocals.mp3`,
+            'vocals.mp3',
+            'Vocals.mp3',
+            'vocal.mp3'
+          ].filter(Boolean);
+          for (const cand of vocCandidates) {
+            try {
+              const h = await songFolderHandle.getFileHandle(cand);
+              vocalsBlob = await h.getFile();
+              if (vocalsBlob) break;
+            } catch (_) {}
+          }
         } else {
           if (s.audioFile) {
             const fileHandle = await _browserDirHandle.getFileHandle(s.audioFile);
@@ -710,10 +770,13 @@ export async function importSongsFromFolder(
         createdAt: s.createdAt || Date.now(),
         updatedAt: s.updatedAt || Date.now(),
         audioBlob,
-        stems: (audioBlob || vocalsBlob) ? {
+        stems: (audioBlob || vocalsBlob || backingBlob) ? {
           instrumentalBlob: audioBlob,
           vocalsBlob,
+          backingBlob,
         } : undefined,
+        hasBackingVocals: !!backingBlob || s.hasBackingVocals || false,
+        backingVocalsFile: backingBlob ? (s.backingVocalsFile || 'coros.mp3') : undefined,
       };
 
       const matchIdx = mergedSongs.findIndex(m => m.id === songItem.id || (m.title.toLowerCase() === songItem.title.toLowerCase() && m.artist?.toLowerCase() === songItem.artist?.toLowerCase()));

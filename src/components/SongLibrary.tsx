@@ -1190,6 +1190,11 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                                 ✓ Stems
                               </span>
                             )}
+                            {(song.hasBackingVocals || song.stems?.backingBlob) && (
+                              <span className="text-purple-300 bg-purple-500/20 px-1 rounded text-[9px] xl:text-[9.5px] border border-purple-500/30">
+                                ✓ Coros
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -2294,6 +2299,11 @@ export const SongLibrary: React.FC<SongLibraryProps> = React.memo(({
                               {song.stems?.instrumentalBlob && (
                                 <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 shrink-0">
                                   ✓ Karaoke
+                                </span>
+                              )}
+                              {(song.hasBackingVocals || song.stems?.backingBlob) && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 shrink-0">
+                                  ✓ Coros
                                 </span>
                               )}
                               {song.videoBgId && (

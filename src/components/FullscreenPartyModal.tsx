@@ -465,31 +465,25 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => onVocalGainChange(vocalGain > 0.05 ? 0.0 : 0.40)}
-              disabled={isCleanTrack}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all ${
-                isCleanTrack
-                  ? 'bg-slate-900/40 border-slate-800 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
-                  : vocalGain > 0.05
-                  ? 'bg-cyan-600 text-white border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)] font-black cursor-pointer'
-                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white cursor-pointer'
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                !isCleanTrack && vocalGain > 0.05
+                  ? 'bg-cyan-600 text-white border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)] font-black'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
               }`}
-              title={isCleanTrack ? 'Voz Guía desactivada en modo Pista Limpia' : 'Voz Guía 40%: Activa la voz original del artista al 40% de volumen para acompañar tu canto'}
+              title="Voz Guía (40%): Activa la voz original del artista al 40% de volumen continuo"
             >
               <Mic className={`w-4 h-4 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-200 animate-pulse' : 'text-slate-500'}`} />
-              <span>{!isCleanTrack && vocalGain > 0.05 ? `VOZ GUÍA: 40%` : 'VOZ GUÍA 40%'}</span>
+              <span>{!isCleanTrack && vocalGain > 0.05 ? `VOZ GUÍA: 40%` : 'VOZ GUÍA (40%)'}</span>
             </button>
             {onToggleSmartVocalCue && (
               <button
                 onClick={onToggleSmartVocalCue}
-                disabled={isCleanTrack}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all ${
-                  isCleanTrack
-                    ? 'bg-slate-900/40 border-slate-800 text-slate-600 opacity-40 cursor-not-allowed pointer-events-none'
-                    : isSmartVocalCue
-                    ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.6)] font-black cursor-pointer'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white cursor-pointer'
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  !isCleanTrack && isSmartVocalCue
+                    ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.6)] font-black'
+                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
                 }`}
-                title={isCleanTrack ? 'Guía Coros desactivada en modo Pista Limpia' : 'Guía Inteligente: Activa la voz original automáticamente en coros, entradas y salidas'}
+                title="Guía Coros: Activa la voz original automáticamente en coros, entradas y salidas"
               >
                 <Sparkles className={`w-4 h-4 ${!isCleanTrack && isSmartVocalCue ? 'text-indigo-300 animate-spin' : 'text-slate-500'}`} />
                 <span>{!isCleanTrack && isSmartVocalCue ? 'GUÍA COROS: ON' : 'GUÍA COROS'}</span>
@@ -503,7 +497,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                     ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.4)] font-black ring-1 ring-emerald-400/50'
                     : 'border-slate-700/80 bg-slate-800 text-slate-300 hover:text-white'
                 }`}
-                title="Pista Limpia: Fuerza 100% instrumental sin voz original ni guías"
+                title="Pista Limpia: Silencia los coros y voz original para sonar únicamente instrumental pura"
               >
                 <Sparkles className={`w-4 h-4 ${isCleanTrack ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
                 <span>{isCleanTrack ? '✨ PISTA LIMPIA: ON' : '✨ PISTA LIMPIA'}</span>
