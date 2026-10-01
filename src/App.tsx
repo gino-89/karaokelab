@@ -1167,26 +1167,49 @@ export default function App() {
           }
         }
 
-        // Evaluate Vocal Playback Modes in real-time Web Audio graph:
-        // 1. If Pista Limpia is ON -> forces lead vocal to 0.0 (100% instrumental karaoke, bypassing curves & guides)
-        // 2. If Guía Coros is ON -> uses dynamic smart cue detector (verses/choruses)
-        // 3. If Voz Guía (40%) is ON -> uses manual constant volume
-        // 4. If ALL ARE OFF -> Plays EXACTLY as the acapella / vocal automation was custom edited!
-        if (isCleanTrack) {
-          audioEngine.setVocalGain(0.0);
+        // Evaluate Real-Time Routing & Gain Control for the 3 Audio Channels (KaraokeLab Studio Spec)
+        const isBypass = isCleanTrack;
+
+        if (isBypass) {
+          // Caso 1: Todas las voces apagadas (Pista Limpia)
+          audioEngine.setVocalGain(0);
+          audioEngine.setBackingGain(0);
           setActiveCueType(null);
-        } else if (isSmartVocalCue) {
-          const cue = getActiveSmartCue(t, smartCues);
-          audioEngine.setVocalGain(cue.targetGain);
-          setActiveCueType(cue.cueType);
         } else if (vocalGain > 0.05) {
+          // Caso 2: Voz de ayuda manual activa (ej: al 40% o 50%)
+          // Se reproduce la voz original completa al volumen seleccionado
           audioEngine.setVocalGain(vocalGain);
+
+          // ¡CRÍTICO! Se silencia la pista extra de coros a 0 para evitar duplicación/eco,
+          // ya que la pista de voz original completa ya contiene los coros grabados.
+          audioEngine.setBackingGain(0);
+          setActiveCueType(null);
         } else {
-          const automatedVocalGain = audioEngine.getAutomatedVocalGainAtTime(t);
-          if (automatedVocalGain !== null) {
-            audioEngine.setVocalGain(automatedVocalGain, 0.18);
+          // Caso 3: Modo Karaoke Normal (vocalGain <= 0.05)
+          // La voz principal sigue las automatizaciones inteligentes o permanece en 0
+          const autoVocalGain = audioEngine.getAutomatedVocalGainAtTime(t);
+          if (autoVocalGain !== null) {
+            audioEngine.setVocalGain(autoVocalGain, 0.18);
+            setActiveCueType(null);
           } else {
-            audioEngine.setVocalGain(0.0);
+            // Si hay guía vocal inteligente activada para esta sección, o 0
+            let cueTargetGain = 0;
+            if (isSmartVocalCue) {
+              const cue = getActiveSmartCue(t, smartCues);
+              cueTargetGain = cue.targetGain;
+              setActiveCueType(cue.cueType);
+            } else {
+              setActiveCueType(null);
+            }
+            audioEngine.setVocalGain(cueTargetGain || 0);
+          }
+
+          // Los Coros MP3 suenan al 100% para acompañar al cantante en vivo
+          const autoBackingGain = audioEngine.getAutomatedBackingGainAtTime ? audioEngine.getAutomatedBackingGainAtTime(t) : null;
+          if (autoBackingGain !== null) {
+            audioEngine.setBackingGain(autoBackingGain);
+          } else {
+            audioEngine.setBackingGain(1.0); // Coros siempre activos al 100%
           }
         }
       } else if (isPlaying && youTubeEmbedId) {
@@ -2495,15 +2518,16 @@ export default function App() {
       setIsSmartVocalCue(false);
       setActiveCueType(null);
       setIsCleanTrack(false);
-      audioEngine.setBackingGain(1.0);
+      audioEngine.setBackingGain(0.0);
     } else {
       if (currentSong?.vocalAutomation) {
         audioEngine.setVocalAutomationConfig(currentSong.vocalAutomation);
       }
+      audioEngine.setBackingGain(isCleanTrack ? 0.0 : 1.0);
     }
     setVocalGain(val);
     audioEngine.setVocalGain(val);
-  }, [currentSong]);
+  }, [currentSong, isCleanTrack]);
 
   const handleToggleCleanTrack = useCallback(() => {
     setIsCleanTrack((prev) => {
@@ -2859,7 +2883,7 @@ export default function App() {
                   setIsSmartVocalCue(false);
                   setActiveCueType(null);
                   setIsCleanTrack(false);
-                  audioEngine.setBackingGain(1.0);
+                  audioEngine.setBackingGain(0.0);
                 }
                 handleVocalGainChange(nextGain);
               }}

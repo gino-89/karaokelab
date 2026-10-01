@@ -317,28 +317,24 @@ export class AudioEngine {
       }
     }
 
-    // 2. Track Auto-Gain Calibration Node (scales music + vocals by song RMS target, bypasses mic)
-    if (!this.trackGainNode) {
-      this.trackGainNode = this.ctx.createGain();
-      const initialMultiplier = this.autoGainEnabled ? this.autoGainMultiplier : 1.0;
-      this.trackGainNode.gain.setValueAtTime(initialMultiplier, this.ctx.currentTime);
-      this.trackGainNode.connect(this.masterGainNode);
-    }
-
+    // 2. Three Sound Channels Routing (KaraokeLab Studio Spec):
+    // - instrumentalSource -> musicGainNode -> masterGainNode -> destination
+    // - vocalSource (Voz Principal) -> vocalGainNode -> masterGainNode -> destination
+    // - backingSource (Coros MP3) -> backingGainNode -> masterGainNode -> destination
     if (!this.vocalGainNode) {
       this.vocalGainNode = this.ctx.createGain();
       this.vocalGainNode.gain.setValueAtTime(this.vocalGain, this.ctx.currentTime);
-      this.vocalGainNode.connect(this.trackGainNode);
+      this.vocalGainNode.connect(this.masterGainNode);
     }
     if (!this.backingGainNode) {
       this.backingGainNode = this.ctx.createGain();
       this.backingGainNode.gain.setValueAtTime(this.backingGain, this.ctx.currentTime);
-      this.backingGainNode.connect(this.trackGainNode);
+      this.backingGainNode.connect(this.masterGainNode);
     }
     if (!this.musicGainNode) {
       this.musicGainNode = this.ctx.createGain();
       this.musicGainNode.gain.setValueAtTime(this.musicGain, this.ctx.currentTime);
-      this.musicGainNode.connect(this.trackGainNode);
+      this.musicGainNode.connect(this.masterGainNode);
     }
   }
 
@@ -424,13 +420,18 @@ export class AudioEngine {
     return this.backingBuffer;
   }
 
-  public setBackingGain(val: number) {
-    this.backingGain = Math.max(0, Math.min(2.0, val));
+  public setBackingGain(val: number, rampTime = 0.03) {
+    const clamped = Math.max(0, Math.min(2.5, val));
+    this.backingGain = clamped;
     if (this.backingGainNode && this.ctx) {
+      const now = this.ctx.currentTime;
       try {
-        this.backingGainNode.gain.cancelScheduledValues(this.ctx.currentTime);
-        this.backingGainNode.gain.setValueAtTime(this.backingGain, this.ctx.currentTime);
-      } catch (_) {}
+        this.backingGainNode.gain.cancelScheduledValues(now);
+        this.backingGainNode.gain.setValueAtTime(this.backingGainNode.gain.value, now);
+        this.backingGainNode.gain.linearRampToValueAtTime(clamped, now + rampTime);
+      } catch (_) {
+        this.backingGainNode.gain.setValueAtTime(clamped, now);
+      }
     }
   }
 
@@ -747,6 +748,50 @@ export class AudioEngine {
     }
 
     return rawGain;
+  }
+
+  /**
+   * Evaluates automated backing vocals gain at a given timestamp in seconds.
+   * Returns null if no custom backing vocal automation curve is configured,
+   * allowing the playback loop to default backing vocals to 1.0 (100%).
+   */
+  public getAutomatedBackingGainAtTime(time: number): number | null {
+    const cfg = this.vocalAutomationConfig as any;
+    if (!cfg || !cfg.enabled || !cfg.backingPoints || cfg.backingPoints.length === 0) {
+      return null;
+    }
+    const points = cfg.backingPoints;
+    if (points.length === 1) return points[0].gain;
+    const sorted = [...points].sort((a: any, b: any) => a.time - b.time);
+    if (time <= sorted[0].time) return sorted[0].gain;
+    if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].gain;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const p1 = sorted[i];
+      const p2 = sorted[i + 1];
+      if (time >= p1.time && time <= p2.time) {
+        const diff = p2.time - p1.time;
+        if (diff <= 0.001) return p2.gain;
+        const progress = (time - p1.time) / diff;
+        return p1.gain + (p2.gain - p1.gain) * progress;
+      }
+    }
+    return null;
+  }
+
+  public getVocalGainNode(): GainNode | null {
+    return this.vocalGainNode;
+  }
+
+  public getBackingGainNode(): GainNode | null {
+    return this.backingGainNode;
+  }
+
+  public getMusicGainNode(): GainNode | null {
+    return this.musicGainNode;
+  }
+
+  public getMasterGainNode(): GainNode | null {
+    return this.masterGainNode;
   }
 
   public getVocalGain(): number {
