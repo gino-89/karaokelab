@@ -27,6 +27,65 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const lastSeekTimeRef = useRef<number>(Date.now());
   const prevTimeRef = useRef<number>(currentTime || 0);
 
+  // Dynamic container sizing: adapts seamlessly to mini player box or fullscreen modes
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setContainerSize({ width: Math.round(rect.width), height: Math.round(rect.height) });
+      }
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0) {
+            setContainerSize({ width: Math.round(width), height: Math.round(height) });
+          }
+        }
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    } else {
+      window.addEventListener('resize', updateSize);
+      return () => window.removeEventListener('resize', updateSize);
+    }
+  }, []);
+
+  // Compute exact 16:9 dimensions to cover container, maintaining a safe 1.25x crop for YouTube titles/controls
+  const targetDims = React.useMemo(() => {
+    const cw = containerSize.width > 0 ? containerSize.width : (typeof window !== 'undefined' ? window.innerWidth : 1280);
+    const ch = containerSize.height > 0 ? containerSize.height : (typeof window !== 'undefined' ? window.innerHeight : 720);
+
+    const targetRatio = 16 / 9;
+    const currentRatio = cw / ch;
+
+    let baseW = cw;
+    let baseH = ch;
+
+    if (currentRatio > targetRatio) {
+      baseW = cw;
+      baseH = Math.round(cw / targetRatio);
+    } else {
+      baseH = ch;
+      baseW = Math.round(ch * targetRatio);
+    }
+
+    return {
+      width: `${baseW}px`,
+      height: `${baseH}px`,
+    };
+  }, [containerSize.width, containerSize.height]);
+
   // Synchronous state adjustment during render when song or video changes
   // Guarantees zero frames of old video bleed-through during transitions!
   if (songKey !== prevSongKey || config.videoId !== prevVideoId) {
@@ -175,7 +234,10 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const overlayOpacity = Math.max(0.77, Math.min(0.96, config.overlayOpacity ?? 0.77));
 
   return (
-    <div className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}>
+    <div
+      ref={containerRef}
+      className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}
+    >
       {/* High-def Cover Transition Mask - Pure dark stage for 2s during startup & song changes */}
       <div
         className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${
@@ -183,7 +245,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }`}
       />
 
-      {/* Scaled & Centered 16:9 Frame - Scaled 1.45x to crop top title and bottom bars */}
+      {/* Scaled & Centered 16:9 Frame - Scaled 1.25x to safely crop top title and bottom bars without distortion */}
       <div
         className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
           isVideoVisible ? 'opacity-100' : 'opacity-0'
@@ -198,12 +260,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
           tabIndex={-1}
           aria-hidden="true"
           allow="autoplay; encrypted-media"
-          className="pointer-events-none border-0 select-none scale-[1.45]"
+          className="pointer-events-none border-0 select-none"
           style={{
-            width: '100vw',
-            height: '56.25vw',
-            minHeight: '100vh',
-            minWidth: '177.77vh',
+            width: targetDims.width,
+            height: targetDims.height,
+            maxWidth: 'none',
+            maxHeight: 'none',
+            transform: 'scale(1.25)',
+            transformOrigin: 'center center',
           }}
           onLoad={() => {
             try {
