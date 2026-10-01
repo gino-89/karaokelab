@@ -971,3 +971,146 @@ export function resolveArtistInfo(
     isBoth: false,
   };
 }
+
+/**
+ * Calculates line end timestamp strictly adhering to KaraokeLab Studio JSON standards:
+ * lineEnd = line.time + (line.duration || 3.5)
+ * (If phonemes line.words exist, lineEnd is the last word.end).
+ */
+export function getLineEnd(line: LyricLine): number {
+  if (line.words && line.words.length > 0) {
+    const lastWord = line.words[line.words.length - 1];
+    if (typeof lastWord?.end === 'number' && !isNaN(lastWord.end) && lastWord.end > line.time) {
+      return lastWord.end;
+    }
+  }
+  return line.time + (typeof line.duration === 'number' && line.duration > 0 ? line.duration : 3.5);
+}
+
+export interface LyricPlaybackState {
+  currentLyric: LyricLine | null;
+  currentIndex: number;
+  nextLyric: LyricLine | null;
+  nextIndex: number;
+  isBreak: boolean;
+  secondsToNext: number;
+  showCountdown: boolean;
+  showSoloInstrumental: boolean;
+}
+
+/**
+ * Interprets song lyrics JSON timing with exact phrase cutoffs, continuous singing,
+ * instrumental bridges, intro detection, and 4.5s countdown card state.
+ */
+export function getLyricPlaybackState(
+  lyrics: LyricLine[] | undefined | null,
+  currentTime: number
+): LyricPlaybackState {
+  const safeLyrics = Array.isArray(lyrics) ? lyrics : [];
+  if (safeLyrics.length === 0) {
+    return {
+      currentLyric: null,
+      currentIndex: -1,
+      nextLyric: null,
+      nextIndex: -1,
+      isBreak: false,
+      secondsToNext: 0,
+      showCountdown: false,
+      showSoloInstrumental: false,
+    };
+  }
+
+  // 1. Introduction: before the first verse
+  if (currentTime < safeLyrics[0].time) {
+    const secondsToNext = Math.max(0, safeLyrics[0].time - currentTime);
+    return {
+      currentLyric: null,
+      currentIndex: -1,
+      nextLyric: safeLyrics[0],
+      nextIndex: 0,
+      isBreak: true,
+      secondsToNext,
+      showCountdown: secondsToNext > 0 && secondsToNext <= 4.5,
+      showSoloInstrumental: secondsToNext > 4.5,
+    };
+  }
+
+  // 2. Track is at or after verse 0: find latest line whose time <= currentTime
+  let lastPassedIdx = -1;
+  for (let i = 0; i < safeLyrics.length; i++) {
+    if (currentTime >= safeLyrics[i].time) {
+      lastPassedIdx = i;
+    } else {
+      break;
+    }
+  }
+
+  if (lastPassedIdx === -1) {
+    lastPassedIdx = 0;
+  }
+
+  const line = safeLyrics[lastPassedIdx];
+  const lineEnd = getLineEnd(line);
+  const nextLine = lastPassedIdx + 1 < safeLyrics.length ? safeLyrics[lastPassedIdx + 1] : null;
+
+  // Active singing window: currentTime between line.time and lineEnd
+  if (currentTime <= lineEnd) {
+    return {
+      currentLyric: line,
+      currentIndex: lastPassedIdx,
+      nextLyric: nextLine,
+      nextIndex: nextLine ? lastPassedIdx + 1 : -1,
+      isBreak: false,
+      secondsToNext: 0,
+      showCountdown: false,
+      showSoloInstrumental: false,
+    };
+  }
+
+  // currentTime > lineEnd: singing of this phrase has ended!
+  if (nextLine) {
+    const gap = nextLine.time - lineEnd;
+    const isBridge = gap >= 3.0 && !line.skipInstrumental;
+
+    if (isBridge) {
+      // Instrumental bridge: line disappears immediately from the screen
+      const secondsToNext = Math.max(0, nextLine.time - currentTime);
+      return {
+        currentLyric: null,
+        currentIndex: -1,
+        nextLyric: nextLine,
+        nextIndex: lastPassedIdx + 1,
+        isBreak: true,
+        secondsToNext,
+        showCountdown: secondsToNext > 0 && secondsToNext <= 4.5,
+        showSoloInstrumental: secondsToNext > 4.5,
+      };
+    } else {
+      // Continuous singing (short pause gap < 3.0 or skipInstrumental === true)
+      // Keep line visible smoothly until nextLine.time arrives
+      return {
+        currentLyric: line,
+        currentIndex: lastPassedIdx,
+        nextLyric: nextLine,
+        nextIndex: lastPassedIdx + 1,
+        isBreak: false,
+        secondsToNext: 0,
+        showCountdown: false,
+        showSoloInstrumental: false,
+      };
+    }
+  }
+
+  // Past the end of the last line of the song
+  return {
+    currentLyric: null,
+    currentIndex: -1,
+    nextLyric: null,
+    nextIndex: -1,
+    isBreak: true,
+    secondsToNext: 0,
+    showCountdown: false,
+    showSoloInstrumental: true,
+  };
+}
+

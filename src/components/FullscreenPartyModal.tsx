@@ -4,7 +4,8 @@ import { X, Play, Pause, User, PartyPopper, Users, Sparkles, Music, Mic, Film } 
 import confetti from 'canvas-confetti';
 import { getDuetSinger } from './KaraokeDisplay';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { cleanLyricText, titleCaseArtist, resolveArtistInfo } from '../services/lrcParser';
+import { cleanLyricText, titleCaseArtist, resolveArtistInfo, getLyricPlaybackState, getLineEnd } from '../services/lrcParser';
+import { StageCountdownCard } from './StageCountdownCard';
 import { transposeKey } from '../services/dspAnalysis';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundSelectorModal } from './VideoBackgroundSelectorModal';
@@ -137,26 +138,26 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
     setScore((prev) => Math.min(100, prev + 1));
   };
 
-  const nextLyric = currentIndex >= 0 && currentIndex < lyrics.length - 1 ? lyrics[currentIndex + 1] : (currentIndex === -1 && lyrics.length > 0 ? lyrics[0] : null);
+  const effectiveTime = Math.max(0, currentTime - syncDelay);
+  const playbackState = getLyricPlaybackState(lyrics, effectiveTime);
+  const activeLyric = playbackState.currentLyric;
+  const upcomingLyric = playbackState.nextLyric;
+  const secondsToNext = playbackState.secondsToNext;
+  const showCountdown = isPlaying && playbackState.showCountdown && !!upcomingLyric;
 
-  const currentSinger = currentLyric ? getDuetSinger(currentLyric, currentIndex, null, songArtist) : 'singer1';
-  const nextSinger = nextLyric ? getDuetSinger(nextLyric, currentIndex + 1, null, songArtist) : 'singer1';
+  const currentSinger = activeLyric ? getDuetSinger(activeLyric, playbackState.currentIndex >= 0 ? playbackState.currentIndex : 0, null, songArtist) : 'singer1';
+  const nextSinger = upcomingLyric ? getDuetSinger(upcomingLyric, playbackState.nextIndex >= 0 ? playbackState.nextIndex : 0, null, songArtist) : 'singer1';
 
-  const curArtist = resolveArtistInfo(currentLyric?.singer || currentSinger, artists, songArtist, songTitle);
-  const nextArtist = resolveArtistInfo(nextLyric?.singer || nextSinger, artists, songArtist, songTitle);
+  const curArtist = resolveArtistInfo(activeLyric?.singer || currentSinger, artists, songArtist, songTitle);
+  const nextArtist = resolveArtistInfo(upcomingLyric?.singer || nextSinger, artists, songArtist, songTitle);
 
   // Calculate word-level progression or smooth linear progress
-  const lineDuration = currentLyric ? currentLyric.duration || 3.5 : 1;
-  const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
+  const lineDuration = activeLyric ? activeLyric.duration || 3.5 : 1;
+  const elapsed = activeLyric ? Math.max(0, effectiveTime - activeLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
-  const words = currentLyric ? currentLyric.text.split(' ') : [];
+  const words = activeLyric ? activeLyric.text.split(' ') : [];
   const activeWordIndex = Math.floor((lineProgress / 100) * words.length);
-
-  // Time remaining to next line for countdown (ONLY when no current lyric is playing)
-  const isBreak = !currentLyric && nextLyric;
-  const secondsToNext = isBreak ? nextLyric.time - currentTime : 0;
-  const showCountdown = isBreak && secondsToNext > 0.5 && secondsToNext <= 5.0;
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const seekProgress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -287,14 +288,12 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
         {/* Slot 1: Singer Name / Cue / Countdown (Strictly Singer & Cues, No [Verso] tag) */}
         <div className="h-9 w-full flex items-center justify-center shrink-0">
           {isPlaying && (
-            showCountdown ? (
-              <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-bold animate-pulse">
+            showCountdown && upcomingLyric ? (
+              <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-sm sm:text-base font-black animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.35)]">
                 <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                {nextLyric && (
-                  <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
-                    {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
-                  </span>
-                )}
+                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
+                  {nextArtist.isBoth ? '👥 TODOS / DÚO' : `🎤 ${nextArtist.name}`}
+                </span>
               </div>
             ) : isSmartVocalCue && activeCueType ? (
               <div className="inline-flex items-center gap-2 animate-in fade-in">
@@ -314,7 +313,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                   </span>
                 )}
               </div>
-            ) : currentLyric ? (
+            ) : activeLyric ? (
               <div
                 className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-bold uppercase tracking-wider"
                 style={{ color: curArtist.color }}
@@ -328,9 +327,9 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
 
         {/* Slot 2: Dynamic-Scaled Active Lyric (Always visible on pause, frozen in place) */}
         <div className="flex-1 min-h-0 w-full max-w-5xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden my-auto">
-          {currentLyric ? (
+          {activeLyric ? (
             (() => {
-              const textClean = cleanLyricText(currentLyric.text);
+              const textClean = cleanLyricText(activeLyric.text);
               const textLen = textClean.length;
               // Dynamic font size: automatically adapts to line length to guarantee zero overlap
               const fontSizeClass = textLen <= 22
@@ -344,9 +343,9 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
               return (
                 <div className={`flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-5 gap-y-2 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
                   {computeIntelligentWordFills(
-                    { ...currentLyric, text: textClean },
+                    { ...activeLyric, text: textClean },
                     Math.max(0, currentTime - syncDelay),
-                    nextLyric?.time,
+                    upcomingLyric?.time,
                     bpm
                   ).map((item, wIdx) => {
                     return (
@@ -375,17 +374,19 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                 </div>
               );
             })()
-          ) : nextLyric ? (
-            <div className="flex flex-col items-center gap-3 text-slate-300">
-              <Music className="w-12 h-12 text-cyan-400" />
-              <p className="text-xl sm:text-3xl font-bold tracking-wider text-cyan-300">
-                {cleanLyricText(nextLyric.text)}
-              </p>
-            </div>
+          ) : showCountdown && upcomingLyric ? (
+            <StageCountdownCard
+              secondsToNext={secondsToNext}
+              nextLyric={upcomingLyric}
+              artist={nextArtist}
+              variant="tv"
+            />
           ) : (
-            <div className="flex flex-col items-center gap-3 text-slate-400">
-              <Music className="w-12 h-12 text-slate-500" />
-              <p className="text-xl sm:text-3xl font-bold tracking-wider text-slate-300">
+            <div className="flex flex-col items-center gap-3 text-slate-400 animate-in fade-in duration-300">
+              <div className="w-16 h-16 rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-lg animate-pulse">
+                <Music className="w-8 h-8 text-cyan-400" />
+              </div>
+              <p className="text-2xl sm:text-4xl font-black tracking-wider text-slate-300 font-mono">
                 ♫ [SOLO INSTRUMENTAL] ♫
               </p>
             </div>
@@ -394,17 +395,17 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
 
         {/* Slot 3: Upcoming Line Preview */}
         <div className="h-14 w-full max-w-4xl flex flex-col items-center justify-center shrink-0">
-          {nextLyric ? (
-            <div className="flex flex-col items-center gap-0.5">
+          {upcomingLyric && !showCountdown ? (
+            <div className="flex flex-col items-center gap-0.5 animate-in fade-in duration-200">
               <span className="text-[11px] font-bold uppercase tracking-widest font-mono" style={{ color: nextArtist.color }}>
                 {`[PRÓXIMA: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
               </span>
               <p
-                onClick={() => onSeek(nextLyric.time)}
+                onClick={() => onSeek(upcomingLyric.time)}
                 className="text-base sm:text-xl font-bold truncate max-w-3xl cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ color: nextArtist.color }}
               >
-                {cleanLyricText(nextLyric.text)}
+                {cleanLyricText(upcomingLyric.text)}
               </p>
             </div>
           ) : null}

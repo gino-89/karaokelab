@@ -17,6 +17,7 @@ export interface LyricLine {
   words?: LyricWord[];
   singer?: 'singer1' | 'singer2' | 'both' | string; // supports any artist ID or 'both' / 'all'
   sectionHeader?: string; // e.g. "[Refrán: Wisin, Chris Brown]", "[Pre-Coro: Wisin, Yandel]"
+  skipInstrumental?: boolean;
 }
 
 export interface AudioStems {

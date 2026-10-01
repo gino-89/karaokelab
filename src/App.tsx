@@ -4,7 +4,7 @@ import { VocalAutomationModal } from './components/VocalAutomationModal';
 import { audioEngine, audioBufferToWavBlob } from './services/audioEngine';
 import { separateAudioStems } from './services/stemSeparator';
 import { analyzeStudioBPMAndKey, detectVocalPhrases, calculateAudioLoudness } from './services/dspAnalysis';
-import { parseLRC, generateGenericLyrics, detectIsDuetLyrics, formatLRC, parseArtistsFromLRC } from './services/lrcParser';
+import { parseLRC, generateGenericLyrics, detectIsDuetLyrics, formatLRC, parseArtistsFromLRC, getLyricPlaybackState, getLineEnd } from './services/lrcParser';
 import { loadVideoBackgroundConfig, saveVideoBackgroundConfig, searchOfficialVideo } from './services/videoBackgroundService';
 import { calibrateLyricsWithVocalStem } from './services/vocalSyncCalibrator';
 import { classifyAllLyricsVocalGender, analyzeSongVocalProfile, analyzeSongVocalProfileSync, invalidateVocalProfileCache } from './services/vocalGenderClassifier';
@@ -1143,19 +1143,12 @@ export default function App() {
           lastFlushTime = timestamp;
           setCurrentTime(t);
 
-          // Find active lyric line index
+          // Find active lyric line index with exact lineEnd cutting & bridges
           if (lyrics.length > 0) {
-            let activeIdx = -1;
-            for (let i = 0; i < lyrics.length; i++) {
-              if (t >= lyrics[i].time) {
-                activeIdx = i;
-              } else {
-                break;
-              }
-            }
-            if (activeIdx !== currentIndexRef.current) {
-              currentIndexRef.current = activeIdx;
-              setCurrentIndex(activeIdx);
+            const syncState = getLyricPlaybackState(lyrics, t);
+            if (syncState.currentIndex !== currentIndexRef.current) {
+              currentIndexRef.current = syncState.currentIndex;
+              setCurrentIndex(syncState.currentIndex);
             }
           }
 
@@ -2683,8 +2676,9 @@ export default function App() {
     });
   }, []);
 
-  const currentLyric = currentIndex >= 0 && currentIndex < lyrics.length ? lyrics[currentIndex] : null;
-  const nextLyric = currentIndex >= 0 && currentIndex < lyrics.length - 1 ? lyrics[currentIndex + 1] : null;
+  const lyricSync = getLyricPlaybackState(lyrics, currentTime);
+  const currentLyric = lyricSync.currentLyric;
+  const nextLyric = lyricSync.nextLyric;
 
   return (
     <div className="min-h-screen bg-[#080811] text-slate-100 flex flex-col bg-grid-cyber selection:bg-[#ff007f] selection:text-white relative overflow-x-hidden">

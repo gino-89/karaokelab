@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { tvBroadcast, TvStatePayload } from '../services/tvBroadcastService';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { getDuetSinger } from './KaraokeDisplay';
-import { cleanLyricText, resolveArtistInfo } from '../services/lrcParser';
+import { cleanLyricText, resolveArtistInfo, getLyricPlaybackState, getLineEnd } from '../services/lrcParser';
+import { StageCountdownCard } from './StageCountdownCard';
 import { transposeKey } from '../services/dspAnalysis';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
 import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
@@ -209,23 +210,21 @@ export const TvStandaloneDisplay: React.FC = () => {
   } = tvState || {};
 
   const safeLyrics = Array.isArray(lyrics) ? lyrics : [];
-  const currentLyric = currentIndex >= 0 && currentIndex < safeLyrics.length ? safeLyrics[currentIndex] : null;
-  const nextLyric = currentIndex >= 0 && currentIndex < safeLyrics.length - 1 ? safeLyrics[currentIndex + 1] : (currentIndex === -1 && safeLyrics.length > 0 ? safeLyrics[0] : null);
+  const playbackState = getLyricPlaybackState(safeLyrics, currentTime);
+  const activeLyric = playbackState.currentLyric;
+  const upcomingLyric = playbackState.nextLyric;
+  const secondsToNext = playbackState.secondsToNext;
+  const showCountdown = isPlaying && playbackState.showCountdown && !!upcomingLyric;
 
-  const currentSinger = currentLyric ? getDuetSinger(currentLyric, currentIndex, null, songArtist) : 'singer1';
-  const nextSinger = nextLyric ? getDuetSinger(nextLyric, currentIndex + 1, null, songArtist) : 'singer1';
+  const currentSinger = activeLyric ? getDuetSinger(activeLyric, playbackState.currentIndex >= 0 ? playbackState.currentIndex : 0, null, songArtist) : 'singer1';
+  const nextSinger = upcomingLyric ? getDuetSinger(upcomingLyric, playbackState.nextIndex >= 0 ? playbackState.nextIndex : 0, null, songArtist) : 'singer1';
 
-  const curArtist = resolveArtistInfo(currentLyric?.singer || currentSinger, artistsList, songArtist, songTitle);
-  const nextArtist = resolveArtistInfo(nextLyric?.singer || nextSinger, artistsList, songArtist, songTitle);
-
-  // Time remaining to next line for countdown (ONLY when no current lyric is playing)
-  const isBreak = !currentLyric && nextLyric;
-  const secondsToNext = isBreak ? nextLyric.time - currentTime : 0;
-  const showCountdown = isBreak && secondsToNext > 0.5 && secondsToNext <= 5.0;
+  const curArtist = resolveArtistInfo(activeLyric?.singer || currentSinger, artistsList, songArtist, songTitle);
+  const nextArtist = resolveArtistInfo(upcomingLyric?.singer || nextSinger, artistsList, songArtist, songTitle);
 
   // Smooth line progress calculation
-  const lineDuration = currentLyric ? currentLyric.duration || 3.5 : 1;
-  const elapsed = currentLyric ? Math.max(0, currentTime - currentLyric.time) : 0;
+  const lineDuration = activeLyric ? activeLyric.duration || 3.5 : 1;
+  const elapsed = activeLyric ? Math.max(0, currentTime - activeLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
   const effectiveVideoBgConfig = tvState?.videoBgConfig || videoBgConfig;
@@ -445,16 +444,14 @@ export const TvStandaloneDisplay: React.FC = () => {
         <div className="flex flex-col items-center justify-between gap-4 w-full flex-1 min-h-0 py-2 overflow-hidden">
           {/* Slot 1: Active Singer Badge / Countdown */}
           <div className="h-9 flex items-center justify-center shrink-0">
-            {showCountdown ? (
-              <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm sm:text-base font-black animate-pulse">
+            {showCountdown && upcomingLyric ? (
+              <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-sm sm:text-base font-black animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.35)]">
                 <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                {nextLyric && (
-                  <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
-                    {nextArtist.isBoth ? '👥 Todos' : `🎤 ${nextArtist.name}`}
-                  </span>
-                )}
+                <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
+                  {nextArtist.isBoth ? '👥 TODOS / DÚO' : `🎤 ${nextArtist.name}`}
+                </span>
               </div>
-            ) : currentLyric ? (
+            ) : activeLyric ? (
               <div
                 className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
                 style={{ color: curArtist.color }}
@@ -467,9 +464,9 @@ export const TvStandaloneDisplay: React.FC = () => {
 
           {/* Current Active Line (Always visible on pause, perfectly frozen in place) */}
           <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-center my-auto overflow-hidden">
-            {currentLyric ? (
+            {activeLyric ? (
               (() => {
-                const textClean = cleanLyricText(currentLyric.text);
+                const textClean = cleanLyricText(activeLyric.text);
                 const textLen = textClean.length;
                 const fontSizeClass = textLen <= 25
                   ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black'
@@ -480,9 +477,9 @@ export const TvStandaloneDisplay: React.FC = () => {
                 return (
                   <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
                     {computeIntelligentWordFills(
-                      { ...currentLyric, text: textClean },
+                      { ...activeLyric, text: textClean },
                       currentTime,
-                      nextLyric?.time,
+                      upcomingLyric?.time,
                       128
                     ).map((item, wIdx) => {
                       return (
@@ -514,10 +511,19 @@ export const TvStandaloneDisplay: React.FC = () => {
                   </div>
                 );
               })()
+            ) : showCountdown && upcomingLyric ? (
+              <StageCountdownCard
+                secondsToNext={secondsToNext}
+                nextLyric={upcomingLyric}
+                artist={nextArtist}
+                variant="tv"
+              />
             ) : (
-              <div className="flex flex-col items-center gap-3 text-slate-400">
-                <Music className="w-12 h-12 text-slate-500" />
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-wider text-slate-300 animate-pulse">
+              <div className="flex flex-col items-center gap-3 text-slate-400 animate-in fade-in duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-lg animate-pulse">
+                  <Music className="w-8 h-8 text-cyan-400" />
+                </div>
+                <p className="text-2xl sm:text-4xl font-black tracking-wider text-slate-300 font-mono">
                   ♫ [SOLO INSTRUMENTAL] ♫
                 </p>
               </div>
@@ -525,13 +531,13 @@ export const TvStandaloneDisplay: React.FC = () => {
           </div>
 
           {/* Next Upcoming Line Preview */}
-          {nextLyric ? (
-            <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/85 border border-slate-700/80 max-w-3xl w-full flex flex-col items-center shadow-lg">
+          {upcomingLyric && !showCountdown ? (
+            <div className="mt-3 px-6 py-3 rounded-2xl bg-slate-950/85 border border-slate-700/80 max-w-3xl w-full flex flex-col items-center shadow-lg animate-in fade-in duration-200">
               <span className="text-sm sm:text-base md:text-lg font-mono font-black uppercase tracking-widest block mb-1" style={{ color: nextArtist.color }}>
                 {`[A CONTINUACIÓN: ${nextArtist.isBoth ? '👥 DÚO' : '🎤 ' + nextArtist.name.toUpperCase()}]`}
               </span>
               <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold truncate max-w-2xl text-center" style={{ color: nextArtist.color }}>
-                {cleanLyricText(nextLyric.text)}
+                {cleanLyricText(upcomingLyric.text)}
               </p>
             </div>
           ) : null}

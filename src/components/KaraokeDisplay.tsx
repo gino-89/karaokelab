@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LyricLine, AudioStems, ArtistRole, VideoBackgroundConfig } from '../types';
 import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders, Tv } from 'lucide-react';
-import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractAllArtistsFromMetadata, titleCaseArtist, FEMALE_PALETTE, MALE_PALETTE, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo } from '../services/lrcParser';
+import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractAllArtistsFromMetadata, titleCaseArtist, FEMALE_PALETTE, MALE_PALETTE, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo, getLyricPlaybackState, getLineEnd } from '../services/lrcParser';
+import { StageCountdownCard } from './StageCountdownCard';
 import { searchLrclib, searchLrclibSuggestions, LrcSuggestion } from '../services/lrcApi';
 import { searchGeniusSuggestions, fetchGeniusLyricsByUrl, searchGeniusLyricsOnline, GeniusHitSuggestion } from '../services/geniusLyricsApi';
 import { transcribeVocalsWithWhisper } from '../services/whisperApi';
@@ -661,21 +662,26 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   };
 
   const effectiveTime = Math.max(0, currentTime - syncDelay);
+  const playbackState = getLyricPlaybackState(lyrics, effectiveTime);
+  const activeLyric = playbackState.currentLyric;
+  const upcomingLyric = playbackState.nextLyric;
+  const secondsToNext = playbackState.secondsToNext;
+  const showCountdown = isPlaying && playbackState.showCountdown && !!upcomingLyric;
 
   // Compute progress of current active lyric line
   let lineProgress = 0;
   let words: string[] = [];
   let activeWordIndex = -1;
 
-  if (currentLyric) {
-    const elapsed = Math.max(0, effectiveTime - currentLyric.time);
-    const dur = Math.max(0.5, currentLyric.duration || 4.0);
+  if (activeLyric) {
+    const elapsed = Math.max(0, effectiveTime - activeLyric.time);
+    const dur = Math.max(0.5, activeLyric.duration || 4.0);
     lineProgress = Math.max(0, Math.min(100, (elapsed / dur) * 100));
 
-    if (currentLyric.words && currentLyric.words.length > 0) {
-      words = currentLyric.words.map((w) => w.word);
-      for (let i = 0; i < currentLyric.words.length; i++) {
-        const w = currentLyric.words[i];
+    if (activeLyric.words && activeLyric.words.length > 0) {
+      words = activeLyric.words.map((w) => w.word);
+      for (let i = 0; i < activeLyric.words.length; i++) {
+        const w = activeLyric.words[i];
         if (effectiveTime >= w.start && effectiveTime <= w.end) {
           activeWordIndex = i;
           break;
@@ -684,7 +690,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         }
       }
     } else {
-      words = currentLyric.text.split(/\s+/).filter(Boolean);
+      words = activeLyric.text.split(/\s+/).filter(Boolean);
       if (words.length > 0) {
         const wordStep = 100 / words.length;
         activeWordIndex = Math.min(words.length - 1, Math.floor(lineProgress / wordStep));
@@ -1101,18 +1107,21 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     }
   };
 
-  const nextLyric = currentIndex >= 0 && currentIndex < lyrics.length - 1 ? lyrics[currentIndex + 1] : (currentIndex === -1 && lyrics.length > 0 ? lyrics[0] : null);
-  const nextNextLyric = currentIndex >= 0 && currentIndex < lyrics.length - 2 ? lyrics[currentIndex + 2] : null;
-  const hasSong = !!currentLyric || lyrics.length > 0;
+  const nextNextLyric = playbackState.nextIndex >= 0 && playbackState.nextIndex < lyrics.length - 1 ? lyrics[playbackState.nextIndex + 1] : null;
+  const hasSong = !!activeLyric || lyrics.length > 0;
 
   // Duet Singer Identification (Acoustically classified via DSP vocalsBuffer)
-  const currentSinger = currentLyric ? getDuetSinger(currentLyric, currentIndex >= 0 ? currentIndex : 0, null, songArtist) : 'singer1';
-  const nextSinger = nextLyric ? getDuetSinger(nextLyric, currentIndex >= 0 ? currentIndex + 1 : 0, null, songArtist) : 'singer1';
+  const currentSinger = activeLyric ? getDuetSinger(activeLyric, playbackState.currentIndex >= 0 ? playbackState.currentIndex : 0, null, songArtist) : 'singer1';
+  const nextSinger = upcomingLyric ? getDuetSinger(upcomingLyric, playbackState.nextIndex >= 0 ? playbackState.nextIndex : 0, null, songArtist) : 'singer1';
+
+  const currentInfo = activeLyric ? getArtistInfo(activeLyric.singer || currentSinger) : null;
+  const nextInfo = upcomingLyric ? getArtistInfo(upcomingLyric.singer || nextSinger) : null;
 
   const handleToggleActiveLineSinger = () => {
-    if (!lyrics || currentIndex < 0 || currentIndex >= lyrics.length) return;
+    const targetIdx = playbackState.currentIndex >= 0 ? playbackState.currentIndex : currentIndex;
+    if (!lyrics || targetIdx < 0 || targetIdx >= lyrics.length) return;
     if (artistsList.length <= 1) return; // Solo track: no duet cycling or 'both'
-    const current = lyrics[currentIndex].singer || 'artist-0';
+    const current = lyrics[targetIdx].singer || 'artist-0';
     const currentIdx = artistsList.findIndex(a => a.id === current || (current === 'singer1' && a.id === 'artist-0') || (current === 'singer2' && a.id === 'artist-1'));
     let next: string;
     if (currentIdx >= 0 && currentIdx < artistsList.length - 1) {
@@ -1124,7 +1133,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     }
 
     const updated = lyrics.map((l, i) =>
-      i === currentIndex ? { ...l, singer: next } : l
+      i === targetIdx ? { ...l, singer: next } : l
     );
     onUpdateLyrics(updated);
     setVisualLines(updated);
@@ -1186,11 +1195,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     setTimeout(() => setSearchFeedback(null), 3000);
   };
 
-  // Countdown to next line if there is an intro gap before track start
-  let secondsToNext = 0;
-  if (currentIndex === -1 && lyrics.length > 0 && lyrics[0].time > currentTime) {
-    secondsToNext = Math.max(0, lyrics[0].time - currentTime);
-  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -1512,17 +1516,12 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
               <div className="h-7 w-full flex items-center justify-center shrink-0 z-10">
                 {isPlaying && (
-                  secondsToNext > 0.5 && secondsToNext <= 5.0 ? (
-                    <div className="inline-flex items-center gap-2 px-3.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold animate-pulse">
+                  showCountdown && upcomingLyric && nextInfo ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs sm:text-sm font-black animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.35)]">
                       <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                      {nextLyric && (
-                        <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-black/60 text-amber-200">
-                          {(() => {
-                            const nextInfo = getArtistInfo(nextLyric.singer || nextSinger);
-                            return `${nextInfo.isBoth ? '👥' : '🎤'} ${nextInfo.name}`;
-                          })()}
-                        </span>
-                      )}
+                      <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
+                        {nextInfo.isBoth ? '👥 TODOS / DÚO' : `🎤 ${nextInfo.name}`}
+                      </span>
                     </div>
                   ) : isSmartVocalCue && activeCueType ? (
                     <div className="inline-flex items-center gap-2 animate-in fade-in">
@@ -1542,27 +1541,22 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                         </span>
                       )}
                     </div>
-                  ) : currentLyric ? (
-                    (() => {
-                      const info = getArtistInfo(currentLyric.singer || currentSinger);
-                      return (
-                        <div
-                          onClick={handleToggleActiveLineSinger}
-                          className="inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform font-mono text-xs font-bold uppercase tracking-wider"
-                          style={{ color: info.color }}
-                          title="Haz clic para alternar de cantante / artista"
-                        >
-                          <span>{info.isBoth ? '👥' : '🎤'}</span>
-                          <span>{info.isBoth ? `DÚO · ${info.name.toUpperCase()}` : `VOZ: ${info.name.toUpperCase()}`}</span>
-                        </div>
-                      );
-                    })()
+                  ) : activeLyric && currentInfo ? (
+                    <div
+                      onClick={handleToggleActiveLineSinger}
+                      className="inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform font-mono text-xs font-bold uppercase tracking-wider"
+                      style={{ color: currentInfo.color }}
+                      title="Haz clic para alternar de cantante / artista"
+                    >
+                      <span>{currentInfo.isBoth ? '👥' : '🎤'}</span>
+                      <span>{currentInfo.isBoth ? `DÚO · ${currentInfo.name.toUpperCase()}` : `VOZ: ${currentInfo.name.toUpperCase()}`}</span>
+                    </div>
                   ) : null
                 )}
               </div>
 
               {/* SLOT 2: ACTIVE LINE STAGE WITH CLEAN LUMINOUS TYPOGRAPHY */}
-              <div className="teleprompter-active-line-slot w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden z-10">
+              <div className="teleprompter-active-line-slot w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden z-10 min-h-[160px]">
                 {!isPlaying ? (
                   <div className="flex flex-col items-center justify-center gap-2.5 text-center opacity-60">
                     <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
@@ -1579,9 +1573,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                       </span>
                     )}
                   </div>
-                ) : currentLyric ? (
+                ) : activeLyric ? (
                   (() => {
-                    const textClean = cleanLyricText(currentLyric.text);
+                    const textClean = cleanLyricText(activeLyric.text);
                     const textLen = textClean.length;
                     const fontSizeClass = textLen <= 25
                       ? 'text-3xl sm:text-4xl lg:text-5xl'
@@ -1593,12 +1587,11 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                       <div className="flex flex-col items-center justify-center gap-2 w-full overflow-hidden">
                         <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
                           {computeIntelligentWordFills(
-                            { ...currentLyric, text: textClean },
+                            { ...activeLyric, text: textClean },
                             effectiveTime,
-                            nextLyric?.time,
+                            upcomingLyric?.time,
                             bpm
                           ).map((item, wIdx) => {
-                            const info = getArtistInfo(currentLyric.singer || currentSinger);
                             return (
                               <span key={wIdx} className="relative inline-block select-none">
                                 {/* Layer 1: Base Unsung Word (Clean, crisp dim text) */}
@@ -1612,7 +1605,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                                     className="absolute inset-0 inline-block pointer-events-none"
                                     style={{
                                       clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
-                                      color: info.color,
+                                      color: currentInfo?.color || '#00f0ff',
                                     }}
                                   >
                                     {item.word}
@@ -1625,9 +1618,19 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                       </div>
                     );
                   })()
+                ) : showCountdown && upcomingLyric && nextInfo ? (
+                  <StageCountdownCard
+                    secondsToNext={secondsToNext}
+                    nextLyric={upcomingLyric}
+                    artist={nextInfo}
+                    variant="standard"
+                  />
                 ) : (
-                  <div className="text-center">
-                    <p className="text-xl sm:text-2xl font-bold text-slate-500 tracking-wider animate-pulse">
+                  <div className="flex flex-col items-center justify-center gap-2 text-center py-4 animate-in fade-in duration-300">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-lg animate-pulse">
+                      <Music2 className="w-6 h-6 text-cyan-400" />
+                    </div>
+                    <p className="text-xl sm:text-2xl font-black text-slate-300 tracking-wider animate-pulse font-mono">
                       ♫ [SOLO INSTRUMENTAL] ♫
                     </p>
                   </div>
@@ -1636,16 +1639,13 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
 
               {/* SLOT 3: UPCOMING NEXT LINE PREVIEW */}
               <div className="h-16 w-full max-w-3xl flex flex-col items-center justify-center shrink-0 overflow-hidden z-10">
-                {isPlaying && nextLyric ? (
-                  <div className="flex flex-col items-center gap-0.5">
+                {isPlaying && upcomingLyric && !showCountdown ? (
+                  <div className="flex flex-col items-center gap-0.5 animate-in fade-in duration-200">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/70 font-mono">
-                      {(() => {
-                        const nextInfo = getArtistInfo(nextLyric.singer || nextSinger);
-                        return `[PRÓXIMA: ${nextInfo.isBoth ? '👥 DÚO' : '🎤 ' + nextInfo.name.toUpperCase()}]`;
-                      })()}
+                      {nextInfo?.isBoth ? '👥 DÚO' : `🎤 ${nextInfo?.name.toUpperCase() || 'CANTA'}`}
                     </span>
                     <p
-                      onClick={() => onSeek(nextLyric.time)}
+                      onClick={() => onSeek(upcomingLyric.time)}
                       className={`text-sm sm:text-lg font-bold transition-colors cursor-pointer truncate max-w-2xl ${
                         !isDuetMode
                           ? 'text-emerald-400 hover:text-emerald-300'
@@ -1656,7 +1656,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                               : 'text-[#ffe600]/80 hover:text-[#ffe600]'
                       }`}
                     >
-                      {cleanLyricText(nextLyric.text)}
+                      {cleanLyricText(upcomingLyric.text)}
                     </p>
                     {nextNextLyric && (
                       <p className="text-[11px] text-slate-500 font-medium truncate max-w-xl">
