@@ -27,9 +27,6 @@ interface FullscreenPartyModalProps {
   onTogglePlay: () => void;
   vocalGain: number;
   onVocalGainChange: (val: number) => void;
-  isSmartVocalCue?: boolean;
-  activeCueType?: 'intro' | 'chorus' | 'outro' | null;
-  onToggleSmartVocalCue?: () => void;
   bpm: number;
   detectedKey?: string;
   pitchShift?: number;
@@ -61,9 +58,6 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
   onTogglePlay,
   vocalGain,
   onVocalGainChange,
-  isSmartVocalCue = false,
-  activeCueType = null,
-  onToggleSmartVocalCue,
   bpm,
   detectedKey = 'Am',
   pitchShift = 0,
@@ -296,24 +290,6 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
                   <span>{nextArtist.isBoth ? 'TODOS / DÚO' : nextArtist.name}</span>
                 </span>
               </div>
-            ) : isSmartVocalCue && activeCueType ? (
-              <div className="inline-flex items-center gap-2 animate-in fade-in">
-                {activeCueType === 'intro' && (
-                  <span className="px-4 py-1 rounded-full text-xs font-mono font-black bg-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse">
-                    ✨ ENTRADA GUÍA VOCAL (VOZ ORIGINAL)
-                  </span>
-                )}
-                {activeCueType === 'chorus' && (
-                  <span className="px-4 py-1 rounded-full text-xs font-mono font-black bg-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-pulse">
-                    ✨ CORO GUÍA ACTIVO (ACOMPAÑAMIENTO)
-                  </span>
-                )}
-                {activeCueType === 'outro' && (
-                  <span className="px-4 py-1 rounded-full text-xs font-mono font-black bg-cyan-500/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse">
-                    ✨ REMATE / SEGUNDA VOZ
-                  </span>
-                )}
-              </div>
             ) : activeLyric ? (
               <div
                 className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-bold uppercase tracking-wider"
@@ -463,7 +439,7 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
             <span>{isPlaying ? 'PAUSAR' : 'REANUDAR'}</span>
           </button>
 
-          {/* Vocal Guide Buttons: 1. Voz Guía (40%), 2. Guía Inteligente Coros/Entradas, 3. Pista Limpia */}
+          {/* Vocal Guide Buttons: 1. Voz Guía (40%), 2. Pista Limpia */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => onVocalGainChange(vocalGain > 0.05 ? 0.0 : 0.40)}
@@ -477,20 +453,6 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
               <Mic className={`w-4 h-4 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-200 animate-pulse' : 'text-slate-500'}`} />
               <span>{!isCleanTrack && vocalGain > 0.05 ? `VOZ GUÍA: 40%` : 'VOZ GUÍA (40%)'}</span>
             </button>
-            {onToggleSmartVocalCue && (
-              <button
-                onClick={onToggleSmartVocalCue}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                  !isCleanTrack && isSmartVocalCue
-                    ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.6)] font-black'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
-                }`}
-                title="Guía Coros: Activa la voz original automáticamente en coros, entradas y salidas"
-              >
-                <Sparkles className={`w-4 h-4 ${!isCleanTrack && isSmartVocalCue ? 'text-indigo-300 animate-spin' : 'text-slate-500'}`} />
-                <span>{!isCleanTrack && isSmartVocalCue ? 'GUÍA COROS: ON' : 'GUÍA COROS'}</span>
-              </button>
-            )}
             {onToggleCleanTrack && (
               <button
                 onClick={onToggleCleanTrack}

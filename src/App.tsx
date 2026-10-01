@@ -27,7 +27,6 @@ import {
   saveChatMessagesToStorage,
 } from './services/db';
 import { videoRecorder } from './services/videoRecorder';
-import { analyzeSmartVocalCues, getActiveSmartCue } from './services/smartCueAnalyzer';
 import { Header } from './components/Header';
 import { AlertCircle, X, MessageSquare, Send, MessageCircle } from 'lucide-react';
 import { searchMatches } from './utils/textUtils';
@@ -79,19 +78,12 @@ export default function App() {
   const [autoGainEnabled, setAutoGainEnabled] = useState<boolean>(() => audioEngine.getAutoGainEnabled());
   const [autoGainDb, setAutoGainDb] = useState<number>(() => audioEngine.getCurrentGainOffsetDb());
 
-  // Synchronized Lyrics & Smart Vocal Cues
+  // Synchronized Lyrics & Track Mode
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const currentIndexRef = useRef(-1);
   const [isDuetMode, setIsDuetMode] = useState(false);
-  const [isSmartVocalCue, setIsSmartVocalCue] = useState(false);
-  const [activeCueType, setActiveCueType] = useState<'intro' | 'chorus' | 'outro' | null>(null);
   const [isCleanTrack, setIsCleanTrack] = useState(false);
-
-  // Pre-analyzed Intelligent Song Structure Cues (Choruses, Lead-ins, Outros)
-  const smartCues = useMemo(() => {
-    return analyzeSmartVocalCues(lyrics);
-  }, [lyrics]);
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queueRef = useRef<QueueItem[]>(queue);
@@ -1174,7 +1166,6 @@ export default function App() {
           // Caso 1: Todas las voces apagadas (Pista Limpia)
           audioEngine.setVocalGain(0);
           audioEngine.setBackingGain(0);
-          setActiveCueType(null);
         } else if (vocalGain > 0.05) {
           // Caso 2: Voz de ayuda manual activa (ej: al 40% o 50%)
           // Se reproduce la voz original completa al volumen seleccionado
@@ -1183,25 +1174,14 @@ export default function App() {
           // ¡CRÍTICO! Se silencia la pista extra de coros a 0 para evitar duplicación/eco,
           // ya que la pista de voz original completa ya contiene los coros grabados.
           audioEngine.setBackingGain(0);
-          setActiveCueType(null);
         } else {
           // Caso 3: Modo Karaoke Normal (vocalGain <= 0.05)
-          // La voz principal sigue las automatizaciones inteligentes o permanece en 0
+          // La voz principal sigue las automatizaciones personalizadas o permanece en 0
           const autoVocalGain = audioEngine.getAutomatedVocalGainAtTime(t);
           if (autoVocalGain !== null) {
             audioEngine.setVocalGain(autoVocalGain, 0.18);
-            setActiveCueType(null);
           } else {
-            // Si hay guía vocal inteligente activada para esta sección, o 0
-            let cueTargetGain = 0;
-            if (isSmartVocalCue) {
-              const cue = getActiveSmartCue(t, smartCues);
-              cueTargetGain = cue.targetGain;
-              setActiveCueType(cue.cueType);
-            } else {
-              setActiveCueType(null);
-            }
-            audioEngine.setVocalGain(cueTargetGain || 0);
+            audioEngine.setVocalGain(0.0);
           }
 
           // Los Coros MP3 suenan al 100% para acompañar al cantante en vivo
@@ -1269,7 +1249,7 @@ export default function App() {
       window.removeEventListener('focus', handleWakeSync);
       window.removeEventListener('pageshow', handleWakeSync);
     };
-  }, [lyrics, isSmartVocalCue, smartCues, vocalGain, isCleanTrack, isPlaying, youTubeEmbedId]);
+  }, [lyrics, vocalGain, isCleanTrack, isPlaying, youTubeEmbedId]);
 
   // 3. Load a song into Web Audio Engine (Instant Fast-Path Playback)
   const loadSongIntoEngine = async (song: SongItem, autoPlay = false) => {
@@ -2879,29 +2859,7 @@ export default function App() {
               onToggleCleanTrack={handleToggleCleanTrack}
               onToggleVocalGuide={() => {
                 const nextGain = vocalGain > 0.05 ? 0.0 : 0.40;
-                if (nextGain > 0.05) {
-                  setIsSmartVocalCue(false);
-                  setActiveCueType(null);
-                  setIsCleanTrack(false);
-                  audioEngine.setBackingGain(0.0);
-                }
                 handleVocalGainChange(nextGain);
-              }}
-              isSmartVocalCue={isSmartVocalCue}
-              activeCueType={activeCueType}
-              onToggleSmartVocalCue={() => {
-                setIsSmartVocalCue((prev) => {
-                  const next = !prev;
-                  if (next) {
-                    setIsCleanTrack(false);
-                    audioEngine.setBackingGain(1.0);
-                    handleVocalGainChange(0.0);
-                  } else {
-                    audioEngine.setVocalGain(0.0);
-                    setActiveCueType(null);
-                  }
-                  return next;
-                });
               }}
               pitchShift={pitchShift}
               onPitchShiftChange={handlePitchShiftChange}
@@ -3042,21 +3000,6 @@ export default function App() {
         onVocalGainChange={handleVocalGainChange}
         isCleanTrack={isCleanTrack}
         onToggleCleanTrack={handleToggleCleanTrack}
-        isSmartVocalCue={isSmartVocalCue}
-        activeCueType={activeCueType}
-        onToggleSmartVocalCue={() => {
-          setIsSmartVocalCue((prev) => {
-            const next = !prev;
-            if (next) {
-              handleVocalGainChange(0.0);
-              setIsDuetMode(false);
-            } else {
-              setActiveCueType(null);
-              audioEngine.setVocalGain(vocalGain);
-            }
-            return next;
-          });
-        }}
         bpm={bpm}
         detectedKey={detectedKey}
         pitchShift={pitchShift}
@@ -3067,9 +3010,7 @@ export default function App() {
           setIsDuetMode((prev) => {
             const next = !prev;
             if (next) {
-              setIsSmartVocalCue(false);
               handleVocalGainChange(0.0);
-              setActiveCueType(null);
             }
             if (currentSong) {
               const updated: SongItem = { ...currentSong, isDuet: next, updatedAt: Date.now() };

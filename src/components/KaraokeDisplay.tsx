@@ -109,9 +109,6 @@ interface KaraokeDisplayProps {
   onToggleDuetMode?: () => void;
   vocalGain?: number;
   onToggleVocalGuide?: () => void;
-  isSmartVocalCue?: boolean;
-  activeCueType?: 'intro' | 'chorus' | 'outro' | null;
-  onToggleSmartVocalCue?: () => void;
   pitchShift?: number;
   onPitchShiftChange?: (val: number) => void;
   onUpdateLyrics: (newLyrics: LyricLine[], artists?: ArtistRole[]) => void;
@@ -161,9 +158,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   onToggleDuetMode,
   vocalGain = 0.0,
   onToggleVocalGuide,
-  isSmartVocalCue = false,
-  activeCueType = null,
-  onToggleSmartVocalCue,
   pitchShift = 0,
   onPitchShiftChange,
   onUpdateLyrics,
@@ -1524,24 +1518,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                         <span>{nextInfo.isBoth ? 'TODOS / DÚO' : nextInfo.name}</span>
                       </span>
                     </div>
-                  ) : isSmartVocalCue && activeCueType ? (
-                    <div className="inline-flex items-center gap-2 animate-in fade-in">
-                      {activeCueType === 'intro' && (
-                        <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-indigo-500/30 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.5)] animate-pulse">
-                          ✨ ENTRADA GUÍA VOCAL (VOZ ORIGINAL)
-                        </span>
-                      )}
-                      {activeCueType === 'chorus' && (
-                        <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-purple-500/30 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.5)] animate-pulse">
-                          ✨ CORO GUÍA ACTIVO (ACOMPAÑAMIENTO)
-                        </span>
-                      )}
-                      {activeCueType === 'outro' && (
-                        <span className="px-3.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-cyan-500/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)] animate-pulse">
-                          ✨ REMATE / SEGUNDA VOZ
-                        </span>
-                      )}
-                    </div>
                   ) : activeLyric && currentInfo ? (
                     <div
                       onClick={handleToggleActiveLineSinger}
@@ -1712,56 +1688,37 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         <div className="px-3 sm:px-6 py-2.5 sm:py-3 bg-slate-950/95 border-t border-slate-800/80 shadow-2xl">
           <div className="flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between gap-2.5 sm:gap-3 w-full">
             {/* Left: Vocal Guide Controls (Voz Guía y Guía Coros arriba, Pista Limpia debajo) */}
-            <div className="flex flex-col gap-1.5 w-full max-w-[230px] sm:max-w-[250px] shrink-0 order-2 md:order-1 mx-auto md:mx-0">
-              <div className="grid grid-cols-2 gap-1.5 w-full">
-                <button
-                  type="button"
-                  onClick={onToggleVocalGuide}
-                  style={{ touchAction: 'manipulation' }}
-                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate cursor-pointer ${
-                    !isCleanTrack && vocalGain > 0.05
-                      ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.4)] font-black'
-                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
-                  }`}
-                  title="Voz Guía (40%): Activa la voz original del artista al 40% de volumen continuo"
-                >
-                  <Mic className={`w-3 h-3 shrink-0 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-300 animate-pulse' : 'text-slate-500'}`} />
-                  <span className="truncate">
-                    {!isCleanTrack && vocalGain > 0.05 ? 'Voz Guía: 40%' : 'Voz Guía (40%)'}
-                  </span>
-                </button>
+            {/* Vocal Guide & Clean Track Controls: 2 Studio Buttons */}
+            <div className="grid grid-cols-2 gap-1.5 w-full max-w-[240px] sm:max-w-[260px] shrink-0 order-2 md:order-1 mx-auto md:mx-0">
+              <button
+                type="button"
+                onClick={onToggleVocalGuide}
+                style={{ touchAction: 'manipulation' }}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate cursor-pointer ${
+                  !isCleanTrack && vocalGain > 0.05
+                    ? 'border-cyan-400 bg-cyan-500/25 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.4)] font-black'
+                    : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
+                }`}
+                title="Voz Guía (40%): Activa la voz original del artista al 40% de volumen continuo"
+              >
+                <Mic className={`w-3.5 h-3.5 shrink-0 ${!isCleanTrack && vocalGain > 0.05 ? 'text-cyan-300 animate-pulse' : 'text-slate-500'}`} />
+                <span className="truncate">
+                  {!isCleanTrack && vocalGain > 0.05 ? 'Voz Guía: 40%' : 'Voz Guía (40%)'}
+                </span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={onToggleSmartVocalCue}
-                  style={{ touchAction: 'manipulation' }}
-                  className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 shadow-sm truncate cursor-pointer ${
-                    !isCleanTrack && isSmartVocalCue
-                      ? 'border-indigo-400 bg-indigo-600/30 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.4)] font-black'
-                      : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
-                  }`}
-                  title="Guía Coros: Activa la voz original automáticamente en entradas y coros"
-                >
-                  <Sparkles className={`w-3 h-3 shrink-0 ${!isCleanTrack && isSmartVocalCue ? 'text-indigo-300 animate-spin' : 'text-slate-500'}`} />
-                  <span className="truncate">
-                    {!isCleanTrack && isSmartVocalCue ? 'Coros ON' : 'Guía Coros'}
-                  </span>
-                </button>
-              </div>
-
-              {/* Botón Maestro "Pista Limpia" (Bypass de Voz y Silencio de Coros) */}
               <button
                 type="button"
                 onClick={onToggleCleanTrack}
                 style={{ touchAction: 'manipulation' }}
-                className={`flex items-center justify-center gap-1.5 w-full py-1.5 px-2 rounded-lg border text-[11px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm ${
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border text-[11px] font-bold cursor-pointer transition-all active:scale-95 shadow-sm ${
                   isCleanTrack
                     ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.4)] font-black ring-1 ring-emerald-400/50'
                     : 'border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:border-slate-600'
                 }`}
                 title="Pista Limpia: Silencia los coros y voz original para que suene únicamente la instrumental pura"
               >
-                <Sparkles className={`w-3 h-3 shrink-0 ${isCleanTrack ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${isCleanTrack ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
                 <span className="truncate">
                   {isCleanTrack ? '✨ Pista Limpia: ON' : '✨ Pista Limpia'}
                 </span>
