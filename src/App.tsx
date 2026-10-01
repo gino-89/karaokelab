@@ -2319,10 +2319,8 @@ export default function App() {
       setCurrentSong(updatedSong);
       audioEngine.setVocalAutomationConfig(config);
     }
-    // Turn off manual 40% guide and smart cues so the newly edited automation takes over immediately!
+    // Turn off manual 40% guide so the newly edited automation takes over immediately!
     setVocalGain(0.0);
-    setIsSmartVocalCue(false);
-    setActiveCueType(null);
     setIsCleanTrack(false);
   };
 
@@ -2495,8 +2493,6 @@ export default function App() {
 
   const handleVocalGainChange = useCallback((val: number) => {
     if (val > 0.05) {
-      setIsSmartVocalCue(false);
-      setActiveCueType(null);
       setIsCleanTrack(false);
       audioEngine.setBackingGain(0.0);
     } else {
@@ -2513,12 +2509,10 @@ export default function App() {
     setIsCleanTrack((prev) => {
       const next = !prev;
       if (next) {
-        // Al Activar (ON): silencia coros (mute = 0), fuerza voz a 0, apaga y desactiva Voz Guía y Guía Coros
+        // Al Activar (ON): silencia coros (mute = 0), fuerza voz a 0, apaga Voz Guía
         audioEngine.setBackingGain(0.0);
         setVocalGain(0.0);
         audioEngine.setVocalGain(0.0);
-        setIsSmartVocalCue(false);
-        setActiveCueType(null);
       } else {
         // Al Desactivar (OFF): vuelve a sonar Coros.mp3 a 100% (1.0)
         audioEngine.setBackingGain(1.0);
