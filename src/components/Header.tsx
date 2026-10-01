@@ -226,13 +226,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                 className="px-2 sm:px-2.5 py-1 border border-amber-400/70 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 hover:from-amber-500/30 hover:to-yellow-500/30 text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1 shadow-sm rounded-l-xl hover:scale-105 active:scale-95 shrink-0"
                 title={
                   syncTargetFolder
-                    ? `Sincronizar canciones nuevas con: ${syncTargetFolder}`
-                    : 'Seleccionar carpeta o USB para sincronizar con el Player'
+                    ? `Guardar cambios en: ${syncTargetFolder}`
+                    : 'Seleccionar carpeta o USB para guardar cambios'
                 }
               >
-                <span className="text-amber-400 shrink-0">{isFolderSyncing ? '⏳' : '⚡'}</span>
-                <span className="hidden xl:inline">{isFolderSyncing ? 'Sincronizando...' : 'Sincronizar Cambios'}</span>
-                <span className="inline xl:hidden text-[10px]">{isFolderSyncing ? 'Sync...' : 'Sync'}</span>
+                <span className="text-amber-400 shrink-0">{isFolderSyncing ? '⏳' : '💾'}</span>
+                <span className="hidden xl:inline">{isFolderSyncing ? 'Guardando...' : 'Guardar Cambios'}</span>
+                <span className="inline xl:hidden text-[10px]">{isFolderSyncing ? 'Guardando...' : 'Guardar'}</span>
               </button>
 
               {onChangeSyncFolder && (
