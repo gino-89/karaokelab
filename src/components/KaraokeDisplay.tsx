@@ -1517,10 +1517,11 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               <div className="h-7 w-full flex items-center justify-center shrink-0 z-10">
                 {isPlaying && (
                   showCountdown && upcomingLyric && nextInfo ? (
-                    <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs sm:text-sm font-black animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.35)]">
+                    <div className="inline-flex items-center gap-2.5 px-4 py-1 rounded-full bg-[#181206]/90 border border-amber-500/50 text-amber-300 text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(251,191,36,0.25)] animate-pulse">
                       <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                      <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
-                        {nextInfo.isBoth ? '👥 TODOS / DÚO' : `🎤 ${nextInfo.name}`}
+                      <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-200 flex items-center gap-1">
+                        <span>🎤</span>
+                        <span>{nextInfo.isBoth ? 'TODOS / DÚO' : nextInfo.name}</span>
                       </span>
                     </div>
                   ) : isSmartVocalCue && activeCueType ? (

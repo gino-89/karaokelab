@@ -289,10 +289,11 @@ export const FullscreenPartyModal: React.FC<FullscreenPartyModalProps> = ({
         <div className="h-9 w-full flex items-center justify-center shrink-0">
           {isPlaying && (
             showCountdown && upcomingLyric ? (
-              <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-sm sm:text-base font-black animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.35)]">
+              <div className="inline-flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-[#181206]/90 border border-amber-500/50 text-amber-300 text-sm sm:text-base font-bold shadow-[0_0_15px_rgba(251,191,36,0.25)] animate-pulse">
                 <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-black/60 text-amber-200">
-                  {nextArtist.isBoth ? '👥 TODOS / DÚO' : `🎤 ${nextArtist.name}`}
+                <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-200 flex items-center gap-1">
+                  <span>🎤</span>
+                  <span>{nextArtist.isBoth ? 'TODOS / DÚO' : nextArtist.name}</span>
                 </span>
               </div>
             ) : isSmartVocalCue && activeCueType ? (

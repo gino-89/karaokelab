@@ -20,59 +20,52 @@ export const StageCountdownCard: React.FC<StageCountdownCardProps> = ({
   variant = 'standard',
 }) => {
   const countNum = Math.ceil(secondsToNext);
-  const isUrgent = countNum <= 1;
 
-  const cardPadding = variant === 'tv' ? 'p-8 sm:p-10' : 'p-4 sm:p-6';
-  const cardMaxWidth = variant === 'tv' ? 'max-w-4xl' : 'max-w-2xl';
-  const numberTextSize = variant === 'tv' ? 'text-6xl sm:text-7xl md:text-8xl' : 'text-5xl sm:text-6xl';
+  const boxPadding = variant === 'tv' ? 'px-8 sm:px-12 py-3.5 sm:py-4.5' : 'px-6 sm:px-8 py-2.5 sm:py-3.5';
+  const boxGap = variant === 'tv' ? 'gap-4 sm:gap-5' : 'gap-3 sm:gap-4';
+  const numberTextSize = variant === 'tv' ? 'text-3xl sm:text-4xl md:text-5xl' : 'text-2xl sm:text-3xl';
+  const titleTextSize = variant === 'tv' ? 'text-base sm:text-xl md:text-2xl' : 'text-sm sm:text-base md:text-lg';
   const quoteTextSize = variant === 'tv'
-    ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl'
-    : 'text-lg sm:text-xl md:text-2xl';
+    ? 'text-3xl sm:text-5xl md:text-6xl'
+    : 'text-2xl sm:text-3xl md:text-4xl';
 
   return (
-    <div
-      className={`w-full ${cardMaxWidth} mx-auto ${cardPadding} rounded-3xl bg-slate-950/90 backdrop-blur-2xl border-2 border-amber-400/50 shadow-[0_0_50px_rgba(251,191,36,0.3)] flex flex-col items-center justify-center gap-3 sm:gap-4 text-center select-none animate-in zoom-in-95 duration-200`}
-    >
-      {/* 1. Número grande y animación: "⏱️ 4... 3... 2... 1... ¡PREPÁRATE PARA CANTAR!" */}
-      <div className="flex flex-col items-center gap-1.5 sm:gap-2">
-        <div className="flex items-center justify-center gap-3">
-          <span
-            key={countNum}
-            className={`font-black font-mono tracking-tighter ${numberTextSize} text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 drop-shadow-[0_0_30px_rgba(251,191,36,0.7)] animate-pulse`}
-          >
-            ⏱️ {countNum}
-          </span>
-        </div>
-
-        {/* Animated Countdown Timeline Ribbon */}
-        <div className="inline-flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 font-mono font-black text-[11px] sm:text-xs md:text-sm tracking-widest uppercase shadow-[0_0_15px_rgba(251,191,36,0.3)]">
-          <span className={countNum === 4 ? 'text-white font-extrabold scale-110' : 'opacity-60'}>4...</span>
-          <span className={countNum === 3 ? 'text-white font-extrabold scale-110' : 'opacity-60'}>3...</span>
-          <span className={countNum === 2 ? 'text-white font-extrabold scale-110' : 'opacity-60'}>2...</span>
-          <span className={countNum === 1 ? 'text-white font-extrabold scale-110' : 'opacity-60'}>1...</span>
-          <span className={`ml-1 ${isUrgent ? 'text-[#00f0ff] animate-bounce font-black' : 'text-amber-200'}`}>
-            ¡PREPÁRATE PARA CANTAR!
-          </span>
-        </div>
+    <div className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 text-center select-none bg-transparent animate-in fade-in zoom-in-95 duration-200">
+      {/* 1. Caja de conteo dorada flotante: ⏱️ 2 ¡PREPÁRATE PARA CANTAR! */}
+      <div
+        className={`inline-flex items-center justify-center ${boxGap} ${boxPadding} rounded-2xl sm:rounded-3xl border border-amber-400/80 bg-black/45 backdrop-blur-sm shadow-[0_0_20px_rgba(251,191,36,0.18)] transition-transform`}
+      >
+        <span className="text-2xl sm:text-3xl md:text-4xl leading-none select-none">
+          ⏱️
+        </span>
+        <span
+          key={countNum}
+          className={`font-black font-mono leading-none tracking-tight text-amber-400 ${numberTextSize} animate-pulse drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]`}
+        >
+          {countNum}
+        </span>
+        <span className={`font-black font-mono tracking-wider uppercase leading-none text-amber-300/95 ${titleTextSize}`}>
+          ¡PREPÁRATE PARA CANTAR!
+        </span>
       </div>
 
-      {/* 2. Placa del cantante: "🎤 CANTA: [NOMBRE]" o "👥 TODOS / DÚO" */}
+      {/* 2. Placa del cantante: 🎤 CANTA: [NOMBRE] */}
       <div
-        className="inline-flex items-center gap-2 px-4 sm:px-5 py-1 sm:py-1.5 rounded-full border-2 font-mono font-black text-xs sm:text-sm md:text-base uppercase tracking-wider shadow-lg transition-transform hover:scale-105"
+        className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-1 sm:py-1.5 rounded-full border font-mono font-bold text-xs sm:text-sm tracking-wider uppercase shadow-[0_0_15px_rgba(0,240,255,0.25)] transition-all"
         style={{
-          borderColor: artist.color || '#00f0ff',
+          borderColor: artist.color ? `${artist.color}cc` : '#00f0ffcc',
           color: artist.color || '#00f0ff',
-          backgroundColor: `${artist.color || '#00f0ff'}20`,
-          boxShadow: `0 0 20px ${artist.color || '#00f0ff'}35`,
+          backgroundColor: `${artist.color || '#00f0ff'}1a`,
+          boxShadow: `0 0 16px ${artist.color || '#00f0ff'}30`,
         }}
       >
-        <span className="text-sm sm:text-base md:text-lg">{artist.isBoth ? '👥' : '🎤'}</span>
-        <span>{artist.isBoth ? 'TODOS / DÚO' : `CANTA: ${artist.name.toUpperCase()}`}</span>
+        <span className="text-sm sm:text-base">🎤</span>
+        <span>{artist.isBoth ? 'CANTA: TODOS / DÚO' : `CANTA: ${artist.name.toUpperCase()}`}</span>
       </div>
 
-      {/* 3. Texto del verso que sigue entre comillas: "[Texto de la siguiente frase]" */}
-      <div className="w-full px-2">
-        <p className={`font-black text-white text-center leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)] italic ${quoteTextSize}`}>
+      {/* 3. Texto del verso que sigue entre comillas: "Fui tu gran amor" */}
+      <div className="w-full px-4 max-w-4xl mx-auto">
+        <p className={`font-black text-white text-center leading-snug drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] ${quoteTextSize}`}>
           &ldquo;{cleanLyricText(nextLyric.text)}&rdquo;
         </p>
       </div>
