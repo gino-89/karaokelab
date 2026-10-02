@@ -64,6 +64,8 @@ export default function App() {
   // Current Song & Audio State
   const [currentSong, setCurrentSong] = useState<SongItem | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [bpm, setBpm] = useState(128);
@@ -71,6 +73,8 @@ export default function App() {
 
   // Mixer Volumes & DSP
   const [vocalGain, setVocalGain] = useState(0.0);
+  const vocalGainRef = useRef(vocalGain);
+  vocalGainRef.current = vocalGain;
   const [musicGain, setMusicGain] = useState(1.0);
   const [masterGain, setMasterGain] = useState(1.0);
   const [pitchShift, setPitchShift] = useState(0);
@@ -86,6 +90,8 @@ export default function App() {
   const currentIndexRef = useRef(-1);
   const [isDuetMode, setIsDuetMode] = useState(false);
   const [isCleanTrack, setIsCleanTrack] = useState(false);
+  const isCleanTrackRef = useRef(isCleanTrack);
+  isCleanTrackRef.current = isCleanTrack;
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queueRef = useRef<QueueItem[]>(queue);
@@ -826,7 +832,7 @@ export default function App() {
 
             switch (action) {
               case 'togglePlay':
-                if (isPlaying) {
+                if (isPlayingRef.current) {
                   audioEngine.pause();
                   setIsPlaying(false);
                 } else {
@@ -877,12 +883,16 @@ export default function App() {
                 }
                 break;
               case 'toggleGuideVoice':
-                if (vocalGain >= 0.35) {
+                if (vocalGainRef.current >= 0.35) {
                   setVocalGain(0.0);
                   audioEngine.setVocalGain(0.0);
                 } else {
                   setVocalGain(0.40);
                   audioEngine.setVocalGain(0.40);
+                  if (isCleanTrackRef.current) {
+                    setIsCleanTrack(false);
+                    audioEngine.setBackingGain(1.0);
+                  }
                 }
                 break;
               case 'toggleCleanTrack':
@@ -891,6 +901,9 @@ export default function App() {
                   if (nextVal) {
                     setVocalGain(0.0);
                     audioEngine.setVocalGain(0.0);
+                    audioEngine.setBackingGain(0.0);
+                  } else {
+                    audioEngine.setBackingGain(1.0);
                   }
                   return nextVal;
                 });

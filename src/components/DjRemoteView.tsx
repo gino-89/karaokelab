@@ -596,38 +596,61 @@ export const DjRemoteView: React.FC = () => {
             {/* 3. Funciones de Guía */}
             <div className="grid grid-cols-2 gap-2.5">
               {/* Voz Guía 40% */}
-              <button
-                type="button"
-                onClick={() => {
-                  sendAction('toggleGuideVoice');
-                  showToast('🎤 Voz Guía alternada al 40%', 'pink');
-                }}
-                className={`py-2.5 px-3 rounded-2xl border active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wide ${
-                  djState.isGuideVoiceActive || (localVocalGain >= 0.35 && !djState.isCleanTrack)
-                    ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_15px_rgba(255,0,127,0.3)]'
-                    : 'bg-[#0c0e1a] border-pink-500/30 text-pink-400/80 hover:text-pink-300'
-                }`}
-              >
-                <Mic className="w-4 h-4 text-pink-400" />
-                <span>Voz Guía 40%</span>
-              </button>
+              {(() => {
+                const isClean = Boolean(djState.isCleanTrack);
+                const isGuideActive = Boolean(djState.isGuideVoiceActive || (localVocalGain >= 0.35 && !isClean));
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sendAction('toggleGuideVoice');
+                      showToast(
+                        isGuideActive ? '🎤 Voz Guía apagada' : '🎤 Voz Guía activada al 40%',
+                        'pink'
+                      );
+                    }}
+                    className={`py-2.5 px-3 rounded-2xl border active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wide ${
+                      isGuideActive
+                        ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_15px_rgba(255,0,127,0.4)]'
+                        : 'bg-[#0c0e1a] border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Mic className={`w-4 h-4 ${isGuideActive ? 'text-pink-400' : 'text-slate-500'}`} />
+                    <span>Voz Guía 40%</span>
+                    {isGuideActive && (
+                      <span className="w-2 h-2 rounded-full bg-pink-400 shadow-[0_0_6px_#ff007f] animate-pulse shrink-0" />
+                    )}
+                  </button>
+                );
+              })()}
 
               {/* Pista Limpia */}
-              <button
-                type="button"
-                onClick={() => {
-                  sendAction('toggleCleanTrack');
-                  showToast('✨ Modo Pista Limpia alternado', 'cyan');
-                }}
-                className={`py-2.5 px-3 rounded-2xl border active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wide ${
-                  djState.isCleanTrack || localVocalGain === 0
-                    ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-[0_0_15px_rgba(0,240,255,0.3)]'
-                    : 'bg-[#0c0e1a] border-cyan-500/30 text-cyan-400/80 hover:text-cyan-300'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>Pista Limpia</span>
-              </button>
+              {(() => {
+                const isClean = Boolean(djState.isCleanTrack);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sendAction('toggleCleanTrack');
+                      showToast(
+                        isClean ? '✨ Pista Limpia apagada' : '✨ Pista Limpia activada',
+                        'cyan'
+                      );
+                    }}
+                    className={`py-2.5 px-3 rounded-2xl border active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wide ${
+                      isClean
+                        ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
+                        : 'bg-[#0c0e1a] border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Sparkles className={`w-4 h-4 ${isClean ? 'text-cyan-400' : 'text-slate-500'}`} />
+                    <span>Pista Limpia</span>
+                    {isClean && (
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#00f0ff] animate-pulse shrink-0" />
+                    )}
+                  </button>
+                );
+              })()}
             </div>
 
             {/* 4. Mezcla de Audio en Vivo (Faders con Candado de Seguridad) */}
