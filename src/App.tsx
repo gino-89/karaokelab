@@ -1018,6 +1018,24 @@ export default function App() {
                   setCustomerRequests((prev) => prev.filter((r) => r.id !== payload.id));
                 }
                 break;
+              case 'sendChatMessage':
+                if (payload?.text) {
+                  const newMsg: ChatMessage = {
+                    id: `msg_dj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    senderName: 'DJ (Cabina)',
+                    senderProfileId: 'profile_dj',
+                    text: payload.text.trim(),
+                    timestamp: Date.now(),
+                    avatar: '🎧',
+                    color: '#00f0ff',
+                    isHost: true,
+                  };
+                  setChatMessages((prev) => [...prev, newMsg]);
+                  peerSync.broadcastChatMessageToGuests(newMsg);
+                  setLiveChatBanner(newMsg);
+                  setTimeout(() => setLiveChatBanner((curr) => (curr?.id === newMsg.id ? null : curr)), 6000);
+                }
+                break;
             }
           }
         },
@@ -1306,6 +1324,7 @@ export default function App() {
           duration: s.duration,
         })),
         requests: customerRequests,
+        chatMessages,
         isDjServiceEnabled,
       };
       peerSync.broadcastDjState(djStatePayload);
@@ -1327,6 +1346,7 @@ export default function App() {
     queue,
     savedSongs,
     customerRequests,
+    chatMessages,
     isDjServiceEnabled,
   ]);
 

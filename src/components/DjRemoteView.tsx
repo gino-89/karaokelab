@@ -28,9 +28,11 @@ import {
   Zap,
   ChevronRight,
   Disc,
+  Send,
+  Sparkle,
 } from 'lucide-react';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
-import { SongItem, SingerProfile } from '../types';
+import { SongItem, SingerProfile, ChatMessage } from '../types';
 import { transposeKey } from '../services/dspAnalysis';
 
 interface DjRemoteState {
@@ -74,14 +76,15 @@ interface DjRemoteState {
     isYouTube?: boolean;
     videoId?: string;
   }>;
+  chatMessages: ChatMessage[];
   hostPeerId?: string;
   roomCode?: string;
   isDjServiceEnabled?: boolean;
 }
 
 export const DjRemoteView: React.FC = () => {
-  // Tabs: 'controls' | 'queue' | 'catalog' | 'requests'
-  const [activeTab, setActiveTab] = useState<'controls' | 'queue' | 'catalog' | 'requests'>('controls');
+  // Tabs: 'controls' | 'queue' | 'catalog' | 'chat'
+  const [activeTab, setActiveTab] = useState<'controls' | 'queue' | 'catalog' | 'chat'>('controls');
 
   // Connection & Host State
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('reconnecting');
@@ -107,7 +110,12 @@ export const DjRemoteView: React.FC = () => {
     queue: [],
     catalog: [],
     requests: [],
+    chatMessages: [],
   });
+
+  // DJ Chat composer & auto-scroll
+  const [chatInputText, setChatInputText] = useState('');
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   // Local optimistic controls for super snappy UI
   const [localPitch, setLocalPitch] = useState(0);
@@ -182,6 +190,7 @@ export const DjRemoteView: React.FC = () => {
           queue: state.queue || prev.queue,
           catalog: state.catalog || prev.catalog,
           requests: state.requests || prev.requests,
+          chatMessages: state.chatMessages || prev.chatMessages || [],
         }));
 
         if (state.pitchShift !== undefined) setLocalPitch(state.pitchShift);
@@ -261,6 +270,48 @@ export const DjRemoteView: React.FC = () => {
   const sendAction = useCallback((action: string, payload?: any) => {
     peerSync.sendDjAction(action, payload);
   }, []);
+
+  // Send DJ Chat Message
+  const handleSendDjMessage = (textToSend: string) => {
+    const clean = textToSend.trim();
+    if (!clean) return;
+    sendAction('sendChatMessage', { text: clean });
+    setChatInputText('');
+    showToast('💬 Mensaje enviado a la sala', 'cyan');
+  };
+
+  // Auto-scroll chat to bottom when messages change or tab becomes active
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [djState.chatMessages, activeTab]);
+
+  // Master Play / Pause with validation
+  const handleTogglePlay = () => {
+    if (djState.isPlaying) {
+      sendAction('togglePlay');
+      showToast('⏸️ Pausado', 'pink');
+      return;
+    }
+
+    const hasSong = Boolean(djState.songTitle && djState.songTitle.trim() !== '');
+    const hasQueue = Boolean(djState.queue && djState.queue.length > 0);
+
+    if (!hasSong && !hasQueue) {
+      showToast('⚠️ No hay canciones en el reproductor ni en la cola', 'pink');
+      return;
+    }
+
+    sendAction('togglePlay');
+    if (!hasSong && hasQueue) {
+      showToast(`▶ Iniciando cola: ${djState.queue[0].title}`, 'emerald');
+    } else {
+      showToast('▶ Reproduciendo', 'emerald');
+    }
+  };
 
   // Sleep / Disconnect button handler
   const handleToggleSleep = () => {
@@ -545,10 +596,7 @@ export const DjRemoteView: React.FC = () => {
                 {/* ▶ PLAY / ⏸️ PAUSE (Grande, Neón Esmeralda/Ámbar) */}
                 <button
                   type="button"
-                  onClick={() => {
-                    sendAction('togglePlay');
-                    showToast(djState.isPlaying ? '⏸️ Pausado' : '▶ Reproduciendo', djState.isPlaying ? 'pink' : 'emerald');
-                  }}
+                  onClick={handleTogglePlay}
                   className={`py-3.5 px-2 rounded-2xl active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
                     djState.isPlaying
                       ? 'bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.35)]'
@@ -995,98 +1043,200 @@ export const DjRemoteView: React.FC = () => {
         )}
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* PESTAÑA 4: PETICIONES (REQUESTS DE CLIENTES)             */}
+        {/* PESTAÑA 4: CHAT DE LA SALA & PETICIONES (ESTILO WHATSAPP) */}
         {/* ═════════════════════════════════════════════════════════ */}
-        {activeTab === 'requests' && (
+        {activeTab === 'chat' && (
           <div className="flex flex-col space-y-2.5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-xs font-black uppercase tracking-wider text-pink-300 flex items-center gap-1.5 font-mono">
-                <MessageSquare className="w-4 h-4 text-pink-400" />
-                <span>Peticiones de Clientes ({djState.requests.length})</span>
-              </h3>
+            {/* Header / Info bar */}
+            <div className="flex items-center justify-between px-1 shrink-0">
+              <div className="flex items-center gap-1.5 font-mono">
+                <MessageSquare className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                  Chat de la Sala ({djState.chatMessages?.length || 0})
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsGuestQrModalOpen(true)}
-                className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                className="text-[10px] text-pink-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
               >
                 <QrCode className="w-3 h-3" />
-                <span>Ver QR Clientes</span>
+                <span>QR Mesas</span>
               </button>
             </div>
 
-            {djState.requests.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-4 bg-[#0a0c16] rounded-3xl border border-white/5">
-                <MessageSquare className="w-12 h-12 text-slate-700" />
-                <p className="mt-3 text-sm font-bold text-slate-400">
-                  No hay peticiones pendientes
-                </p>
-                <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">
-                  Cuando los clientes escaneen el código QR de sus mesas, sus pedidos aparecerán aquí para que los apruebes.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsGuestQrModalOpen(true)}
-                  className="mt-4 px-4 py-2 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 border border-pink-400/50 text-pink-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Mostrar QR de Mesa</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-2">
-                {djState.requests.map((req) => (
-                  <div
-                    key={req.id}
-                    className="p-3.5 rounded-2xl bg-[#0c0e1a] border border-pink-500/30 hover:border-pink-500/50 flex items-center justify-between gap-2.5 shadow-sm transition-all"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-md bg-pink-950/80 border border-pink-500/40 text-[9.5px] font-black text-pink-300 font-mono">
-                          {req.tableNumber ? `Mesa ${req.tableNumber}` : 'Invitado'}
-                        </span>
-                        <span className="text-xs font-bold text-slate-300 truncate">
-                          {req.singerName || 'Cliente'}
-                        </span>
+            {/* If there are pending customer song requests, show a compact accordion/card at top */}
+            {djState.requests && djState.requests.length > 0 && (
+              <div className="p-2.5 rounded-2xl bg-pink-950/30 border border-pink-500/40 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[10.5px] font-bold text-pink-300">
+                  <span className="flex items-center gap-1">
+                    <span>🎵</span> Peticiones de canciones pendientes ({djState.requests.length})
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {djState.requests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="p-2 rounded-xl bg-[#0c0e1a] border border-pink-500/20 flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-pink-950 text-pink-300">
+                            {req.tableNumber ? req.tableNumber : 'Mesa'}
+                          </span>
+                          <span className="text-[11px] font-bold text-white truncate">
+                            {req.title}
+                          </span>
+                        </div>
+                        <p className="text-[9.5px] text-slate-400 truncate">
+                          {req.singerName || 'Cliente'} • {req.artist || 'Karaoke'}
+                        </p>
                       </div>
-                      <h4 className="text-xs font-black text-white truncate mt-1">
-                        {req.title}
-                      </h4>
-                      <p className="text-[10px] text-cyan-400/80 truncate font-medium">
-                        {req.artist || (req.isYouTube ? 'YouTube' : 'Karaoke')}
-                      </p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sendAction('approveRequest', { id: req.id });
+                            showToast(`✓ Aprobada: ${req.title}`, 'emerald');
+                          }}
+                          className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 text-[10px] font-bold flex items-center gap-1 active:scale-95 cursor-pointer"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>Aceptar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sendAction('dismissRequest', { id: req.id });
+                            showToast('✕ Descartada', 'pink');
+                          }}
+                          className="p-1 rounded-lg bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/30 active:scale-95 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {/* ➕ Aceptar */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sendAction('approveRequest', { id: req.id });
-                          showToast(`✓ Aprobada: ${req.title}`, 'emerald');
-                        }}
-                        className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 text-[11px] font-black uppercase flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                      >
-                        <Check className="w-3 h-3 text-emerald-300" />
-                        <span>Aceptar</span>
-                      </button>
-
-                      {/* ✕ Descartar */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sendAction('dismissRequest', { id: req.id });
-                          showToast(`✕ Petición descartada`, 'pink');
-                        }}
-                        className="p-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 active:scale-95 transition-all cursor-pointer"
-                        title="Descartar petición"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* Chat message bubbles stream (WhatsApp Style) */}
+            <div className="min-h-[280px] max-h-[48vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
+              {(!djState.chatMessages || djState.chatMessages.length === 0) ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center p-4">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-2 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-200">
+                    No hay mensajes en la sala todavía
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+                    Los mensajes, dedicatorias y pedidos de los clientes desde sus mesas aparecerán aquí en vivo.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsGuestQrModalOpen(true)}
+                    className="mt-4 px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>Mostrar QR para Mesas</span>
+                  </button>
+                </div>
+              ) : (
+                djState.chatMessages.map((msg, idx) => {
+                  const isDj = Boolean(
+                    msg.isHost ||
+                    msg.senderProfileId === 'profile_dj' ||
+                    msg.senderName === 'DJ (Cabina)' ||
+                    msg.senderName === 'Host / DJ'
+                  );
+
+                  return (
+                    <div
+                      key={msg.id || idx}
+                      className={`flex flex-col ${isDj ? 'items-end' : 'items-start'} transition-all`}
+                    >
+                      {/* Sender Info Header */}
+                      <div className={`flex items-center gap-1.5 mb-1 px-1 ${isDj ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <span className="text-xs">{msg.avatar || (isDj ? '🎧' : '🎤')}</span>
+                        <div className={`flex items-center gap-1.5 ${isDj ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <span
+                            className={`text-[10px] font-black ${
+                              isDj ? 'text-pink-400' : 'text-cyan-300'
+                            }`}
+                          >
+                            {isDj ? 'DJ (Cabina) 🎧' : (msg.senderName || 'Cliente')}
+                          </span>
+                          {!isDj && msg.tableNumber && (
+                            <span className="px-1.5 py-0.2 rounded bg-pink-950/80 border border-pink-500/40 text-[8.5px] font-black text-pink-300 font-mono">
+                              🪑 {msg.tableNumber}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-mono">
+                          {msg.timestamp
+                            ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ''}
+                        </span>
+                      </div>
+
+                      {/* Message Bubble (WhatsApp style) */}
+                      <div
+                        className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md select-text ${
+                          isDj
+                            ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white rounded-tr-none border border-pink-400/50 shadow-[0_0_15px_rgba(255,0,127,0.25)]'
+                            : 'bg-[#0f1224] border border-cyan-500/30 text-slate-100 rounded-tl-none shadow-[0_0_10px_rgba(0,240,255,0.05)]'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Quick Emojis Reaction Bar */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none shrink-0">
+              {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '⚡', '💃', '⭐', '🙌'].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => handleSendDjMessage(emoji)}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#0c0e1a] hover:bg-cyan-950/60 border border-white/10 hover:border-cyan-400/60 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95 shadow-sm"
+                  title={`Enviar ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Message Input Composer */}
+            <div className="flex items-center gap-2 shrink-0 pt-0.5">
+              <input
+                type="text"
+                placeholder="Escribe a la sala como DJ..."
+                value={chatInputText}
+                onChange={(e) => setChatInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && chatInputText.trim()) {
+                    handleSendDjMessage(chatInputText);
+                  }
+                }}
+                className="flex-1 bg-[#0c0e1a] border border-cyan-500/40 focus:border-cyan-300 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none shadow-[0_0_15px_rgba(0,240,255,0.08)] transition-all font-medium"
+              />
+              <button
+                type="button"
+                onClick={() => handleSendDjMessage(chatInputText)}
+                disabled={!chatInputText.trim()}
+                className="p-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center shrink-0"
+                title="Enviar mensaje"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -1123,7 +1273,7 @@ export const DjRemoteView: React.FC = () => {
         >
           <div className="relative">
             <ListMusic className={`w-5 h-5 ${activeTab === 'queue' ? 'text-cyan-400 scale-110 drop-shadow-[0_0_8px_rgba(0,240,255,0.7)]' : ''}`} />
-            {djState.queue.length > 0 && (
+            {djState.queue && djState.queue.length > 0 && (
               <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-cyan-500 text-black font-mono font-black text-[9px]">
                 {djState.queue.length}
               </span>
@@ -1148,25 +1298,25 @@ export const DjRemoteView: React.FC = () => {
           <span className="text-[10.5px] mt-1 tracking-tight">Catálogo</span>
         </button>
 
-        {/* Tab 4: Peticiones */}
+        {/* Tab 4: Chat */}
         <button
           type="button"
-          onClick={() => setActiveTab('requests')}
+          onClick={() => setActiveTab('chat')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'requests'
+            activeTab === 'chat'
               ? 'text-pink-300 font-black'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <div className="relative">
-            <MessageSquare className={`w-5 h-5 ${activeTab === 'requests' ? 'text-pink-400 scale-110 drop-shadow-[0_0_8px_rgba(255,0,127,0.7)]' : ''}`} />
-            {djState.requests.length > 0 && (
+            <MessageSquare className={`w-5 h-5 ${activeTab === 'chat' ? 'text-pink-400 scale-110 drop-shadow-[0_0_8px_rgba(255,0,127,0.7)]' : ''}`} />
+            {((djState.chatMessages && djState.chatMessages.length > 0) || (djState.requests && djState.requests.length > 0)) && (
               <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono font-black text-[9px] animate-pulse">
-                {djState.requests.length}
+                {(djState.chatMessages?.length || 0) + (djState.requests?.length || 0)}
               </span>
             )}
           </div>
-          <span className="text-[10.5px] mt-1 tracking-tight">Peticiones</span>
+          <span className="text-[10.5px] mt-1 tracking-tight">Chat</span>
         </button>
 
       </nav>
