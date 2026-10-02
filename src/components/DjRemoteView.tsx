@@ -118,6 +118,27 @@ export const DjRemoteView: React.FC = () => {
   // Selected Chat Profile / Table Thread (Individual 1-on-1 conversations)
   const [selectedChatProfileId, setSelectedChatProfileId] = useState<string | null>(null);
 
+  // Read status tracking per thread ID
+  const [readTimestampsByThread, setReadTimestampsByThread] = useState<Record<string, number>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('karaokelab_dj_read_timestamps');
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
+    return {};
+  });
+
+  const markThreadAsRead = useCallback((threadId: string) => {
+    setReadTimestampsByThread((prev) => {
+      const next = { ...prev, [threadId]: Date.now() };
+      try {
+        localStorage.setItem('karaokelab_dj_read_timestamps', JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  }, []);
+
   // DJ Chat composer & auto-scroll
   const [chatInputText, setChatInputText] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -374,7 +395,7 @@ export const DjRemoteView: React.FC = () => {
       }
     });
 
-    // 3. Attach last message and timestamp for each contact thread
+    // 3. Attach last message, timestamp and unread count for each contact thread
     const result = Array.from(threadsMap.values()).map((thread) => {
       const threadMsgs = (djState.chatMessages || []).filter(
         (m) =>
@@ -384,17 +405,38 @@ export const DjRemoteView: React.FC = () => {
           (thread.tableNumber && m.tableNumber === thread.tableNumber)
       );
       const lastMsg = threadMsgs[threadMsgs.length - 1];
+      const lastReadTime = readTimestampsByThread[thread.id] || 0;
+      const unreadMsgs = threadMsgs.filter(
+        (m) =>
+          !m.isHost &&
+          m.senderProfileId !== 'profile_dj' &&
+          m.senderName !== 'DJ (Cabina)' &&
+          m.timestamp > lastReadTime
+      );
+      const unreadCount = selectedChatProfileId === thread.id && activeTab === 'chat' ? 0 : unreadMsgs.length;
+
       return {
         ...thread,
         lastMessage: lastMsg ? lastMsg.text : 'Sin mensajes',
         lastTimestamp: lastMsg ? lastMsg.timestamp : 0,
         messagesCount: threadMsgs.length,
+        unreadCount,
       };
     });
 
-    // Sort by newest activity first
-    return result.sort((a, b) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0));
-  }, [djState.profiles, djState.chatMessages]);
+    // Sort: unread first, then by newest timestamp
+    return result.sort((a, b) => {
+      if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
+        return (b.unreadCount || 0) - (a.unreadCount || 0);
+      }
+      return (b.lastTimestamp || 0) - (a.lastTimestamp || 0);
+    });
+  }, [djState.profiles, djState.chatMessages, readTimestampsByThread, selectedChatProfileId, activeTab]);
+
+  // Total unread count across all conversation threads
+  const totalUnreadChatCount = useMemo(() => {
+    return conversationThreads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  }, [conversationThreads]);
 
   const selectedThread = useMemo(() => {
     if (!selectedChatProfileId) return null;
@@ -408,9 +450,17 @@ export const DjRemoteView: React.FC = () => {
         lastMessage: '',
         lastTimestamp: 0,
         messagesCount: 0,
+        unreadCount: 0,
       }
     );
   }, [selectedChatProfileId, conversationThreads]);
+
+  // Mark active conversation thread as read
+  useEffect(() => {
+    if (activeTab === 'chat' && selectedChatProfileId) {
+      markThreadAsRead(selectedChatProfileId);
+    }
+  }, [activeTab, selectedChatProfileId, djState.chatMessages, markThreadAsRead]);
 
   // Auto-scroll chat to bottom when messages change or tab/thread becomes active
   useEffect(() => {
@@ -1222,46 +1272,70 @@ export const DjRemoteView: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex flex-col space-y-2">
-                    {conversationThreads.map((thread) => (
-                      <button
-                        key={thread.id}
-                        type="button"
-                        onClick={() => setSelectedChatProfileId(thread.id)}
-                        className="w-full p-3 rounded-2xl bg-[#0c0e1a] border border-cyan-500/20 hover:border-cyan-500/50 hover:bg-[#101426] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 text-left shadow-sm group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-11 h-11 rounded-2xl bg-[#14182c] border border-cyan-500/30 flex items-center justify-center text-xl shrink-0 shadow-inner group-hover:scale-105 transition-transform">
-                            {thread.avatar}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <h4 className="text-xs font-black text-white truncate group-hover:text-cyan-300 transition-colors">
-                                {thread.name}
-                              </h4>
-                              {thread.lastTimestamp ? (
-                                <span className="text-[9px] text-slate-500 font-mono shrink-0">
-                                  {new Date(thread.lastTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              {thread.tableNumber && (
-                                <span className="px-1.5 py-0.2 rounded bg-pink-950/80 border border-pink-500/40 text-[8.5px] font-black text-pink-300 font-mono shrink-0">
-                                  🪑 {thread.tableNumber}
-                                </span>
-                              )}
-                              <p className="text-[11px] text-slate-400 truncate flex-1">
-                                {thread.lastMessage}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                    {conversationThreads.map((thread) => {
+                      const hasUnread = Boolean(thread.unreadCount && thread.unreadCount > 0);
 
-                        <div className="flex items-center gap-1 shrink-0 text-slate-500 group-hover:text-cyan-400 transition-colors">
-                          <ChevronRight className="w-4 h-4" />
-                        </div>
-                      </button>
-                    ))}
+                      return (
+                        <button
+                          key={thread.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedChatProfileId(thread.id);
+                            markThreadAsRead(thread.id);
+                          }}
+                          className={`w-full p-3 rounded-2xl border active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 text-left shadow-sm group ${
+                            hasUnread
+                              ? 'bg-pink-950/35 border-pink-500/70 shadow-[0_0_15px_rgba(255,0,127,0.2)]'
+                              : 'bg-[#0c0e1a] border-cyan-500/20 hover:border-cyan-500/50 hover:bg-[#101426]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center text-xl shrink-0 shadow-inner group-hover:scale-105 transition-transform relative ${
+                              hasUnread ? 'bg-pink-950 border-pink-400 text-pink-300' : 'bg-[#14182c] border-cyan-500/30'
+                            }`}>
+                              {thread.avatar}
+                              {hasUnread && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping border border-black" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className={`text-xs truncate transition-colors ${
+                                  hasUnread ? 'font-black text-pink-200' : 'font-bold text-white group-hover:text-cyan-300'
+                                }`}>
+                                  {thread.name}
+                                </h4>
+                                {hasUnread ? (
+                                  <span className="px-2 py-0.5 rounded-full bg-pink-500 text-white font-mono text-[9px] font-black shadow-[0_0_10px_#ff007f] animate-bounce shrink-0">
+                                    {thread.unreadCount} nuevo{thread.unreadCount > 1 ? 's' : ''}
+                                  </span>
+                                ) : thread.lastTimestamp ? (
+                                  <span className="text-[9px] text-slate-500 font-mono shrink-0">
+                                    {new Date(thread.lastTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {thread.tableNumber && (
+                                  <span className="px-1.5 py-0.2 rounded bg-pink-950/80 border border-pink-500/40 text-[8.5px] font-black text-pink-300 font-mono shrink-0">
+                                    🪑 {thread.tableNumber}
+                                  </span>
+                                )}
+                                <p className={`text-[11px] truncate flex-1 ${hasUnread ? 'text-pink-300 font-semibold' : 'text-slate-400'}`}>
+                                  {thread.lastMessage}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={`flex items-center gap-1 shrink-0 transition-colors ${
+                            hasUnread ? 'text-pink-400' : 'text-slate-500 group-hover:text-cyan-400'
+                          }`}>
+                            <ChevronRight className="w-4 h-4" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1500,9 +1574,9 @@ export const DjRemoteView: React.FC = () => {
         >
           <div className="relative">
             <MessageSquare className={`w-5 h-5 ${activeTab === 'chat' ? 'text-pink-400 scale-110 drop-shadow-[0_0_8px_rgba(255,0,127,0.7)]' : ''}`} />
-            {djState.chatMessages && djState.chatMessages.length > 0 && (
-              <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono font-black text-[9px] animate-pulse">
-                {djState.chatMessages.length}
+            {totalUnreadChatCount > 0 && (
+              <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono font-black text-[9px] animate-pulse shadow-[0_0_8px_#ff007f]">
+                {totalUnreadChatCount}
               </span>
             )}
           </div>
