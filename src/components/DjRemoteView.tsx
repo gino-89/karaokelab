@@ -653,7 +653,7 @@ export const DjRemoteView: React.FC = () => {
       </section>
 
       {/* ─── MAIN CONTENT CONTAINER ─── */}
-      <main className="flex-1 overflow-y-auto px-4 py-3 flex flex-col space-y-3.5 pb-20">
+      <main className={`flex-1 flex flex-col min-h-0 ${activeTab === 'chat' && selectedChatProfileId ? 'overflow-hidden px-3 pt-2 pb-20' : 'overflow-y-auto px-4 py-3 pb-20 space-y-3.5'}`}>
 
         {/* ═════════════════════════════════════════════════════════ */}
         {/* PESTAÑA 1: MANDOS (CONTROL MAESTRO)                       */}
@@ -1228,7 +1228,7 @@ export const DjRemoteView: React.FC = () => {
         {/* PESTAÑA 4: CHAT INDIVIDUAL POR PERSONA / MESA (WHATSAPP)  */}
         {/* ═════════════════════════════════════════════════════════ */}
         {activeTab === 'chat' && (
-          <div className="flex flex-col space-y-2.5 animate-in fade-in duration-200">
+          <div className={`flex flex-col ${selectedChatProfileId ? 'flex-1 min-h-0 h-full overflow-hidden' : 'space-y-2.5'} animate-in fade-in duration-200`}>
             {/* ── CASO A: BANDEJA DE CONVERSACIONES (LISTA DE CHATS) ── */}
             {!selectedChatProfileId ? (
               <div className="flex flex-col space-y-2.5">
@@ -1341,14 +1341,14 @@ export const DjRemoteView: React.FC = () => {
               </div>
             ) : (
               /* ── CASO B: CHAT PRIVADO 1-A-1 CON LA PERSONA/MESA SELECCIONADA ── */
-              <div className="flex flex-col space-y-2.5 animate-in fade-in slide-in-from-right-2 duration-200">
-                {/* Contact Top Bar with Back Button */}
-                <div className="p-2.5 rounded-2xl bg-[#0c0e1a] border border-cyan-500/30 flex items-center justify-between gap-2 shadow-md">
+              <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden space-y-2 animate-in fade-in slide-in-from-right-2 duration-200">
+                {/* Contact Top Bar with Back Button (Fixed at top) */}
+                <div className="shrink-0 p-2.5 rounded-2xl bg-[#0c0e1a] border border-cyan-500/30 flex items-center justify-between gap-2 shadow-md z-10">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <button
                       type="button"
                       onClick={() => setSelectedChatProfileId(null)}
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-sm"
                     >
                       <span>←</span>
                       <span>Volver</span>
@@ -1377,7 +1377,7 @@ export const DjRemoteView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Private Messages Stream */}
+                {/* Private Messages Stream (Only this scrolls) */}
                 {(() => {
                   const currentThreadMsgs = (djState.chatMessages || []).filter((m) => {
                     const tId = selectedThread?.id;
@@ -1401,7 +1401,7 @@ export const DjRemoteView: React.FC = () => {
                   });
 
                   return (
-                    <div className="min-h-[280px] max-h-[48vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
                       {currentThreadMsgs.length === 0 ? (
                         <div className="py-12 flex flex-col items-center justify-center text-center p-4">
                           <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
@@ -1460,8 +1460,8 @@ export const DjRemoteView: React.FC = () => {
                   );
                 })()}
 
-                {/* Quick Emojis Reaction Bar */}
-                <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none shrink-0">
+                {/* Quick Emojis Reaction Bar (Fixed above input) */}
+                <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none z-10">
                   {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '⚡', '💃', '⭐', '🙌'].map((emoji) => (
                     <button
                       key={emoji}
@@ -1475,8 +1475,8 @@ export const DjRemoteView: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Message Input Composer for Private Chat */}
-                <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                {/* Message Input Composer for Private Chat (Fixed at bottom) */}
+                <div className="shrink-0 flex items-center gap-2 pt-0.5 z-10">
                   <input
                     type="text"
                     placeholder={`Responder a ${selectedThread?.name || 'la mesa'}...`}
