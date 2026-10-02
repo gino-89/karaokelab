@@ -294,9 +294,37 @@ export const DjRemoteView: React.FC = () => {
   const handleSendDjMessage = (textToSend: string, targetId?: string) => {
     const clean = textToSend.trim();
     if (!clean) return;
-    sendAction('sendChatMessage', {
+    const effectiveTargetId = targetId || selectedChatProfileId || undefined;
+    const targetThread = conversationThreads.find((t) => t.id === effectiveTargetId);
+
+    const optimisticMsg: ChatMessage = {
+      id: `msg_dj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      senderName: 'DJ (Cabina)',
+      senderProfileId: 'profile_dj',
+      targetProfileId: effectiveTargetId,
+      tableNumber: targetThread?.tableNumber,
       text: clean,
-      targetProfileId: targetId || selectedChatProfileId || undefined,
+      timestamp: Date.now(),
+      avatar: '🎧',
+      color: '#00f0ff',
+      isHost: true,
+    };
+
+    // Optimistically insert locally so it appears instantly on the DJ's screen (0ms)
+    setDjState((prev) => {
+      const msgs = prev.chatMessages || [];
+      if (msgs.some((m) => m.id === optimisticMsg.id)) return prev;
+      return {
+        ...prev,
+        chatMessages: [...msgs, optimisticMsg],
+      };
+    });
+
+    sendAction('sendChatMessage', {
+      id: optimisticMsg.id,
+      text: clean,
+      targetProfileId: effectiveTargetId,
+      tableNumber: targetThread?.tableNumber,
     });
     setChatInputText('');
     showToast('💬 Mensaje enviado', 'cyan');
@@ -1277,13 +1305,26 @@ export const DjRemoteView: React.FC = () => {
 
                 {/* Private Messages Stream */}
                 {(() => {
-                  const currentThreadMsgs = (djState.chatMessages || []).filter(
-                    (m) =>
-                      m.senderProfileId === selectedThread?.id ||
-                      m.targetProfileId === selectedThread?.id ||
-                      m.senderName === selectedThread?.name ||
-                      (selectedThread?.tableNumber && m.tableNumber === selectedThread?.tableNumber)
-                  );
+                  const currentThreadMsgs = (djState.chatMessages || []).filter((m) => {
+                    const tId = selectedThread?.id;
+                    const tName = (selectedThread?.name || '').toLowerCase().trim();
+                    const tTable = (selectedThread?.tableNumber || '').toLowerCase().trim();
+
+                    // Messages sent by this person/table
+                    if (tId && m.senderProfileId && m.senderProfileId === tId) return true;
+                    if (tName && m.senderName && m.senderName.toLowerCase().trim() === tName) return true;
+                    if (tTable && m.tableNumber && m.tableNumber.toLowerCase().trim() === tTable) return true;
+
+                    // Messages sent by DJ to this person/table
+                    if (m.isHost || m.senderProfileId === 'profile_dj' || m.senderName === 'DJ (Cabina)' || m.senderName === 'Host / DJ') {
+                      if (!m.targetProfileId) return true;
+                      const target = m.targetProfileId.toLowerCase().trim();
+                      if (tId && target === tId.toLowerCase()) return true;
+                      if (tName && target === tName) return true;
+                      if (tTable && (target === tTable || target.replace('mesa', '').trim() === tTable.replace('mesa', '').trim())) return true;
+                    }
+                    return false;
+                  });
 
                   return (
                     <div className="min-h-[280px] max-h-[48vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">

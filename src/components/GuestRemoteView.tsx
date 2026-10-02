@@ -1477,10 +1477,23 @@ export const GuestRemoteView: React.FC = () => {
             <div className="flex-1 p-3.5 overflow-y-auto space-y-3 scrollbar-thin">
               {(() => {
                 const myThreadMsgs = chatMessages.filter((m) => {
-                  if (m.senderProfileId && myProfileId && m.senderProfileId === myProfileId) return true;
-                  if (m.senderName === guestName) return true;
-                  if (m.isHost && (m.targetProfileId === myProfileId || m.targetProfileId === guestName)) return true;
-                  if (m.isHost && !m.targetProfileId) return true;
+                  const gName = (guestName || '').toLowerCase().trim();
+                  const gTable = (tableNumber || '').toLowerCase().trim();
+                  const gProfId = myProfileId || '';
+
+                  // Messages sent by this guest
+                  if (gProfId && m.senderProfileId && m.senderProfileId === gProfId) return true;
+                  if (gName && m.senderName && m.senderName.toLowerCase().trim() === gName) return true;
+                  if (gTable && m.tableNumber && m.tableNumber.toLowerCase().trim() === gTable) return true;
+
+                  // Messages sent by Host / DJ to this guest
+                  if (m.isHost || m.senderProfileId === 'profile_dj' || m.senderName === 'DJ (Cabina)' || m.senderName === 'Host / DJ') {
+                    if (!m.targetProfileId) return true; // general broadcast to room
+                    const target = m.targetProfileId.toLowerCase().trim();
+                    if (gProfId && target === gProfId.toLowerCase()) return true;
+                    if (gName && target === gName) return true;
+                    if (gTable && (target === gTable || target.replace('mesa', '').trim() === gTable.replace('mesa', '').trim())) return true;
+                  }
                   return false;
                 });
 
