@@ -3,7 +3,7 @@ import { SongItem, SingerProfile, YouTubeFavoriteTrack, ChatMessage } from '../t
 import { getDeviceFingerprint } from './deviceFingerprint';
 
 export interface PeerMessage {
-  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'REMOVE_FROM_QUEUE' | 'QUEUE_SYNC' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'CHAT_MESSAGE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC';
+  type: 'CATALOG_SYNC' | 'PROFILES_SYNC' | 'YT_FAVORITES_SYNC' | 'ADD_TO_QUEUE' | 'REMOVE_FROM_QUEUE' | 'QUEUE_SYNC' | 'CREATE_PROFILE' | 'DELETE_PROFILE' | 'TOGGLE_FAVORITE' | 'TOGGLE_YT_FAVORITE' | 'CHAT_MESSAGE' | 'HEARTBEAT' | 'HEARTBEAT_ACK' | 'GUEST_JOINED' | 'GUEST_INFO' | 'KICK' | 'TV_DISPLAY_JOIN' | 'TV_STATE_SYNC' | 'DJ_JOIN' | 'DJ_STATE_SYNC' | 'DJ_ACTION' | 'DJ_SERVICE_STATUS';
   payload?: any;
 }
 
@@ -40,17 +40,23 @@ class PeerSyncService {
   private peer: Peer | null = null;
   private hostConnection: DataConnection | null = null;
   private guestConnections: Map<string, DataConnection> = new Map();
+  private djConnections: Map<string, DataConnection> = new Map();
   private connectedGuests: Map<string, ConnectedGuest> = new Map();
   private blockedDevices: Map<string, BlockedGuestDevice> = new Map();
   private hostId: string | null = null;
   private isHost: boolean = false;
   private currentQrKey: string = '';
+  private currentDjState: any = null;
+  private isDjServiceEnabled: boolean = true;
   private onCommandCallback: ((cmd: string, data?: any, conn?: DataConnection) => void) | null = null;
   private onCatalogReceivedCallback: ((songs: SongItem[]) => void) | null = null;
   private onProfilesReceivedCallback: ((profiles: SingerProfile[]) => void) | null = null;
   private onYtFavoritesReceivedCallback: ((favorites: YouTubeFavoriteTrack[]) => void) | null = null;
   private onChatMessageReceivedCallback: ((msg: ChatMessage) => void) | null = null;
   private onGuestsChangedCallback: ((guests: ConnectedGuest[]) => void) | null = null;
+  private onDjClientsChangedCallback: ((count: number) => void) | null = null;
+  private onDjStateReceivedCallback: ((state: any) => void) | null = null;
+  private onDjServiceStatusCallback: ((disabled: boolean) => void) | null = null;
   private onKickedCallback: ((reason?: string, message?: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
   private onQueueReceivedCallback: ((queue: any[]) => void) | null = null;
@@ -260,10 +266,17 @@ class PeerSyncService {
         console.log('✓ Host PeerJS online with ID:', id);
         if (onPeerIdReady) onPeerIdReady(id);
 
-        // Start sending periodic heartbeats to all connected guests every 1.5s
+        // Start sending periodic heartbeats to all connected guests & DJs every 1.5s
         if (this.hostHeartbeatTimer) clearInterval(this.hostHeartbeatTimer);
         this.hostHeartbeatTimer = setInterval(() => {
           this.guestConnections.forEach((conn) => {
+            if (conn.open) {
+              try {
+                conn.send({ type: 'HEARTBEAT', payload: { ts: Date.now() } });
+              } catch (_) {}
+            }
+          });
+          this.djConnections.forEach((conn) => {
             if (conn.open) {
               try {
                 conn.send({ type: 'HEARTBEAT', payload: { ts: Date.now() } });
@@ -277,7 +290,7 @@ class PeerSyncService {
         this.guestConnections.set(conn.peer, conn);
 
         conn.on('open', () => {
-          console.log('✓ Guest connected:', conn.peer);
+          console.log('✓ Guest/Peer connected:', conn.peer);
           if (this.currentMiniCatalog.length > 0) {
             try {
               conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
@@ -423,6 +436,23 @@ class PeerSyncService {
                 conn.send({ type: 'TV_STATE_SYNC', payload: this.currentTvState });
               } catch (_) {}
             }
+          } else if (data.type === 'DJ_JOIN') {
+            console.log('✓ DJ Remote connected via WebRTC:', conn.peer);
+            this.djConnections.set(conn.peer, conn);
+            this._notifyDjClientsChanged();
+            if (!this.isDjServiceEnabled) {
+              try {
+                conn.send({ type: 'DJ_SERVICE_STATUS', payload: { disabled: true } });
+              } catch (_) {}
+            } else if (this.currentDjState) {
+              try {
+                conn.send({ type: 'DJ_STATE_SYNC', payload: this.currentDjState });
+              } catch (_) {}
+            }
+          } else if (data.type === 'DJ_ACTION') {
+            if (this.isDjServiceEnabled && this.onCommandCallback) {
+              this.onCommandCallback('DJ_ACTION', data.payload, conn);
+            }
           }
         });
 
@@ -430,13 +460,21 @@ class PeerSyncService {
           this.guestConnections.delete(conn.peer);
           this.connectedGuests.delete(conn.peer);
           this._notifyGuestsChanged();
+          if (this.djConnections.has(conn.peer)) {
+            this.djConnections.delete(conn.peer);
+            this._notifyDjClientsChanged();
+          }
         });
 
         conn.on('error', (err) => {
-          console.warn('Guest connection error:', err);
+          console.warn('Guest/DJ connection error:', err);
           this.guestConnections.delete(conn.peer);
           this.connectedGuests.delete(conn.peer);
           this._notifyGuestsChanged();
+          if (this.djConnections.has(conn.peer)) {
+            this.djConnections.delete(conn.peer);
+            this._notifyDjClientsChanged();
+          }
         });
       });
 
@@ -1073,6 +1111,211 @@ class PeerSyncService {
         } catch (_) {}
       }
     });
+  }
+
+  // ==========================================
+  // --- DJ REMOTE CONTROL METHODS (WebRTC) ---
+  // ==========================================
+
+  public setDjServiceEnabled(enabled: boolean) {
+    this.isDjServiceEnabled = enabled;
+    try {
+      localStorage.setItem('karaokelab_dj_service_enabled', enabled ? 'true' : 'false');
+    } catch (_) {}
+
+    this.djConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({
+            type: 'DJ_SERVICE_STATUS',
+            payload: { disabled: !enabled },
+          });
+        } catch (_) {}
+      }
+    });
+
+    if (enabled && this.currentDjState) {
+      this.broadcastDjState(this.currentDjState);
+    }
+  }
+
+  public getIsDjServiceEnabled(): boolean {
+    return this.isDjServiceEnabled;
+  }
+
+  public getConnectedDjCount(): number {
+    return this.djConnections.size;
+  }
+
+  public onDjClientsChanged(callback: (count: number) => void): () => void {
+    this.onDjClientsChangedCallback = callback;
+    callback(this.djConnections.size);
+    return () => {
+      this.onDjClientsChangedCallback = null;
+    };
+  }
+
+  private _notifyDjClientsChanged() {
+    if (this.onDjClientsChangedCallback) {
+      this.onDjClientsChangedCallback(this.djConnections.size);
+    }
+  }
+
+  // Broadcast state to all connected DJ remotes
+  public broadcastDjState(state: any) {
+    if (!this.isHost) return;
+    this.currentDjState = state;
+    if (!this.isDjServiceEnabled) return;
+
+    this.djConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'DJ_STATE_SYNC', payload: state });
+        } catch (_) {}
+      }
+    });
+  }
+
+  // Initialize DJ Remote session on mobile phone at /dj
+  public initDjRemote(
+    targetHostId: string,
+    onStateReceived: (state: any) => void,
+    onServiceStatusChanged?: (disabled: boolean) => void,
+    onStatusChanged?: (status: ConnectionStatus) => void
+  ) {
+    this.targetHostId = targetHostId;
+    this.onDjStateReceivedCallback = onStateReceived;
+    this.onDjServiceStatusCallback = onServiceStatusChanged || null;
+    this.onConnectionStatusCallback = onStatusChanged || null;
+
+    if (this.peer && !this.peer.destroyed) {
+      try {
+        this.peer.destroy();
+      } catch (_) {}
+    }
+
+    this.isHost = false;
+    this._setConnectionStatus('reconnecting');
+
+    try {
+      this.peer = new Peer(PEER_CONFIG);
+
+      this.peer.on('open', () => {
+        if (!this.peer || !targetHostId) return;
+
+        console.log(`DJ Remote connecting to Host: ${targetHostId}`);
+        const conn = this.peer.connect(targetHostId, { reliable: true });
+        this.hostConnection = conn;
+
+        conn.on('open', () => {
+          console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
+          this.lastHeartbeatReceived = Date.now();
+          this._setConnectionStatus('connected');
+
+          conn.send({
+            type: 'DJ_JOIN',
+            payload: { ts: Date.now() },
+          });
+
+          // Heartbeat monitor for DJ
+          if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
+          this.guestHeartbeatMonitorTimer = setInterval(() => {
+            if (!this.hostConnection || !this.hostConnection.open) {
+              this._setConnectionStatus('disconnected');
+              return;
+            }
+            const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
+            if (timeSinceLastHeartbeat > 20000) {
+              this._setConnectionStatus('disconnected');
+            } else {
+              this._setConnectionStatus('connected');
+            }
+          }, 3000);
+        });
+
+        conn.on('data', (data: any) => {
+          if (!data) return;
+
+          this.lastHeartbeatReceived = Date.now();
+          this._setConnectionStatus('connected');
+
+          if (data.type === 'HEARTBEAT') {
+            try {
+              conn.send({ type: 'HEARTBEAT_ACK', payload: { ts: Date.now() } });
+            } catch (_) {}
+          } else if (data.type === 'DJ_STATE_SYNC' && data.payload) {
+            if (this.onDjStateReceivedCallback) {
+              this.onDjStateReceivedCallback(data.payload);
+            }
+          } else if (data.type === 'DJ_SERVICE_STATUS') {
+            if (this.onDjServiceStatusCallback) {
+              this.onDjServiceStatusCallback(!!data.payload?.disabled);
+            }
+          }
+        });
+
+        conn.on('close', () => {
+          this._setConnectionStatus('disconnected');
+        });
+
+        conn.on('error', (err) => {
+          console.warn('DJ Remote connection error:', err);
+          this._setConnectionStatus('disconnected');
+        });
+      });
+
+      this.peer.on('error', (err) => {
+        console.warn('DJ Remote PeerJS error:', err);
+        this._setConnectionStatus('disconnected');
+      });
+    } catch (e) {
+      console.warn('DJ Remote PeerJS init exception:', e);
+      this._setConnectionStatus('disconnected');
+    }
+  }
+
+  public sendDjAction(action: string, payload?: any) {
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({
+          type: 'DJ_ACTION',
+          payload: { action, payload },
+        });
+      } catch (e) {
+        console.warn('Failed to send DJ action:', e);
+      }
+    }
+  }
+
+  public disconnectDjRemote() {
+    if (this.hostConnection) {
+      try {
+        this.hostConnection.close();
+      } catch (_) {}
+      this.hostConnection = null;
+    }
+    if (this.guestHeartbeatMonitorTimer) {
+      clearInterval(this.guestHeartbeatMonitorTimer);
+      this.guestHeartbeatMonitorTimer = null;
+    }
+    if (this.peer && !this.peer.destroyed) {
+      try {
+        this.peer.destroy();
+      } catch (_) {}
+      this.peer = null;
+    }
+    this._setConnectionStatus('disconnected');
+  }
+
+  public reconnectDjRemote() {
+    if (this.targetHostId && !this.isHost && this.onDjStateReceivedCallback) {
+      this.initDjRemote(
+        this.targetHostId,
+        this.onDjStateReceivedCallback,
+        this.onDjServiceStatusCallback || undefined,
+        this.onConnectionStatusCallback || undefined
+      );
+    }
   }
 }
 

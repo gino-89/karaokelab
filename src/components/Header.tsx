@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Tv, FolderUp, Radio, QrCode, MessageSquare } from 'lucide-react';
+import { Tv, FolderUp, Radio, QrCode, MessageSquare, Sliders } from 'lucide-react';
 
 interface HeaderProps {
   onOpenAboutModal?: () => void;
@@ -7,6 +7,8 @@ interface HeaderProps {
   onOpenVideoStudio?: () => void;
   onOpenCastModal?: () => void;
   onOpenQrModal?: () => void;
+  onOpenDjModal?: () => void;
+  connectedDjCount?: number;
   onOpenChatModal?: () => void;
   unreadChatCount?: number;
   onOpenDspSettings?: () => void;
@@ -33,6 +35,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onOpenVideoStudio,
   onOpenCastModal,
   onOpenQrModal,
+  onOpenDjModal,
+  connectedDjCount,
   onOpenChatModal,
   unreadChatCount,
   onOpenDspSettings,
@@ -172,6 +176,23 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               <QrCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span className="hidden xl:inline">QR Biblioteca</span>
               <span className="inline xl:hidden text-[10px]">QR</span>
+            </button>
+          )}
+
+          {/* Control DJ Remoto Móvil (/dj) */}
+          {onOpenDjModal && (
+            <button
+              id="btn-dj-remote-modal"
+              onClick={onOpenDjModal}
+              className="px-2 sm:px-2.5 py-1 rounded-xl border border-cyan-400/80 bg-gradient-to-r from-cyan-500/20 via-purple-600/20 to-pink-500/20 text-cyan-300 hover:from-cyan-500/30 hover:to-pink-500/30 hover:border-cyan-300 text-[10px] sm:text-[11px] font-black uppercase transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.25)] hover:shadow-[0_0_20px_rgba(255,0,127,0.4)] shrink-0 hover:scale-105 active:scale-95"
+              title="Abrir Control DJ Remoto Móvil (/dj)"
+            >
+              <Sliders className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+              <span className="hidden sm:inline font-mono">Control DJ</span>
+              <span className="inline sm:hidden font-mono">DJ</span>
+              {connectedDjCount && connectedDjCount > 0 ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+              ) : null}
             </button>
           )}
 

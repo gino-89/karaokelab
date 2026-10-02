@@ -40,7 +40,9 @@ import { YouTubeModal } from './components/YouTubeModal';
 import { CastTvModal } from './components/CastTvModal';
 import { TvStandaloneDisplay } from './components/TvStandaloneDisplay';
 import { GuestRemoteView } from './components/GuestRemoteView';
+import { DjRemoteView } from './components/DjRemoteView';
 import { QrCodeModal } from './components/QrCodeModal';
+import { DjControlModal } from './components/DjControlModal';
 import { peerSync } from './services/peerSyncService';
 import { DspSettingsModal } from './components/DspSettingsModal';
 import { DynamicVideoBackground } from './components/DynamicVideoBackground';
@@ -242,13 +244,42 @@ export default function App() {
     window.location.search.includes('remote') ||
     window.location.hash.includes('guest')
   );
+  const isDjMode = typeof window !== 'undefined' && !isTvDisplayMode && !isGuestMode && (
+    window.location.pathname.startsWith('/dj') ||
+    window.location.search.includes('mode=dj') ||
+    window.location.search.includes('dj=') ||
+    window.location.search === '?dj' ||
+    window.location.hash.includes('dj')
+  );
 
   const [isCastModalOpen, setIsCastModalOpen] = useState(false);
   const [isCastingActive, setIsCastingActive] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isDjModalOpen, setIsDjModalOpen] = useState(false);
+  const [isDjServiceEnabled, setIsDjServiceEnabled] = useState<boolean>(() => peerSync.getIsDjServiceEnabled());
+  const [connectedDjCount, setConnectedDjCount] = useState<number>(0);
+  const [customerRequests, setCustomerRequests] = useState<Array<{
+    id: string;
+    songId?: string;
+    title: string;
+    artist?: string;
+    singerName?: string;
+    tableNumber?: string;
+    timestamp: number;
+    isYouTube?: boolean;
+    videoId?: string;
+  }>>([]);
   const [hostPeerId, setHostPeerId] = useState<string | null>(null);
   const [isDspModalOpen, setIsDspModalOpen] = useState(false);
   const [isVocalAutomationModalOpen, setIsVocalAutomationModalOpen] = useState(false);
+
+  // Subscribe to DJ clients count
+  useEffect(() => {
+    const unsub = peerSync.onDjClientsChanged((count) => {
+      setConnectedDjCount(count);
+    });
+    return () => unsub();
+  }, []);
 
   // ── Room Live Chat States ──
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() =>
@@ -549,6 +580,21 @@ export default function App() {
             showAlertToast(`🎬 ${who}${table ? ` (${table})` : ''} pidió "${ytTitle}" de YouTube · Agregada a la cola`);
             return [...prev, newItem];
           });
+
+          // Record in DJ customer requests for DJ Remote Tab 4
+          setCustomerRequests((prev) => [
+            {
+              id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              title: ytTitle,
+              artist: ytArtist,
+              singerName: who,
+              tableNumber: table,
+              timestamp: Date.now(),
+              isYouTube: true,
+              videoId: effectiveVideoId,
+            },
+            ...prev.filter((r) => r.title !== ytTitle).slice(0, 49),
+          ]);
           return;
         }
 
@@ -580,6 +626,21 @@ export default function App() {
             showAlertToast(`🎤 ${who}${table ? ` (${table})` : ''} pidió "${matchedSong.title}" · Agregada a la cola`);
             return [...prev, newItem];
           });
+
+          // Record in DJ customer requests for DJ Remote Tab 4
+          setCustomerRequests((prev) => [
+            {
+              id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              songId: matchedSong.id,
+              title: matchedSong.title,
+              artist: matchedSong.artist || '',
+              singerName: who,
+              tableNumber: table,
+              timestamp: Date.now(),
+              isYouTube: false,
+            },
+            ...prev.filter((r) => r.title !== matchedSong.title).slice(0, 49),
+          ]);
         } else {
           showAlertToast(`⚠️ ${who}${table ? ` (${table})` : ''} pidió "${title || 'Desconocida'}" · No encontrada en la biblioteca`);
         }
@@ -758,6 +819,190 @@ export default function App() {
                 setUnreadChatCount((prev) => prev + 1);
               }
               peerSync.broadcastChatMessageToGuests(msg);
+            }
+          } else if (cmd === 'DJ_ACTION') {
+            const action = data?.action;
+            const payload = data?.payload || {};
+
+            switch (action) {
+              case 'togglePlay':
+                if (isPlaying) {
+                  audioEngine.pause();
+                  setIsPlaying(false);
+                } else {
+                  handlePlay();
+                }
+                break;
+              case 'play':
+                handlePlay();
+                break;
+              case 'pause':
+                audioEngine.pause();
+                setIsPlaying(false);
+                break;
+              case 'stop':
+                handleStop();
+                break;
+              case 'restart':
+                handleSeek(0);
+                break;
+              case 'nextSong':
+                handleNextInQueue();
+                break;
+              case 'setPitch':
+                if (payload.semitones !== undefined) {
+                  const semitones = Number(payload.semitones);
+                  setPitchShift(semitones);
+                  audioEngine.setPitchShift(semitones);
+                }
+                break;
+              case 'setBpm':
+                if (payload.bpm !== undefined) {
+                  const newBpm = Number(payload.bpm);
+                  setBpm(newBpm);
+                }
+                break;
+              case 'setVocalGain':
+                if (payload.val !== undefined) {
+                  const val = Math.max(0, Math.min(1.5, Number(payload.val)));
+                  setVocalGain(val);
+                  audioEngine.setVocalGain(val);
+                }
+                break;
+              case 'setMusicGain':
+                if (payload.val !== undefined) {
+                  const val = Math.max(0, Math.min(1.5, Number(payload.val)));
+                  setMusicGain(val);
+                  audioEngine.setMusicGain(val);
+                }
+                break;
+              case 'toggleGuideVoice':
+                if (vocalGain >= 0.35) {
+                  setVocalGain(0.0);
+                  audioEngine.setVocalGain(0.0);
+                } else {
+                  setVocalGain(0.40);
+                  audioEngine.setVocalGain(0.40);
+                }
+                break;
+              case 'toggleCleanTrack':
+                setIsCleanTrack((prev) => {
+                  const nextVal = !prev;
+                  if (nextVal) {
+                    setVocalGain(0.0);
+                    audioEngine.setVocalGain(0.0);
+                  }
+                  return nextVal;
+                });
+                break;
+              case 'playQueueItem':
+                if (payload.id || payload.songId) {
+                  const currentQueue = queueRef.current;
+                  const item = currentQueue.find((q) => q.id === payload.id || q.songData?.id === payload.songId);
+                  if (item && item.songData) {
+                    loadSongIntoEngine(item.songData, true);
+                    setQueue((prev) => prev.filter((q) => q.id !== item.id));
+                  }
+                }
+                break;
+              case 'removeFromQueue':
+                if (payload.id) {
+                  setQueue((prev) => prev.filter((q) => q.id !== payload.id));
+                }
+                break;
+              case 'addLibrarySongToQueue':
+                if (payload.id || payload.title) {
+                  const latestSongs = savedSongsRef.current;
+                  const songToAdd = latestSongs.find((s) => s.id === payload.id || (payload.title && searchMatches(s.title, payload.title)));
+                  if (songToAdd) {
+                    setQueue((prev) => {
+                      if (prev.some((q) => q.songData?.id === songToAdd.id)) {
+                        return prev;
+                      }
+                      const newItem: QueueItem = {
+                        id: `queue_dj_${songToAdd.id}_${Date.now()}`,
+                        fileName: songToAdd.title,
+                        status: 'ready',
+                        progress: 100,
+                        requestedBy: 'DJ',
+                        songData: songToAdd,
+                      };
+                      return [...prev, newItem];
+                    });
+                    showAlertToast(`🎧 DJ encoló "${songToAdd.title}"`);
+                  }
+                }
+                break;
+              case 'playLibrarySongNow':
+                if (payload.id || payload.title) {
+                  const latestSongs = savedSongsRef.current;
+                  const songToPlay = latestSongs.find((s) => s.id === payload.id || (payload.title && searchMatches(s.title, payload.title)));
+                  if (songToPlay) {
+                    loadSongIntoEngine(songToPlay, true);
+                    showAlertToast(`🎧 DJ reproduciendo "${songToPlay.title}"`);
+                  }
+                }
+                break;
+              case 'approveRequest':
+                if (payload.id) {
+                  setCustomerRequests((prev) => {
+                    const req = prev.find((r) => r.id === payload.id);
+                    if (req) {
+                      if (req.isYouTube && req.videoId) {
+                        setQueue((qPrev) => [
+                          ...qPrev,
+                          {
+                            id: `queue_yt_${req.videoId}_${Date.now()}`,
+                            fileName: `🎬 [YouTube] ${req.title}`,
+                            status: 'ready',
+                            progress: 100,
+                            requestedBy: req.singerName,
+                            tableNumber: req.tableNumber,
+                            songData: {
+                              id: `yt_${req.videoId}`,
+                              title: req.title,
+                              artist: req.artist || 'YouTube',
+                              duration: 240,
+                              bpm: 120,
+                              key: 'C',
+                              lyrics: [],
+                              originalFileName: `${req.title}.mp4`,
+                              videoBgId: req.videoId,
+                              videoBgMode: 'custom',
+                              videoBgCustomUrl: `https://www.youtube.com/watch?v=${req.videoId}`,
+                              createdAt: Date.now(),
+                            },
+                          },
+                        ]);
+                      } else {
+                        const latestSongs = savedSongsRef.current;
+                        const matched = latestSongs.find((s) => (req.songId && s.id === req.songId) || (req.title && searchMatches(s.title, req.title)));
+                        if (matched) {
+                          setQueue((qPrev) => [
+                            ...qPrev,
+                            {
+                              id: `queue_req_${matched.id}_${Date.now()}`,
+                              fileName: matched.title,
+                              status: 'ready',
+                              progress: 100,
+                              requestedBy: req.singerName,
+                              tableNumber: req.tableNumber,
+                              songData: matched,
+                            },
+                          ]);
+                        }
+                      }
+                      showAlertToast(`✓ Petición aprobada: "${req.title}"`);
+                    }
+                    return prev.filter((r) => r.id !== payload.id);
+                  });
+                }
+                break;
+              case 'dismissRequest':
+                if (payload.id) {
+                  setCustomerRequests((prev) => prev.filter((r) => r.id !== payload.id));
+                }
+                break;
             }
           }
         },
@@ -1012,12 +1257,74 @@ export default function App() {
     pitchShift,
   ]);
 
+  // Broadcast live state to connected Mobile DJ remotes (/dj)
+  useEffect(() => {
+    if (!isTvDisplayMode && !isGuestMode && !isDjMode) {
+      const djStatePayload = {
+        isPlaying,
+        currentTime,
+        duration,
+        songTitle: currentSong?.title || '',
+        songArtist: currentSong?.artist || '',
+        detectedKey: currentSong?.key || detectedKey || 'Am',
+        bpm: currentSong?.bpm || bpm || 120,
+        pitchShift: pitchShift || 0,
+        vocalGain,
+        musicGain,
+        isCleanTrack,
+        isGuideVoiceActive: vocalGain >= 0.35 && !isCleanTrack,
+        queue: queue.map((q) => ({
+          id: q.id,
+          songId: q.songData?.id,
+          title: q.songData?.title || q.fileName,
+          artist: q.songData?.artist || '',
+          requestedBy: q.requestedBy,
+          tableNumber: q.tableNumber,
+          status: q.status,
+        })),
+        catalog: savedSongs.map((s) => ({
+          id: s.id,
+          title: s.title,
+          artist: s.artist,
+          genre: s.genre,
+          bpm: s.bpm,
+          duration: s.duration,
+        })),
+        requests: customerRequests,
+        isDjServiceEnabled,
+      };
+      peerSync.broadcastDjState(djStatePayload);
+    }
+  }, [
+    isTvDisplayMode,
+    isGuestMode,
+    isDjMode,
+    currentSong,
+    isPlaying,
+    currentTime,
+    duration,
+    bpm,
+    detectedKey,
+    pitchShift,
+    vocalGain,
+    musicGain,
+    isCleanTrack,
+    queue,
+    savedSongs,
+    customerRequests,
+    isDjServiceEnabled,
+  ]);
+
   if (isTvDisplayMode) {
     return <TvStandaloneDisplay />;
   }
 
   if (isGuestMode) {
     return <GuestRemoteView />;
+  }
+
+  if (isDjMode) {
+    return <DjRemoteView />;
   }
 
   const generatePerformanceResult = (song: SongItem, singer?: SingerProfile): KaraokePerformanceResult => {
@@ -2700,6 +3007,8 @@ export default function App() {
         onOpenVideoStudio={handleOpenVideoStudio}
         onOpenCastModal={handleOpenCastModal}
         onOpenQrModal={handleOpenQrModal}
+        onOpenDjModal={() => setIsDjModalOpen(true)}
+        connectedDjCount={connectedDjCount}
         onOpenChatModal={() => {
           setIsChatOpen(true);
           setUnreadChatCount(0);
@@ -3079,6 +3388,19 @@ export default function App() {
         isOpen={isQrModalOpen}
         hostPeerId={hostPeerId}
         onClose={() => setIsQrModalOpen(false)}
+      />
+
+      {/* ── Control DJ Remoto Móvil Modal ── */}
+      <DjControlModal
+        isOpen={isDjModalOpen}
+        onClose={() => setIsDjModalOpen(false)}
+        hostPeerId={hostPeerId}
+        isDjServiceEnabled={isDjServiceEnabled}
+        onToggleDjService={(enabled) => {
+          setIsDjServiceEnabled(enabled);
+          peerSync.setDjServiceEnabled(enabled);
+        }}
+        connectedDjCount={connectedDjCount}
       />
 
       {/* ── DSP Audio Latency & Hardware Settings Modal ── */}
