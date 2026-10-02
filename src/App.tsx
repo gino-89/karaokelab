@@ -2660,6 +2660,7 @@ export default function App() {
   const handleRestoreLibraryCallback = useCallback((newSongs: SongItem[], newProfiles: SingerProfile[]) => {
     setSavedSongs(newSongs);
     setProfiles(newProfiles);
+    setYoutubeFavorites(getYouTubeFavoritesFromStorage());
     setCurrentSong((prev) => {
       if (!prev) return null;
       const updatedCurrent = newSongs.find((s) => s.id === prev.id);

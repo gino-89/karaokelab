@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
-import { SongItem, SingerProfile, LyricLine, ArtistRole, VideoBackgroundMode, VocalAutomationConfig } from '../types';
-import { saveSongToDB, getSongsFromDB, saveProfilesToStorage, getProfilesFromStorage } from './db';
+import { SongItem, SingerProfile, LyricLine, ArtistRole, VideoBackgroundMode, VocalAutomationConfig, YouTubeFavoriteTrack } from '../types';
+import { saveSongToDB, getSongsFromDB, saveProfilesToStorage, getProfilesFromStorage, saveYouTubeFavoritesToStorage, getYouTubeFavoritesFromStorage } from './db';
 import { formatLRC, parseLRC } from './lrcParser';
 import { convertWavBlobToMp3_320kbps } from './mp3Encoder';
 
@@ -13,6 +13,7 @@ export interface LibraryBackupData {
   timestamp: number;
   totalSongs: number;
   profiles: SingerProfile[];
+  youtubeFavorites?: YouTubeFavoriteTrack[];
   songs: SongItemBackup[];
 }
 
@@ -121,6 +122,7 @@ export function exportLibraryBackup(songs: SongItem[], profiles: SingerProfile[]
     timestamp: Date.now(),
     totalSongs: cleanSongs.length,
     profiles: profiles || [],
+    youtubeFavorites: getYouTubeFavoritesFromStorage(),
     songs: cleanSongs,
   };
 
@@ -160,6 +162,7 @@ export async function exportFullLibraryWithAudioZip(
     timestamp: Date.now(),
     totalSongs: songs.length,
     profiles: profiles || [],
+    youtubeFavorites: getYouTubeFavoritesFromStorage(),
     songs: [],
   };
 
@@ -240,6 +243,7 @@ export async function exportFullLibraryWithAudioZip(
     version: '1.0.0',
     updatedAt: Date.now(),
     profiles: profiles || [],
+    youtubeFavorites: getYouTubeFavoritesFromStorage(),
     songs: rootManifest.songs.map((s, idx) => {
       const sIdx = String(idx + 1).padStart(2, '0');
       const fName = `${sIdx}_${sanitizeFilename(s.artist)} - ${sanitizeFilename(s.title)}`;
@@ -539,74 +543,44 @@ async function importLibraryFromZip(
   const existingSongs = await getSongsFromDB();
   const mergedSongs: SongItem[] = [...existingSongs];
   let importedSongsCount = 0;
+  const idMapping = new Map<string, string>(); // maps manifest/song.json id -> actual ID in database
 
-  // Check if there is a root manifest
-  const manifestFile = zip.file('library_manifest.json');
-  let manifestData: LibraryBackupData | null = null;
-  if (manifestFile) {
-    try {
-      const text = await manifestFile.async('text');
-      manifestData = JSON.parse(text);
-    } catch (e) {
-      console.warn('Could not parse root library_manifest.json:', e);
+  // 1. Locate and parse manifest (manifest.json, library_manifest.json, karaokelab_manifest.json)
+  let manifestData: any = null;
+  const manifestFileNames = ['manifest.json', 'library_manifest.json', 'karaokelab_manifest.json'];
+  let manifestZipObj: JSZip.JSZipObject | null = null;
+
+  for (const name of manifestFileNames) {
+    const direct = zip.file(name);
+    if (direct) {
+      manifestZipObj = direct;
+      break;
     }
   }
 
-  // Find all folders or root song
-  const songJsonFiles = Object.keys(zip.files).filter((p) => p.endsWith('song.json'));
-
-  if (songJsonFiles.length === 0) {
-    // If no song.json, maybe it's a single song ZIP with audio + lrc
-    const lrcFiles = Object.keys(zip.files).filter((p) => p.endsWith('.lrc'));
-    const audioFiles = Object.keys(zip.files).filter((p) => /\.(mp3|wav|ogg|m4a|flac)$/i.test(p));
-
-    if (audioFiles.length > 0) {
-      let instBlob: Blob | undefined;
-      let vocBlob: Blob | undefined;
-      let mainAudioBlob: Blob | undefined;
-      let lyrics: LyricLine[] = [];
-
-      for (const aPath of audioFiles) {
-        const fileObj = zip.file(aPath);
-        if (!fileObj) continue;
-        const blob = await fileObj.async('blob');
-        if (aPath.includes('instrumental')) instBlob = blob;
-        else if (aPath.toLowerCase().includes('vocal') || aPath.toLowerCase().includes('voz')) vocBlob = blob;
-        else if (!mainAudioBlob) mainAudioBlob = blob;
-      }
-
-      if (lrcFiles.length > 0) {
-        const lrcObj = zip.file(lrcFiles[0]);
-        if (lrcObj) {
-          const lrcText = await lrcObj.async('text');
-          lyrics = parseLRC(lrcText);
-        }
-      }
-
-      const songTitle = file.name.replace(/\.[^/.]+$/, '').replace(/_KaraokePackage/i, '');
-      const newSong: SongItem = {
-        id: `song_zip_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        title: songTitle,
-        artist: 'Desconocido',
-        album: '',
-        genre: 'General',
-        duration: 180,
-        bpm: 120,
-        key: 'Am',
-        lyrics,
-        originalFileName: file.name,
-        audioBlob: mainAudioBlob || instBlob,
-        stems: instBlob || vocBlob ? { instrumentalBlob: instBlob, vocalsBlob: vocBlob } : undefined,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      await saveSongToDB(newSong);
-      mergedSongs.push(newSong);
-      importedSongsCount++;
+  if (!manifestZipObj) {
+    const manifestPath = Object.keys(zip.files).find(
+      (p) => !zip.files[p].dir && /(?:^|\/)(?:manifest|library_manifest|karaokelab_manifest)\.json$/i.test(p)
+    );
+    if (manifestPath) {
+      manifestZipObj = zip.file(manifestPath);
     }
-  } else {
-    // Process each song folder in the ZIP
+  }
+
+  if (manifestZipObj) {
+    try {
+      const text = await manifestZipObj.async('text');
+      manifestData = JSON.parse(text);
+    } catch (e) {
+      console.warn('Could not parse manifest JSON from ZIP:', e);
+    }
+  }
+
+  // 2. Discover song entries
+  const songJsonFiles = Object.keys(zip.files).filter((p) => /(?:^|\/)song\.json$/i.test(p) && !zip.files[p].dir);
+
+  if (songJsonFiles.length > 0) {
+    // Process each song folder containing a song.json
     for (let i = 0; i < songJsonFiles.length; i++) {
       const jsonPath = songJsonFiles[i];
       const folderPrefix = jsonPath.substring(0, jsonPath.lastIndexOf('song.json'));
@@ -614,8 +588,8 @@ async function importLibraryFromZip(
       if (!jsonFile) continue;
 
       if (onProgress) {
-        const p = 20 + Math.round(((i + 1) / songJsonFiles.length) * 70);
-        onProgress(p, `Extrayendo pistas de audio (${i + 1}/${songJsonFiles.length})...`);
+        const p = 20 + Math.round(((i + 1) / songJsonFiles.length) * 65);
+        onProgress(p, `Extrayendo canciones (${i + 1}/${songJsonFiles.length})...`);
       }
 
       try {
@@ -628,7 +602,7 @@ async function importLibraryFromZip(
         let bassBlob: Blob | undefined;
         let genericAudioBlob: Blob | undefined;
 
-        const folderFiles = Object.keys(zip.files).filter((p) => p.startsWith(folderPrefix) && p !== jsonPath);
+        const folderFiles = Object.keys(zip.files).filter((p) => p.startsWith(folderPrefix) && p !== jsonPath && !zip.files[p].dir);
 
         for (const fPath of folderFiles) {
           const fObj = zip.file(fPath);
@@ -648,7 +622,7 @@ async function importLibraryFromZip(
           }
         }
 
-        // Direct lookup from metadata (manifest.json / song.json)
+        // Direct lookup from metadata filenames if blobs not found by name pattern
         if (!vocalsBlob && songMeta.vocalsFile) {
           const vName = songMeta.vocalsFile.split('/').pop() || songMeta.vocalsFile;
           const vFile = zip.file(`${folderPrefix}${vName}`) || zip.file(songMeta.vocalsFile) || zip.file(`${folderPrefix}vocals.mp3`) || zip.file(`${folderPrefix}vocal.mp3`);
@@ -666,22 +640,29 @@ async function importLibraryFromZip(
         }
 
         let finalLyrics = songMeta.lyrics || [];
-        const lrcPath = `${folderPrefix}lyrics.lrc`;
-        const lrcFile = zip.file(lrcPath);
-        if (lrcFile && finalLyrics.length === 0) {
-          const lrcText = await lrcFile.async('text');
-          finalLyrics = parseLRC(lrcText);
+        const lrcCandidate = Object.keys(zip.files).find((p) => p.startsWith(folderPrefix) && /\.lrc$/i.test(p) && !zip.files[p].dir);
+        if (lrcCandidate && finalLyrics.length === 0) {
+          const lrcObj = zip.file(lrcCandidate);
+          if (lrcObj) {
+            const lrcText = await lrcObj.async('text');
+            finalLyrics = parseLRC(lrcText);
+          }
         }
 
+        const rawSongId = songMeta.id || `song_zip_${Date.now()}_${i}`;
         const matchIdx = mergedSongs.findIndex(
           (s) =>
             s.id === songMeta.id ||
-            (s.title.toLowerCase().trim() === songMeta.title.toLowerCase().trim() &&
+            (s.title.toLowerCase().trim() === (songMeta.title || '').toLowerCase().trim() &&
               (s.artist || '').toLowerCase().trim() === (songMeta.artist || '').toLowerCase().trim())
         );
 
         if (matchIdx >= 0) {
           const existing = mergedSongs[matchIdx];
+          const finalId = existing.id;
+          idMapping.set(rawSongId, finalId);
+          idMapping.set(finalId, finalId);
+
           const updated: SongItem = {
             ...existing,
             title: songMeta.title || existing.title,
@@ -701,7 +682,7 @@ async function importLibraryFromZip(
             vocalAutomation: songMeta.vocalAutomation || existing.vocalAutomation,
             lyrics: finalLyrics.length > 0 ? finalLyrics : existing.lyrics,
             rawLrc: songMeta.rawLrc || existing.rawLrc,
-            audioBlob: genericAudioBlob || existing.audioBlob,
+            audioBlob: instrumentalBlob || genericAudioBlob || existing.audioBlob,
             stems:
               instrumentalBlob || vocalsBlob || backingBlob || bassBlob
                 ? {
@@ -719,8 +700,11 @@ async function importLibraryFromZip(
           mergedSongs[matchIdx] = updated;
           importedSongsCount++;
         } else {
+          const finalId = rawSongId;
+          idMapping.set(rawSongId, finalId);
+
           const newSong: SongItem = {
-            id: songMeta.id || `song_zip_${Date.now()}_${Math.random().toString(36).substr(2, 5)}_${i}`,
+            id: finalId,
             title: songMeta.title,
             artist: songMeta.artist || 'Desconocido',
             album: songMeta.album || '',
@@ -741,7 +725,7 @@ async function importLibraryFromZip(
             vocalAutomation: songMeta.vocalAutomation,
             createdAt: songMeta.createdAt || Date.now(),
             updatedAt: songMeta.updatedAt || songMeta.createdAt || Date.now(),
-            audioBlob: genericAudioBlob || instrumentalBlob,
+            audioBlob: instrumentalBlob || genericAudioBlob,
             stems:
               instrumentalBlob || vocalsBlob || backingBlob || bassBlob
                 ? {
@@ -762,30 +746,276 @@ async function importLibraryFromZip(
         console.warn('Error reading song entry in ZIP:', err);
       }
     }
+  } else if (manifestData && Array.isArray(manifestData.songs) && manifestData.songs.length > 0) {
+    // Process songs defined in manifest.json when individual song.json files are not present
+    const mSongs = manifestData.songs;
+    for (let i = 0; i < mSongs.length; i++) {
+      const s = mSongs[i];
+      if (onProgress) {
+        const p = 20 + Math.round(((i + 1) / mSongs.length) * 65);
+        onProgress(p, `Extrayendo canciones del catálogo (${i + 1}/${mSongs.length})...`);
+      }
+
+      try {
+        const folderPrefix = s.folder ? (s.folder.endsWith('/') ? s.folder : `${s.folder}/`) : '';
+        let instrumentalBlob: Blob | undefined;
+        let vocalsBlob: Blob | undefined;
+        let backingBlob: Blob | undefined;
+        let genericAudioBlob: Blob | undefined;
+
+        // Try exact paths from manifest
+        if (s.audioFile) {
+          const aObj = zip.file(s.audioFile) || zip.file(`${folderPrefix}${s.audioFile.split('/').pop()}`);
+          if (aObj) instrumentalBlob = await aObj.async('blob');
+        }
+        if (s.vocalsFile) {
+          const vObj = zip.file(s.vocalsFile) || zip.file(`${folderPrefix}${s.vocalsFile.split('/').pop()}`);
+          if (vObj) vocalsBlob = await vObj.async('blob');
+        }
+        if (s.backingVocalsFile) {
+          const bObj = zip.file(s.backingVocalsFile) || zip.file(`${folderPrefix}${s.backingVocalsFile.split('/').pop()}`);
+          if (bObj) backingBlob = await bObj.async('blob');
+        }
+
+        // Search folder if files not found
+        if (folderPrefix) {
+          const folderFiles = Object.keys(zip.files).filter((p) => p.startsWith(folderPrefix) && !zip.files[p].dir);
+          for (const fPath of folderFiles) {
+            const fObj = zip.file(fPath);
+            if (!fObj) continue;
+            const fileName = fPath.substring(folderPrefix.length).toLowerCase();
+            if (!instrumentalBlob && fileName.includes('instrumental')) {
+              instrumentalBlob = await fObj.async('blob');
+            } else if (!backingBlob && (fileName.includes('coros') || fileName.includes('backing'))) {
+              backingBlob = await fObj.async('blob');
+            } else if (!vocalsBlob && (fileName.includes('vocal') || fileName.includes('voz'))) {
+              vocalsBlob = await fObj.async('blob');
+            } else if (!genericAudioBlob && /\.(mp3|wav|ogg|m4a|flac)$/i.test(fileName)) {
+              genericAudioBlob = await fObj.async('blob');
+            }
+          }
+        }
+
+        let finalLyrics = s.lyrics || [];
+        if (finalLyrics.length === 0) {
+          const lrcPath = s.lrcFile || `${folderPrefix}lyrics.lrc`;
+          const lrcObj = zip.file(lrcPath) || (folderPrefix ? zip.file(Object.keys(zip.files).find((p) => p.startsWith(folderPrefix) && /\.lrc$/i.test(p)) || '') : null);
+          if (lrcObj) {
+            const lrcText = await lrcObj.async('text');
+            finalLyrics = parseLRC(lrcText);
+          }
+        }
+
+        const rawSongId = s.id || `song_manifest_${Date.now()}_${i}`;
+        const matchIdx = mergedSongs.findIndex(
+          (ex) =>
+            ex.id === s.id ||
+            (ex.title.toLowerCase().trim() === (s.title || '').toLowerCase().trim() &&
+              (ex.artist || '').toLowerCase().trim() === (s.artist || '').toLowerCase().trim())
+        );
+
+        if (matchIdx >= 0) {
+          const existing = mergedSongs[matchIdx];
+          const finalId = existing.id;
+          idMapping.set(rawSongId, finalId);
+          idMapping.set(finalId, finalId);
+
+          const updated: SongItem = {
+            ...existing,
+            title: s.title || existing.title,
+            artist: s.artist || existing.artist,
+            album: s.album || existing.album,
+            genre: s.genre || existing.genre,
+            bpm: s.bpm || existing.bpm,
+            key: s.key || existing.key,
+            duration: s.duration || existing.duration,
+            syncOffset: s.syncOffset !== undefined ? s.syncOffset : existing.syncOffset,
+            artistsList: s.artistsList || existing.artistsList,
+            isDuet: s.isDuet !== undefined ? s.isDuet : existing.isDuet,
+            videoBgId: s.videoBgId || existing.videoBgId,
+            videoBgTitle: s.videoBgTitle || existing.videoBgTitle,
+            videoBgMode: s.videoBgMode || existing.videoBgMode,
+            videoBgCustomUrl: s.videoBgCustomUrl || existing.videoBgCustomUrl,
+            vocalAutomation: s.vocalAutomation || existing.vocalAutomation,
+            lyrics: finalLyrics.length > 0 ? finalLyrics : existing.lyrics,
+            rawLrc: s.rawLrc || existing.rawLrc,
+            audioBlob: instrumentalBlob || genericAudioBlob || existing.audioBlob,
+            stems:
+              instrumentalBlob || vocalsBlob || backingBlob
+                ? {
+                    instrumentalBlob: instrumentalBlob || existing.stems?.instrumentalBlob,
+                    vocalsBlob: vocalsBlob || existing.stems?.vocalsBlob,
+                    backingBlob: backingBlob || existing.stems?.backingBlob,
+                  }
+                : existing.stems,
+            hasBackingVocals: !!backingBlob || !!existing.stems?.backingBlob || s.hasBackingVocals || false,
+            backingVocalsFile: s.backingVocalsFile || (backingBlob ? 'coros.mp3' : existing.backingVocalsFile),
+            updatedAt: s.updatedAt || Date.now(),
+          };
+          await saveSongToDB(updated);
+          mergedSongs[matchIdx] = updated;
+          importedSongsCount++;
+        } else {
+          const finalId = rawSongId;
+          idMapping.set(rawSongId, finalId);
+
+          const newSong: SongItem = {
+            id: finalId,
+            title: s.title,
+            artist: s.artist || 'Desconocido',
+            album: s.album || '',
+            genre: s.genre || 'General',
+            duration: s.duration || 180,
+            bpm: s.bpm || 120,
+            key: s.key || 'Am',
+            lyrics: finalLyrics,
+            rawLrc: s.rawLrc || '',
+            originalFileName: s.originalFileName || s.audioFile || `${s.title}.mp3`,
+            syncOffset: s.syncOffset ?? 0.0,
+            artistsList: s.artistsList,
+            isDuet: s.isDuet,
+            videoBgId: s.videoBgId,
+            videoBgTitle: s.videoBgTitle,
+            videoBgMode: s.videoBgMode,
+            videoBgCustomUrl: s.videoBgCustomUrl,
+            vocalAutomation: s.vocalAutomation,
+            createdAt: s.createdAt || Date.now(),
+            updatedAt: s.updatedAt || s.createdAt || Date.now(),
+            audioBlob: instrumentalBlob || genericAudioBlob,
+            stems:
+              instrumentalBlob || vocalsBlob || backingBlob
+                ? {
+                    instrumentalBlob,
+                    vocalsBlob,
+                    backingBlob,
+                  }
+                : undefined,
+            hasBackingVocals: !!backingBlob || s.hasBackingVocals || false,
+            backingVocalsFile: s.backingVocalsFile || (backingBlob ? 'coros.mp3' : undefined),
+          };
+          await saveSongToDB(newSong);
+          mergedSongs.push(newSong);
+          importedSongsCount++;
+        }
+      } catch (err) {
+        console.warn('Error reading manifest song in ZIP:', err);
+      }
+    }
+  } else {
+    // Single song ZIP fallback
+    const lrcFiles = Object.keys(zip.files).filter((p) => p.endsWith('.lrc') && !zip.files[p].dir);
+    const audioFiles = Object.keys(zip.files).filter((p) => /\.(mp3|wav|ogg|m4a|flac)$/i.test(p) && !zip.files[p].dir);
+
+    if (audioFiles.length > 0) {
+      let instBlob: Blob | undefined;
+      let vocBlob: Blob | undefined;
+      let backingBlob: Blob | undefined;
+      let mainAudioBlob: Blob | undefined;
+      let lyrics: LyricLine[] = [];
+
+      for (const aPath of audioFiles) {
+        const fileObj = zip.file(aPath);
+        if (!fileObj) continue;
+        const blob = await fileObj.async('blob');
+        const low = aPath.toLowerCase();
+        if (low.includes('instrumental')) instBlob = blob;
+        else if (low.includes('coros') || low.includes('backing')) backingBlob = blob;
+        else if (low.includes('vocal') || low.includes('voz')) vocBlob = blob;
+        else if (!mainAudioBlob) mainAudioBlob = blob;
+      }
+
+      if (lrcFiles.length > 0) {
+        const lrcObj = zip.file(lrcFiles[0]);
+        if (lrcObj) {
+          const lrcText = await lrcObj.async('text');
+          lyrics = parseLRC(lrcText);
+        }
+      }
+
+      const songTitle = file.name.replace(/\.[^/.]+$/, '').replace(/_KaraokePackage/i, '');
+      const rawSongId = `song_zip_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const newSong: SongItem = {
+        id: rawSongId,
+        title: songTitle,
+        artist: 'Desconocido',
+        album: '',
+        genre: 'General',
+        duration: 180,
+        bpm: 120,
+        key: 'Am',
+        lyrics,
+        originalFileName: file.name,
+        audioBlob: instBlob || mainAudioBlob,
+        stems: instBlob || vocBlob || backingBlob ? { instrumentalBlob: instBlob, vocalsBlob: vocBlob, backingBlob } : undefined,
+        hasBackingVocals: !!backingBlob,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      await saveSongToDB(newSong);
+      mergedSongs.push(newSong);
+      idMapping.set(rawSongId, rawSongId);
+      importedSongsCount++;
+    }
   }
 
-  // Restore Singer Profiles if present in manifest
+  // 3. Restore Singer Profiles and Favorites from Manifest
   let importedProfilesCount = 0;
   let allProfiles = getProfilesFromStorage();
 
-  if (manifestData && Array.isArray(manifestData.profiles) && manifestData.profiles.length > 0) {
+  const manifestProfiles: SingerProfile[] =
+    manifestData && Array.isArray(manifestData.profiles) && manifestData.profiles.length > 0
+      ? manifestData.profiles
+      : [];
+
+  if (manifestProfiles.length > 0) {
     const existingProfilesMap = new Map<string, SingerProfile>(allProfiles.map((p) => [p.id, p]));
-    for (const bProf of manifestData.profiles) {
+
+    for (const bProf of manifestProfiles) {
       if (!bProf.id || !bProf.name) continue;
+
+      // Remap favorite song IDs using idMapping
+      const rawFavs = Array.isArray(bProf.favoriteSongIds) ? bProf.favoriteSongIds : [];
+      const mappedFavs = rawFavs.map((fId) => (idMapping.has(fId) ? idMapping.get(fId)! : fId));
+
       if (existingProfilesMap.has(bProf.id)) {
         const existing = existingProfilesMap.get(bProf.id)!;
-        const mergedFavs = Array.from(new Set([...existing.favoriteSongIds, ...(bProf.favoriteSongIds || [])]));
-        existingProfilesMap.set(bProf.id, { ...existing, ...bProf, favoriteSongIds: mergedFavs });
+        const mergedFavs = Array.from(new Set([...existing.favoriteSongIds, ...mappedFavs]));
+        existingProfilesMap.set(bProf.id, {
+          ...existing,
+          ...bProf,
+          favoriteSongIds: mergedFavs,
+        });
       } else {
-        existingProfilesMap.set(bProf.id, bProf);
+        existingProfilesMap.set(bProf.id, {
+          ...bProf,
+          favoriteSongIds: Array.from(new Set(mappedFavs)),
+        });
         importedProfilesCount++;
       }
     }
+
     allProfiles = Array.from(existingProfilesMap.values());
     saveProfilesToStorage(allProfiles);
   }
 
-  if (onProgress) onProgress(100, `✓ ¡${importedSongsCount} canciones y audios restaurados con éxito!`);
+  // 4. Restore YouTube Favorites from Manifest
+  const rawYtFavs = manifestData?.youtubeFavorites || (manifestData as any)?.favorites;
+  if (Array.isArray(rawYtFavs) && rawYtFavs.length > 0) {
+    const existingYtFavs = getYouTubeFavoritesFromStorage();
+    const existingYtIds = new Set(existingYtFavs.map((y) => y.id));
+    const mergedYtFavs = [...existingYtFavs];
+
+    for (const yf of rawYtFavs) {
+      if (yf && yf.id && !existingYtIds.has(yf.id)) {
+        mergedYtFavs.push(yf);
+        existingYtIds.add(yf.id);
+      }
+    }
+    saveYouTubeFavoritesToStorage(mergedYtFavs);
+  }
+
+  if (onProgress) onProgress(100, `✓ ¡${importedSongsCount} canciones y perfiles restaurados con éxito!`);
 
   return {
     importedSongsCount,
@@ -825,10 +1055,13 @@ async function importLibraryMetadataJSON(file: File): Promise<{
   const existingSongs = await getSongsFromDB();
   let importedSongsCount = 0;
   const mergedSongs: SongItem[] = [...existingSongs];
+  const idMapping = new Map<string, string>();
 
-  for (const bSong of backupSongs) {
+  for (let i = 0; i < backupSongs.length; i++) {
+    const bSong = backupSongs[i];
     if (!bSong.title) continue;
 
+    const rawSongId = bSong.id || `song_backup_${Date.now()}_${i}`;
     const matchById = existingSongs.find((s) => s.id === bSong.id);
     const matchByTitleArtist = existingSongs.find(
       (s) =>
@@ -839,6 +1072,10 @@ async function importLibraryMetadataJSON(file: File): Promise<{
     const existingMatch = matchById || matchByTitleArtist;
 
     if (existingMatch) {
+      const finalId = existingMatch.id;
+      idMapping.set(rawSongId, finalId);
+      idMapping.set(finalId, finalId);
+
       const updated: SongItem = {
         ...existingMatch,
         title: bSong.title || existingMatch.title,
@@ -865,8 +1102,11 @@ async function importLibraryMetadataJSON(file: File): Promise<{
       if (idx >= 0) mergedSongs[idx] = updated;
       importedSongsCount++;
     } else {
+      const finalId = rawSongId;
+      idMapping.set(rawSongId, finalId);
+
       const newSong: SongItem = {
-        id: bSong.id || `song_backup_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: finalId,
         title: bSong.title,
         artist: bSong.artist || 'Desconocido',
         album: bSong.album || '',
@@ -901,17 +1141,37 @@ async function importLibraryMetadataJSON(file: File): Promise<{
     const existingProfilesMap = new Map<string, SingerProfile>(allProfiles.map((p) => [p.id, p]));
     for (const bProf of parsed.profiles) {
       if (!bProf.id || !bProf.name) continue;
+
+      const rawFavs = Array.isArray(bProf.favoriteSongIds) ? bProf.favoriteSongIds : [];
+      const mappedFavs = rawFavs.map((fId) => (idMapping.has(fId) ? idMapping.get(fId)! : fId));
+
       if (existingProfilesMap.has(bProf.id)) {
         const existing = existingProfilesMap.get(bProf.id)!;
-        const mergedFavs = Array.from(new Set([...existing.favoriteSongIds, ...(bProf.favoriteSongIds || [])]));
+        const mergedFavs = Array.from(new Set([...existing.favoriteSongIds, ...mappedFavs]));
         existingProfilesMap.set(bProf.id, { ...existing, ...bProf, favoriteSongIds: mergedFavs });
       } else {
-        existingProfilesMap.set(bProf.id, bProf);
+        existingProfilesMap.set(bProf.id, { ...bProf, favoriteSongIds: Array.from(new Set(mappedFavs)) });
         importedProfilesCount++;
       }
     }
     allProfiles = Array.from(existingProfilesMap.values());
     saveProfilesToStorage(allProfiles);
+  }
+
+  // Restore YouTube Favorites if present
+  const rawYtFavs = parsed.youtubeFavorites || parsed.favorites;
+  if (Array.isArray(rawYtFavs) && rawYtFavs.length > 0) {
+    const existingYtFavs = getYouTubeFavoritesFromStorage();
+    const existingYtIds = new Set(existingYtFavs.map((y) => y.id));
+    const mergedYtFavs = [...existingYtFavs];
+
+    for (const yf of rawYtFavs) {
+      if (yf && yf.id && !existingYtIds.has(yf.id)) {
+        mergedYtFavs.push(yf);
+        existingYtIds.add(yf.id);
+      }
+    }
+    saveYouTubeFavoritesToStorage(mergedYtFavs);
   }
 
   return {
