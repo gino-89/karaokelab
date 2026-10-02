@@ -63,6 +63,8 @@ import { karaokeScoringTracker } from './services/karaokeScoringEngine';
 export default function App() {
   // Current Song & Audio State
   const [currentSong, setCurrentSong] = useState<SongItem | null>(null);
+  const currentSongRef = useRef<SongItem | null>(currentSong);
+  currentSongRef.current = currentSong;
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
@@ -833,27 +835,27 @@ export default function App() {
             switch (action) {
               case 'togglePlay':
                 if (isPlayingRef.current) {
-                  audioEngine.pause();
-                  setIsPlaying(false);
+                  if (handlePauseRef.current) handlePauseRef.current();
+                  else { audioEngine.pause(); setIsPlaying(false); }
                 } else {
-                  handlePlay();
+                  if (handlePlayRef.current) handlePlayRef.current();
                 }
                 break;
               case 'play':
-                handlePlay();
+                if (handlePlayRef.current) handlePlayRef.current();
                 break;
               case 'pause':
-                audioEngine.pause();
-                setIsPlaying(false);
+                if (handlePauseRef.current) handlePauseRef.current();
+                else { audioEngine.pause(); setIsPlaying(false); }
                 break;
               case 'stop':
-                handleStop();
+                if (handleStopRef.current) handleStopRef.current();
                 break;
               case 'restart':
-                handleSeek(0);
+                if (handleSeekRef.current) handleSeekRef.current(0);
                 break;
               case 'nextSong':
-                handleNextInQueue();
+                if (handleNextInQueueRef.current) handleNextInQueueRef.current();
                 break;
               case 'setPitch':
                 if (payload.semitones !== undefined) {
@@ -2482,12 +2484,6 @@ export default function App() {
     setQueue((prev) => prev.filter((q) => q.id !== queueId));
   };
 
-  // Keep currentSongRef updated for asynchronous callbacks
-  const currentSongRef = useRef(currentSong);
-  useEffect(() => {
-    currentSongRef.current = currentSong;
-  }, [currentSong]);
-
   const lastTrackEndedTimeRef = useRef<number>(0);
 
   // Unified track completion handler (used by Web Audio onEnded and YouTube video onEnded)
@@ -2673,28 +2669,35 @@ export default function App() {
       return;
     }
 
-    // If no song is loaded in player
-    if (!currentSong) {
-      // Check if there is a ready song in queue to play
-      const nextInQueue = queue.find((q) => q.status === 'ready' && q.songData);
+    const activeSong = currentSongRef.current || currentSong;
+
+    // If no song is loaded in player, play the first ready song from queue
+    if (!activeSong) {
+      const currentQueue = queueRef.current;
+      const nextInQueue =
+        currentQueue.find((q) => (q.status === 'ready' || !q.status || q.status === 'idle') && q.songData) ||
+        currentQueue.find((q) => q.songData) ||
+        currentQueue[0];
+
       if (nextInQueue && nextInQueue.songData) {
+        setQueue((prev) => prev.filter((q) => q.id !== nextInQueue.id));
         await loadSongIntoEngine(nextInQueue.songData, true);
         return;
       }
 
-      showAlertToast('⚠️ No hay ninguna pista en el reproductor. Selecciona una canción de la biblioteca o de la cola.');
+      showAlertToast('⚠️ No hay canciones en el reproductor ni en la cola.');
       return;
     }
 
     // If it's a YouTube track, just set isPlaying to true (do not reload buffer)
-    if (youTubeEmbedId || currentSong.id?.startsWith('yt_') || (currentSong.videoBgId && !currentSong.audioBlob && !currentSong.stems?.instrumentalBlob)) {
+    if (youTubeEmbedId || activeSong.id?.startsWith('yt_') || (activeSong.videoBgId && !activeSong.audioBlob && !activeSong.stems?.instrumentalBlob)) {
       setIsPlaying(true);
       return;
     }
 
     // If no buffer loaded yet, load current song
     if (!audioEngine.getAudioBuffer()) {
-      await loadSongIntoEngine(currentSong, true);
+      await loadSongIntoEngine(activeSong, true);
       return;
     }
     await audioEngine.play();
@@ -2733,6 +2736,18 @@ export default function App() {
       } catch (_) {}
     }
   };
+
+  // Up-to-date refs for WebRTC / remote callback dispatchers
+  const handlePlayRef = useRef(handlePlay);
+  handlePlayRef.current = handlePlay;
+  const handlePauseRef = useRef(handlePause);
+  handlePauseRef.current = handlePause;
+  const handleStopRef = useRef(handleStop);
+  handleStopRef.current = handleStop;
+  const handleSeekRef = useRef(handleSeek);
+  handleSeekRef.current = handleSeek;
+  const handleNextInQueueRef = useRef(handleNextInQueue);
+  handleNextInQueueRef.current = handleNextInQueue;
 
   const handleTimeUpdate = useCallback((t: number, d?: number) => {
     setCurrentTime(t);
