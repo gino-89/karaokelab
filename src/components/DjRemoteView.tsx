@@ -77,6 +77,7 @@ interface DjRemoteState {
     videoId?: string;
   }>;
   chatMessages: ChatMessage[];
+  profiles?: SingerProfile[];
   hostPeerId?: string;
   roomCode?: string;
   isDjServiceEnabled?: boolean;
@@ -111,7 +112,11 @@ export const DjRemoteView: React.FC = () => {
     catalog: [],
     requests: [],
     chatMessages: [],
+    profiles: [],
   });
+
+  // Selected Chat Profile / Table Thread (Individual 1-on-1 conversations)
+  const [selectedChatProfileId, setSelectedChatProfileId] = useState<string | null>(null);
 
   // DJ Chat composer & auto-scroll
   const [chatInputText, setChatInputText] = useState('');
@@ -191,6 +196,7 @@ export const DjRemoteView: React.FC = () => {
           catalog: state.catalog || prev.catalog,
           requests: state.requests || prev.requests,
           chatMessages: state.chatMessages || prev.chatMessages || [],
+          profiles: state.profiles || prev.profiles || [],
         }));
 
         if (state.pitchShift !== undefined) setLocalPitch(state.pitchShift);
@@ -285,22 +291,107 @@ export const DjRemoteView: React.FC = () => {
   }, []);
 
   // Send DJ Chat Message
-  const handleSendDjMessage = (textToSend: string) => {
+  const handleSendDjMessage = (textToSend: string, targetId?: string) => {
     const clean = textToSend.trim();
     if (!clean) return;
-    sendAction('sendChatMessage', { text: clean });
+    sendAction('sendChatMessage', {
+      text: clean,
+      targetProfileId: targetId || selectedChatProfileId || undefined,
+    });
     setChatInputText('');
-    showToast('💬 Mensaje enviado a la sala', 'cyan');
+    showToast('💬 Mensaje enviado', 'cyan');
   };
 
-  // Auto-scroll chat to bottom when messages change or tab becomes active
+  // Compute individual conversation threads per person/table
+  const conversationThreads = useMemo(() => {
+    const threadsMap = new Map<string, {
+      id: string;
+      name: string;
+      avatar: string;
+      tableNumber?: string;
+      color?: string;
+      lastMessage?: string;
+      lastTimestamp?: number;
+      messagesCount?: number;
+    }>();
+
+    // 1. Add all registered profiles from host
+    (djState.profiles || []).forEach((p) => {
+      if (p.id !== 'profile_all') {
+        threadsMap.set(p.id, {
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar || '🎤',
+          tableNumber: p.tableNumber,
+          color: p.color || '#00f0ff',
+        });
+      }
+    });
+
+    // 2. Add senders from incoming chat messages who might not have a formal profile
+    (djState.chatMessages || []).forEach((m) => {
+      if (!m.isHost && m.senderProfileId !== 'profile_dj' && m.senderName !== 'DJ (Cabina)') {
+        const key = m.senderProfileId || m.senderName;
+        if (!threadsMap.has(key)) {
+          threadsMap.set(key, {
+            id: key,
+            name: m.senderName || 'Cliente',
+            avatar: m.avatar || '🎤',
+            tableNumber: m.tableNumber,
+            color: m.color || '#00f0ff',
+          });
+        } else if (m.tableNumber && !threadsMap.get(key)!.tableNumber) {
+          threadsMap.get(key)!.tableNumber = m.tableNumber;
+        }
+      }
+    });
+
+    // 3. Attach last message and timestamp for each contact thread
+    const result = Array.from(threadsMap.values()).map((thread) => {
+      const threadMsgs = (djState.chatMessages || []).filter(
+        (m) =>
+          m.senderProfileId === thread.id ||
+          m.targetProfileId === thread.id ||
+          m.senderName === thread.name ||
+          (thread.tableNumber && m.tableNumber === thread.tableNumber)
+      );
+      const lastMsg = threadMsgs[threadMsgs.length - 1];
+      return {
+        ...thread,
+        lastMessage: lastMsg ? lastMsg.text : 'Sin mensajes',
+        lastTimestamp: lastMsg ? lastMsg.timestamp : 0,
+        messagesCount: threadMsgs.length,
+      };
+    });
+
+    // Sort by newest activity first
+    return result.sort((a, b) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0));
+  }, [djState.profiles, djState.chatMessages]);
+
+  const selectedThread = useMemo(() => {
+    if (!selectedChatProfileId) return null;
+    return (
+      conversationThreads.find((t) => t.id === selectedChatProfileId) || {
+        id: selectedChatProfileId,
+        name: 'Cliente',
+        avatar: '🎤',
+        tableNumber: undefined,
+        color: '#00f0ff',
+        lastMessage: '',
+        lastTimestamp: 0,
+        messagesCount: 0,
+      }
+    );
+  }, [selectedChatProfileId, conversationThreads]);
+
+  // Auto-scroll chat to bottom when messages change or tab/thread becomes active
   useEffect(() => {
-    if (activeTab === 'chat') {
+    if (activeTab === 'chat' && selectedChatProfileId) {
       setTimeout(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     }
-  }, [djState.chatMessages, activeTab]);
+  }, [djState.chatMessages, activeTab, selectedChatProfileId]);
 
   // Master Play / Pause with validation
   const handleTogglePlay = () => {
@@ -1056,144 +1147,245 @@ export const DjRemoteView: React.FC = () => {
         )}
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* PESTAÑA 4: CHAT DE LA SALA (ESTILO WHATSAPP)              */}
+        {/* PESTAÑA 4: CHAT INDIVIDUAL POR PERSONA / MESA (WHATSAPP)  */}
         {/* ═════════════════════════════════════════════════════════ */}
         {activeTab === 'chat' && (
           <div className="flex flex-col space-y-2.5 animate-in fade-in duration-200">
-            {/* Header / Info bar */}
-            <div className="flex items-center justify-between px-1 shrink-0">
-              <div className="flex items-center gap-1.5 font-mono">
-                <MessageSquare className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">
-                  Chat de la Sala ({djState.chatMessages?.length || 0})
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsGuestQrModalOpen(true)}
-                className="text-[10px] text-pink-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
-              >
-                <QrCode className="w-3 h-3" />
-                <span>QR Mesas</span>
-              </button>
-            </div>
-
-            {/* Chat message bubbles stream (WhatsApp Style) */}
-            <div className="min-h-[300px] max-h-[52vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
-              {(!djState.chatMessages || djState.chatMessages.length === 0) ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center p-4">
-                  <div className="w-12 h-12 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-2 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
-                    <MessageSquare className="w-6 h-6" />
+            {/* ── CASO A: BANDEJA DE CONVERSACIONES (LISTA DE CHATS) ── */}
+            {!selectedChatProfileId ? (
+              <div className="flex flex-col space-y-2.5">
+                {/* Header */}
+                <div className="flex items-center justify-between px-1 shrink-0">
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <MessageSquare className="w-4 h-4 text-cyan-400" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                      Conversaciones ({conversationThreads.length})
+                    </h3>
                   </div>
-                  <p className="text-sm font-bold text-slate-200">
-                    No hay mensajes en la sala todavía
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-                    Los mensajes, dedicatorias y pedidos de los clientes desde sus mesas aparecerán aquí en vivo.
-                  </p>
                   <button
                     type="button"
                     onClick={() => setIsGuestQrModalOpen(true)}
-                    className="mt-4 px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="text-[10px] text-pink-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
                   >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>Mostrar QR para Mesas</span>
+                    <QrCode className="w-3 h-3" />
+                    <span>QR Mesas</span>
                   </button>
                 </div>
-              ) : (
-                djState.chatMessages.map((msg, idx) => {
-                  const isDj = Boolean(
-                    msg.isHost ||
-                    msg.senderProfileId === 'profile_dj' ||
-                    msg.senderName === 'DJ (Cabina)' ||
-                    msg.senderName === 'Host / DJ'
+
+                {conversationThreads.length === 0 ? (
+                  <div className="py-14 flex flex-col items-center justify-center text-center p-5 bg-[#0a0c16] rounded-3xl border border-white/5">
+                    <div className="w-14 h-14 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-3 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
+                      <MessageSquare className="w-7 h-7" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-200">
+                      No hay conversaciones activas
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+                      Cuando los clientes escaneen el código QR de sus mesas o envíen un mensaje, aparecerán aquí sus chats individuales.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsGuestQrModalOpen(true)}
+                      className="mt-4 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-pink-500/20 hover:from-cyan-500/30 hover:to-pink-500/30 border border-cyan-400/50 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+                    >
+                      <QrCode className="w-4 h-4 text-pink-400" />
+                      <span>Mostrar QR para Clientes</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col space-y-2">
+                    {conversationThreads.map((thread) => (
+                      <button
+                        key={thread.id}
+                        type="button"
+                        onClick={() => setSelectedChatProfileId(thread.id)}
+                        className="w-full p-3 rounded-2xl bg-[#0c0e1a] border border-cyan-500/20 hover:border-cyan-500/50 hover:bg-[#101426] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 text-left shadow-sm group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-11 h-11 rounded-2xl bg-[#14182c] border border-cyan-500/30 flex items-center justify-center text-xl shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+                            {thread.avatar}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-xs font-black text-white truncate group-hover:text-cyan-300 transition-colors">
+                                {thread.name}
+                              </h4>
+                              {thread.lastTimestamp ? (
+                                <span className="text-[9px] text-slate-500 font-mono shrink-0">
+                                  {new Date(thread.lastTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {thread.tableNumber && (
+                                <span className="px-1.5 py-0.2 rounded bg-pink-950/80 border border-pink-500/40 text-[8.5px] font-black text-pink-300 font-mono shrink-0">
+                                  🪑 {thread.tableNumber}
+                                </span>
+                              )}
+                              <p className="text-[11px] text-slate-400 truncate flex-1">
+                                {thread.lastMessage}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0 text-slate-500 group-hover:text-cyan-400 transition-colors">
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ── CASO B: CHAT PRIVADO 1-A-1 CON LA PERSONA/MESA SELECCIONADA ── */
+              <div className="flex flex-col space-y-2.5 animate-in fade-in slide-in-from-right-2 duration-200">
+                {/* Contact Top Bar with Back Button */}
+                <div className="p-2.5 rounded-2xl bg-[#0c0e1a] border border-cyan-500/30 flex items-center justify-between gap-2 shadow-md">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedChatProfileId(null)}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                    >
+                      <span>←</span>
+                      <span>Volver</span>
+                    </button>
+
+                    <div className="w-8 h-8 rounded-xl bg-[#14182c] border border-pink-500/40 flex items-center justify-center text-base shrink-0 shadow-inner">
+                      {selectedThread?.avatar || '🎤'}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-xs font-black text-white truncate">
+                          {selectedThread?.name || 'Cliente'}
+                        </h3>
+                        {selectedThread?.tableNumber && (
+                          <span className="px-1.5 py-0.2 rounded bg-pink-950/80 border border-pink-500/40 text-[8.5px] font-black text-pink-300 font-mono">
+                            🪑 {selectedThread.tableNumber}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[9.5px] text-emerald-400 font-mono flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>Chat directo 1 a 1</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Private Messages Stream */}
+                {(() => {
+                  const currentThreadMsgs = (djState.chatMessages || []).filter(
+                    (m) =>
+                      m.senderProfileId === selectedThread?.id ||
+                      m.targetProfileId === selectedThread?.id ||
+                      m.senderName === selectedThread?.name ||
+                      (selectedThread?.tableNumber && m.tableNumber === selectedThread?.tableNumber)
                   );
 
                   return (
-                    <div
-                      key={msg.id || idx}
-                      className={`flex flex-col ${isDj ? 'items-end' : 'items-start'} transition-all`}
-                    >
-                      {/* Sender Info Header */}
-                      <div className={`flex items-center gap-1.5 mb-1 px-1 ${isDj ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <span className="text-xs">{msg.avatar || (isDj ? '🎧' : '🎤')}</span>
-                        <div className={`flex items-center gap-1.5 ${isDj ? 'flex-row-reverse' : 'flex-row'}`}>
-                          <span
-                            className={`text-[10px] font-black ${
-                              isDj ? 'text-pink-400' : 'text-cyan-300'
-                            }`}
-                          >
-                            {isDj ? 'DJ (Cabina) 🎧' : (msg.senderName || 'Cliente')}
-                          </span>
-                          {!isDj && msg.tableNumber && (
-                            <span className="px-1.5 py-0.2 rounded bg-pink-950/80 border border-pink-500/40 text-[8.5px] font-black text-pink-300 font-mono">
-                              🪑 {msg.tableNumber}
-                            </span>
-                          )}
+                    <div className="min-h-[280px] max-h-[48vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
+                      {currentThreadMsgs.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-center p-4">
+                          <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
+                          <p className="text-xs font-bold text-slate-300">
+                            No hay mensajes previos con {selectedThread?.name}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
+                            Escribe una respuesta abajo o envía un emoji para iniciar la conversación.
+                          </p>
                         </div>
-                        <span className="text-[9px] text-slate-500 font-mono">
-                          {msg.timestamp
-                            ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : ''}
-                        </span>
-                      </div>
+                      ) : (
+                        currentThreadMsgs.map((msg, idx) => {
+                          const isDj = Boolean(
+                            msg.isHost ||
+                            msg.senderProfileId === 'profile_dj' ||
+                            msg.senderName === 'DJ (Cabina)' ||
+                            msg.senderName === 'Host / DJ'
+                          );
 
-                      {/* Message Bubble (WhatsApp style) */}
-                      <div
-                        className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md select-text ${
-                          isDj
-                            ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white rounded-tr-none border border-pink-400/50 shadow-[0_0_15px_rgba(255,0,127,0.25)]'
-                            : 'bg-[#0f1224] border border-cyan-500/30 text-slate-100 rounded-tl-none shadow-[0_0_10px_rgba(0,240,255,0.05)]'
-                        }`}
-                      >
-                        {msg.text}
-                      </div>
+                          return (
+                            <div
+                              key={msg.id || idx}
+                              className={`flex flex-col ${isDj ? 'items-end' : 'items-start'} transition-all`}
+                            >
+                              <div className={`flex items-center gap-1.5 mb-1 px-1 ${isDj ? 'flex-row-reverse' : 'flex-row'}`}>
+                                <span className="text-xs">{msg.avatar || (isDj ? '🎧' : '🎤')}</span>
+                                <span
+                                  className={`text-[10px] font-black ${
+                                    isDj ? 'text-pink-400' : 'text-cyan-300'
+                                  }`}
+                                >
+                                  {isDj ? 'DJ (Cabina) 🎧' : (msg.senderName || 'Cliente')}
+                                </span>
+                                <span className="text-[9px] text-slate-500 font-mono">
+                                  {msg.timestamp
+                                    ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    : ''}
+                                </span>
+                              </div>
+
+                              <div
+                                className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-md select-text ${
+                                  isDj
+                                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white rounded-tr-none border border-pink-400/50 shadow-[0_0_15px_rgba(255,0,127,0.25)]'
+                                    : 'bg-[#0f1224] border border-cyan-500/30 text-slate-100 rounded-tl-none shadow-[0_0_10px_rgba(0,240,255,0.05)]'
+                                }`}
+                              >
+                                {msg.text}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div ref={chatEndRef} />
                     </div>
                   );
-                })
-              )}
-              <div ref={chatEndRef} />
-            </div>
+                })()}
 
-            {/* Quick Emojis Reaction Bar */}
-            <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none shrink-0">
-              {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '⚡', '💃', '⭐', '🙌'].map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => handleSendDjMessage(emoji)}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#0c0e1a] hover:bg-cyan-950/60 border border-white/10 hover:border-cyan-400/60 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95 shadow-sm"
-                  title={`Enviar ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+                {/* Quick Emojis Reaction Bar */}
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none shrink-0">
+                  {['🎤', '🔥', '👏', '🥳', '❤️', '🍻', '🎉', '⚡', '💃', '⭐', '🙌'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => handleSendDjMessage(emoji, selectedThread?.id)}
+                      className="px-2.5 py-1.5 rounded-xl bg-[#0c0e1a] hover:bg-cyan-950/60 border border-white/10 hover:border-cyan-400/60 text-sm cursor-pointer transition-all shrink-0 hover:scale-110 active:scale-95 shadow-sm"
+                      title={`Enviar ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
 
-            {/* Message Input Composer */}
-            <div className="flex items-center gap-2 shrink-0 pt-0.5">
-              <input
-                type="text"
-                placeholder="Escribe a la sala como DJ..."
-                value={chatInputText}
-                onChange={(e) => setChatInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && chatInputText.trim()) {
-                    handleSendDjMessage(chatInputText);
-                  }
-                }}
-                className="flex-1 bg-[#0c0e1a] border border-cyan-500/40 focus:border-cyan-300 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none shadow-[0_0_15px_rgba(0,240,255,0.08)] transition-all font-medium"
-              />
-              <button
-                type="button"
-                onClick={() => handleSendDjMessage(chatInputText)}
-                disabled={!chatInputText.trim()}
-                className="p-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center shrink-0"
-                title="Enviar mensaje"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
+                {/* Message Input Composer for Private Chat */}
+                <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                  <input
+                    type="text"
+                    placeholder={`Responder a ${selectedThread?.name || 'la mesa'}...`}
+                    value={chatInputText}
+                    onChange={(e) => setChatInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && chatInputText.trim()) {
+                        handleSendDjMessage(chatInputText, selectedThread?.id);
+                      }
+                    }}
+                    className="flex-1 bg-[#0c0e1a] border border-cyan-500/40 focus:border-cyan-300 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none shadow-[0_0_15px_rgba(0,240,255,0.08)] transition-all font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSendDjMessage(chatInputText, selectedThread?.id)}
+                    disabled={!chatInputText.trim()}
+                    className="p-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 disabled:opacity-40 text-white cursor-pointer shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center shrink-0"
+                    title="Enviar mensaje"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

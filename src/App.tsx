@@ -1024,6 +1024,7 @@ export default function App() {
                     id: `msg_dj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
                     senderName: 'DJ (Cabina)',
                     senderProfileId: 'profile_dj',
+                    targetProfileId: payload.targetProfileId || undefined,
                     text: payload.text.trim(),
                     timestamp: Date.now(),
                     avatar: '🎧',
@@ -1325,6 +1326,7 @@ export default function App() {
         })),
         requests: customerRequests,
         chatMessages,
+        profiles: profiles.filter((p) => p.id !== 'profile_all'),
         isDjServiceEnabled,
       };
       peerSync.broadcastDjState(djStatePayload);
@@ -1347,6 +1349,7 @@ export default function App() {
     savedSongs,
     customerRequests,
     chatMessages,
+    profiles,
     isDjServiceEnabled,
   ]);
 
