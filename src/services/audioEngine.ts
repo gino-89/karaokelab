@@ -60,50 +60,16 @@ export class AudioEngine {
   private micGain = 1.0;
   private onTrackEndCallbacks: Set<() => void> = new Set();
 
-  // Continuous background audio keep-alive (hardware audio pipeline anchor for iOS/iPadOS Safari)
+  // Continuous background audio keep-alive (hardware audio pipeline anchor for iOS/iPadOS Safari & Focusrite USB)
   private keepAliveAudio: HTMLAudioElement | null = null;
-  private silentWavUrl: string | null = null;
+  private keepAliveInterval: any = null;
+  private wakeLockSentinel: any = null;
+  private silentGainNode: GainNode | null = null;
+  private silentOscillator: OscillatorNode | null = null;
 
-  /**
-   * Generates a valid 2-second 22050Hz 16-bit mono PCM silent WAV Blob URL.
-   * This is 100% inaudible (pure zeros), but provides a valid audio stream that prevents
-   * iOS / iPadOS WebKit power watchdogs from aborting or suspending background audio.
-   */
-  private getSilentWavUrl(): string {
-    if (this.silentWavUrl) return this.silentWavUrl;
-    try {
-      const sampleRate = 22050;
-      const numSamples = sampleRate * 2; // 2 seconds
-      const dataSize = numSamples * 2; // 16-bit mono = 2 bytes per sample
-      const buffer = new ArrayBuffer(44 + dataSize);
-      const view = new DataView(buffer);
-
-      // 'RIFF' chunk descriptor
-      view.setUint8(0, 0x52); view.setUint8(1, 0x49); view.setUint8(2, 0x46); view.setUint8(3, 0x46);
-      view.setUint32(4, 36 + dataSize, true);
-      // 'WAVE' format
-      view.setUint8(8, 0x57); view.setUint8(9, 0x41); view.setUint8(10, 0x56); view.setUint8(11, 0x45);
-      // 'fmt ' subchunk
-      view.setUint8(12, 0x66); view.setUint8(13, 0x6d); view.setUint8(14, 0x74); view.setUint8(15, 0x20);
-      view.setUint32(16, 16, true); // Subchunk1Size
-      view.setUint16(20, 1, true);  // AudioFormat (1 = PCM)
-      view.setUint16(22, 1, true);  // NumChannels (1 = Mono)
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * 2, true); // ByteRate
-      view.setUint16(32, 2, true);  // BlockAlign
-      view.setUint16(34, 16, true); // BitsPerSample
-      // 'data' subchunk
-      view.setUint8(36, 0x64); view.setUint8(37, 0x61); view.setUint8(38, 0x74); view.setUint8(39, 0x61);
-      view.setUint32(40, dataSize, true);
-      // Bytes 44+ are automatically 0s (pure silence)
-
-      const blob = new Blob([view], { type: 'audio/wav' });
-      this.silentWavUrl = URL.createObjectURL(blob);
-      return this.silentWavUrl;
-    } catch (_) {
-      return '';
-    }
-  }
+  // Base64 1-second 8000Hz 8-bit mono silent WAV (pure digital silence, 0 CPU overhead)
+  private static readonly SILENT_WAV_BASE64 =
+    'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAP8A/w==';
 
   private initKeepAliveAudio(): HTMLAudioElement | null {
     if (typeof window === 'undefined' || typeof document === 'undefined') return null;
@@ -130,9 +96,8 @@ export class AudioEngine {
         // Non-zero volume prevents iOS WebKit power daemon from flagging the element as muted,
         // while the PCM data itself is 100% digital silence (amplitude 0).
         el.volume = 1.0;
-        const wavUrl = this.getSilentWavUrl();
-        if (wavUrl && el.src !== wavUrl) {
-          el.src = wavUrl;
+        if (el.src !== AudioEngine.SILENT_WAV_BASE64) {
+          el.src = AudioEngine.SILENT_WAV_BASE64;
         }
         this.keepAliveAudio = el;
       }
@@ -176,6 +141,36 @@ export class AudioEngine {
       if (audio) {
         audio.play().catch(() => {});
       }
+
+      // Request Screen WakeLock if supported
+      if ('wakeLock' in navigator && !this.wakeLockSentinel) {
+        (navigator as any).wakeLock?.request('screen').then((lock: any) => {
+          this.wakeLockSentinel = lock;
+        }).catch(() => {});
+      }
+
+      // Start hardware audio pipeline anchor in Web Audio (inaudible 0.000001 gain prevents CoreAudio hardware sleep)
+      if (this.ctx && !this.silentOscillator) {
+        try {
+          this.silentGainNode = this.ctx.createGain();
+          this.silentGainNode.gain.setValueAtTime(0.000001, this.ctx.currentTime);
+          this.silentGainNode.connect(this.ctx.destination);
+
+          this.silentOscillator = this.ctx.createOscillator();
+          this.silentOscillator.frequency.setValueAtTime(40, this.ctx.currentTime);
+          this.silentOscillator.connect(this.silentGainNode);
+          this.silentOscillator.start();
+        } catch (_) {}
+      }
+
+      // Resilient background watchdog timer every 500ms
+      if (!this.keepAliveInterval) {
+        this.keepAliveInterval = setInterval(() => {
+          if (this.isPlaying) {
+            this.resumeContextSync();
+          }
+        }, 500);
+      }
     } catch (_) {}
   }
 
@@ -184,6 +179,29 @@ export class AudioEngine {
       try {
         this.keepAliveAudio.pause();
       } catch (_) {}
+    }
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
+    if (this.wakeLockSentinel) {
+      try {
+        this.wakeLockSentinel.release();
+      } catch (_) {}
+      this.wakeLockSentinel = null;
+    }
+    if (this.silentOscillator) {
+      try {
+        this.silentOscillator.stop();
+        this.silentOscillator.disconnect();
+      } catch (_) {}
+      this.silentOscillator = null;
+    }
+    if (this.silentGainNode) {
+      try {
+        this.silentGainNode.disconnect();
+      } catch (_) {}
+      this.silentGainNode = null;
     }
   }
 
@@ -204,7 +222,21 @@ export class AudioEngine {
     });
   }
 
-  constructor() {}
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const handleLifecycleResume = () => {
+        if (this.isPlaying) {
+          this.resumeContextSync();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleLifecycleResume);
+      window.addEventListener('focus', handleLifecycleResume);
+      window.addEventListener('blur', handleLifecycleResume);
+      window.addEventListener('pageshow', handleLifecycleResume);
+      window.addEventListener('pagehide', handleLifecycleResume);
+    }
+  }
 
   public getAudioContext(): AudioContext {
     if (!this.ctx) {
