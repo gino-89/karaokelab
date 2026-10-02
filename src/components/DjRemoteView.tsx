@@ -207,7 +207,20 @@ export const DjRemoteView: React.FC = () => {
       }
     );
 
+    // Listen for direct live chat messages over WebRTC
+    const unsubChat = peerSync.onChatMessageReceived((msg) => {
+      if (!msg) return;
+      setDjState((prev) => {
+        if (prev.chatMessages?.some((m) => m.id === msg.id)) return prev;
+        return {
+          ...prev,
+          chatMessages: [...(prev.chatMessages || []), msg],
+        };
+      });
+    });
+
     return () => {
+      unsubChat();
       peerSync.disconnectDjRemote();
     };
   }, []);
@@ -1043,7 +1056,7 @@ export const DjRemoteView: React.FC = () => {
         )}
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* PESTAÑA 4: CHAT DE LA SALA & PETICIONES (ESTILO WHATSAPP) */}
+        {/* PESTAÑA 4: CHAT DE LA SALA (ESTILO WHATSAPP)              */}
         {/* ═════════════════════════════════════════════════════════ */}
         {activeTab === 'chat' && (
           <div className="flex flex-col space-y-2.5 animate-in fade-in duration-200">
@@ -1065,64 +1078,8 @@ export const DjRemoteView: React.FC = () => {
               </button>
             </div>
 
-            {/* If there are pending customer song requests, show a compact accordion/card at top */}
-            {djState.requests && djState.requests.length > 0 && (
-              <div className="p-2.5 rounded-2xl bg-pink-950/30 border border-pink-500/40 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-[10.5px] font-bold text-pink-300">
-                  <span className="flex items-center gap-1">
-                    <span>🎵</span> Peticiones de canciones pendientes ({djState.requests.length})
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
-                  {djState.requests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="p-2 rounded-xl bg-[#0c0e1a] border border-pink-500/20 flex items-center justify-between gap-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-pink-950 text-pink-300">
-                            {req.tableNumber ? req.tableNumber : 'Mesa'}
-                          </span>
-                          <span className="text-[11px] font-bold text-white truncate">
-                            {req.title}
-                          </span>
-                        </div>
-                        <p className="text-[9.5px] text-slate-400 truncate">
-                          {req.singerName || 'Cliente'} • {req.artist || 'Karaoke'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sendAction('approveRequest', { id: req.id });
-                            showToast(`✓ Aprobada: ${req.title}`, 'emerald');
-                          }}
-                          className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 text-[10px] font-bold flex items-center gap-1 active:scale-95 cursor-pointer"
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Aceptar</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sendAction('dismissRequest', { id: req.id });
-                            showToast('✕ Descartada', 'pink');
-                          }}
-                          className="p-1 rounded-lg bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/30 active:scale-95 cursor-pointer"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Chat message bubbles stream (WhatsApp Style) */}
-            <div className="min-h-[280px] max-h-[48vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
+            <div className="min-h-[300px] max-h-[52vh] overflow-y-auto p-3 rounded-2xl bg-[#080a14] border border-cyan-500/20 flex flex-col space-y-3 shadow-inner scrollbar-thin">
               {(!djState.chatMessages || djState.chatMessages.length === 0) ? (
                 <div className="py-12 flex flex-col items-center justify-center text-center p-4">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-2 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
@@ -1310,9 +1267,9 @@ export const DjRemoteView: React.FC = () => {
         >
           <div className="relative">
             <MessageSquare className={`w-5 h-5 ${activeTab === 'chat' ? 'text-pink-400 scale-110 drop-shadow-[0_0_8px_rgba(255,0,127,0.7)]' : ''}`} />
-            {((djState.chatMessages && djState.chatMessages.length > 0) || (djState.requests && djState.requests.length > 0)) && (
+            {djState.chatMessages && djState.chatMessages.length > 0 && (
               <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-pink-500 text-white font-mono font-black text-[9px] animate-pulse">
-                {(djState.chatMessages?.length || 0) + (djState.requests?.length || 0)}
+                {djState.chatMessages.length}
               </span>
             )}
           </div>

@@ -1101,10 +1101,17 @@ class PeerSyncService {
     return { success: false, error: 'Sin conexión con el anfitrión.' };
   }
 
-  // Broadcast Chat message from host to all connected guest mobile devices
+  // Broadcast Chat message from host to all connected guest mobile devices and DJ remotes
   public broadcastChatMessageToGuests(msg: ChatMessage) {
     if (!this.isHost) return;
     this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'CHAT_MESSAGE', payload: msg });
+        } catch (_) {}
+      }
+    });
+    this.djConnections.forEach((conn) => {
       if (conn.open) {
         try {
           conn.send({ type: 'CHAT_MESSAGE', payload: msg });
@@ -1250,6 +1257,10 @@ class PeerSyncService {
           } else if (data.type === 'DJ_SERVICE_STATUS') {
             if (this.onDjServiceStatusCallback) {
               this.onDjServiceStatusCallback(!!data.payload?.disabled);
+            }
+          } else if (data.type === 'CHAT_MESSAGE' && data.payload) {
+            if (this.onChatMessageReceivedCallback) {
+              this.onChatMessageReceivedCallback(data.payload);
             }
           }
         });
