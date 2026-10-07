@@ -1220,7 +1220,7 @@ class PeerSyncService {
         console.warn('DJ Remote connect timeout to host:', targetHostId);
         this._setConnectionStatus('disconnected');
       }
-    }, 5000);
+    }, 4500);
 
     conn.on('open', () => {
       if (connectTimeout) clearTimeout(connectTimeout);
@@ -1235,7 +1235,7 @@ class PeerSyncService {
         });
       } catch (_) {}
 
-      // Heartbeat monitor for DJ with fast detection (8s threshold)
+      // Heartbeat monitor for DJ with fast detection (7s threshold)
       if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
       this.guestHeartbeatMonitorTimer = setInterval(() => {
         if (!this.hostConnection || !this.hostConnection.open) {
@@ -1243,13 +1243,13 @@ class PeerSyncService {
           return;
         }
         const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-        if (timeSinceLastHeartbeat > 8000) {
+        if (timeSinceLastHeartbeat > 7000) {
           console.warn('DJ Remote heartbeat lost, updating connection status to disconnected');
           this._setConnectionStatus('disconnected');
         } else {
           this._setConnectionStatus('connected');
         }
-      }, 2500);
+      }, 2000);
     });
 
     conn.on('data', (data: any) => {
@@ -1314,7 +1314,7 @@ class PeerSyncService {
       this.hostConnection = null;
     }
 
-    if (this.peer && !this.peer.destroyed) {
+    if (this.peer) {
       try {
         this.peer.destroy();
       } catch (_) {}
@@ -1325,28 +1325,36 @@ class PeerSyncService {
     this._setConnectionStatus('reconnecting');
 
     try {
-      this.peer = new Peer(PEER_CONFIG);
+      const p = new Peer(PEER_CONFIG);
+      this.peer = p;
 
-      this.peer.on('open', () => {
-        if (!this.peer || !this.targetHostId) return;
+      p.on('open', () => {
+        if (this.peer !== p || !this.targetHostId) return;
 
         console.log(`DJ Remote connecting to Host: ${this.targetHostId}`);
-        const conn = this.peer.connect(this.targetHostId, { reliable: true });
+        const conn = p.connect(this.targetHostId, { reliable: true });
         this.hostConnection = conn;
         this._setupDjConnectionListeners(conn, this.targetHostId);
       });
 
-      this.peer.on('disconnected', () => {
+      p.on('disconnected', () => {
+        if (this.peer !== p) return;
         console.warn('DJ Remote Peer signaling disconnected, reconnecting signaling...');
         try {
-          if (this.peer && !this.peer.destroyed) {
-            this.peer.reconnect();
+          if (!p.destroyed) {
+            p.reconnect();
           }
         } catch (_) {}
       });
 
-      this.peer.on('error', (err) => {
+      p.on('error', (err) => {
+        if (this.peer !== p) return;
         console.warn('DJ Remote PeerJS error:', err);
+        this._setConnectionStatus('disconnected');
+      });
+
+      p.on('close', () => {
+        if (this.peer !== p) return;
         this._setConnectionStatus('disconnected');
       });
     } catch (e) {
@@ -1400,35 +1408,7 @@ class PeerSyncService {
       } catch (_) {}
     }
 
-    this._setConnectionStatus('reconnecting');
-
-    // 2. If peer is alive and not destroyed, connect directly without tearing down PeerJS instance
-    if (!forceFullReset && this.peer && !this.peer.destroyed) {
-      if (this.peer.disconnected) {
-        try {
-          this.peer.reconnect();
-        } catch (_) {}
-      }
-
-      if (this.hostConnection) {
-        try {
-          this.hostConnection.close();
-        } catch (_) {}
-        this.hostConnection = null;
-      }
-
-      try {
-        console.log(`DJ Remote reconnecting directly on existing peer to Host: ${this.targetHostId}`);
-        const conn = this.peer.connect(this.targetHostId, { reliable: true });
-        this.hostConnection = conn;
-        this._setupDjConnectionListeners(conn, this.targetHostId);
-        return;
-      } catch (e) {
-        console.warn('Re-connecting on existing peer failed, falling back to full init:', e);
-      }
-    }
-
-    // 3. Fallback: Full init if peer was destroyed or forceFullReset requested
+    // 2. Perform clean re-initialization to establish fresh connection to the newly opened Host
     this.initDjRemote(
       this.targetHostId,
       this.onDjStateReceivedCallback,
