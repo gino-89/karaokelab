@@ -239,11 +239,19 @@ export const DjRemoteView: React.FC = () => {
     setDjState((prev) => {
       const next = { ...prev };
 
-      if (state.isPlaying !== undefined) next.isPlaying = state.isPlaying;
-      if (state.currentTime !== undefined) next.currentTime = state.currentTime;
-      if (state.duration !== undefined) next.duration = state.duration;
-      if (state.songTitle !== undefined) next.songTitle = state.songTitle;
-      if (state.songArtist !== undefined) next.songArtist = state.songArtist;
+      if (state.isPlaying !== undefined) next.isPlaying = Boolean(state.isPlaying);
+      if (state.currentTime !== undefined) next.currentTime = Number(state.currentTime) || 0;
+      if (state.duration !== undefined) next.duration = Number(state.duration) || 0;
+      if (state.songTitle !== undefined) {
+        if (state.songTitle || !next.isPlaying || !prev.songTitle) {
+          next.songTitle = state.songTitle;
+        }
+      }
+      if (state.songArtist !== undefined) {
+        if (state.songArtist || !next.isPlaying || !prev.songArtist) {
+          next.songArtist = state.songArtist;
+        }
+      }
       if (state.detectedKey !== undefined) next.detectedKey = state.detectedKey;
       if (state.bpm !== undefined) next.bpm = state.bpm;
       if (state.pitchShift !== undefined) next.pitchShift = state.pitchShift;
@@ -264,12 +272,12 @@ export const DjRemoteView: React.FC = () => {
 
     if (state.currentTime !== undefined || state.isPlaying !== undefined) {
       lastPlaybackSyncRef.current = {
-        serverTime: state.currentTime !== undefined ? state.currentTime : lastPlaybackSyncRef.current.serverTime,
+        serverTime: state.currentTime !== undefined ? Number(state.currentTime) || 0 : lastPlaybackSyncRef.current.serverTime,
         receivedAt: Date.now(),
-        isPlaying: state.isPlaying !== undefined ? state.isPlaying : lastPlaybackSyncRef.current.isPlaying,
+        isPlaying: state.isPlaying !== undefined ? Boolean(state.isPlaying) : lastPlaybackSyncRef.current.isPlaying,
       };
       if (state.currentTime !== undefined) {
-        setInterpolatedTime(state.currentTime);
+        setInterpolatedTime(Number(state.currentTime) || 0);
       }
     }
 
@@ -294,7 +302,7 @@ export const DjRemoteView: React.FC = () => {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [djState.isPlaying, djState.duration, djState.currentTime]);
+  }, [djState.isPlaying, djState.duration]);
 
   // Parse Room ID from URL & persistent storage
   useEffect(() => {
@@ -654,12 +662,13 @@ export const DjRemoteView: React.FC = () => {
   // Master Play / Pause with validation
   const handleTogglePlay = () => {
     if (djState.isPlaying) {
+      setDjState((prev) => ({ ...prev, isPlaying: false }));
       sendAction('togglePlay');
       showToast('⏸️ Pausado', 'pink');
       return;
     }
 
-    const hasSong = Boolean(djState.songTitle && djState.songTitle.trim() !== '');
+    const hasSong = Boolean((djState.songTitle && djState.songTitle.trim() !== '') || djState.duration > 0);
     const hasQueue = Boolean(djState.queue && djState.queue.length > 0);
 
     if (!hasSong && !hasQueue) {
@@ -667,6 +676,7 @@ export const DjRemoteView: React.FC = () => {
       return;
     }
 
+    setDjState((prev) => ({ ...prev, isPlaying: true }));
     sendAction('togglePlay');
     if (!hasSong && hasQueue) {
       showToast(`▶ Iniciando cola: ${djState.queue[0].title}`, 'emerald');

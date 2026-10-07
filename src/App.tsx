@@ -69,6 +69,8 @@ export default function App() {
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
   const [currentTime, setCurrentTime] = useState(0);
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
   const [duration, setDuration] = useState(0);
   const [bpm, setBpm] = useState(128);
   const [detectedKey, setDetectedKey] = useState('Am');
@@ -858,14 +860,21 @@ export default function App() {
                 }))
               );
             }
+            const activeSong = currentSongRef.current || currentSong;
+            const effectiveIsPlaying = Boolean(audioEngine.getIsPlaying() || isPlayingRef.current || isPlaying);
+            const effectiveTime = audioEngine.getCurrentTime() || currentTimeRef.current || 0;
+            const effectiveDuration = durationRef.current || activeSong?.duration || audioEngine.getDuration() || 0;
+            const effectiveSongTitle = activeSong?.title || (latestQueue.length > 0 && effectiveIsPlaying ? (latestQueue[0].songData?.title || latestQueue[0].fileName) : '') || '';
+            const effectiveSongArtist = activeSong?.artist || (latestQueue.length > 0 && effectiveIsPlaying ? latestQueue[0].songData?.artist : '') || '';
+
             const djStatePayload = {
-              isPlaying: isPlayingRef.current,
-              currentTime: audioEngine.getCurrentTime() || 0,
-              duration: durationRef.current || 0,
-              songTitle: currentSongRef.current?.title || '',
-              songArtist: currentSongRef.current?.artist || '',
-              detectedKey: currentSongRef.current?.key || detectedKeyRef.current || 'Am',
-              bpm: currentSongRef.current?.bpm || bpmRef.current || 120,
+              isPlaying: effectiveIsPlaying,
+              currentTime: effectiveTime,
+              duration: effectiveDuration,
+              songTitle: effectiveSongTitle,
+              songArtist: effectiveSongArtist,
+              detectedKey: activeSong?.key || detectedKeyRef.current || 'Am',
+              bpm: activeSong?.bpm || bpmRef.current || 120,
               pitchShift: pitchShiftRef.current || 0,
               vocalGain: vocalGainRef.current,
               musicGain: musicGainRef.current,
@@ -900,15 +909,17 @@ export default function App() {
 
             switch (action) {
               case 'togglePlay':
-                if (isPlayingRef.current) {
+                if (audioEngine.getIsPlaying() || isPlayingRef.current) {
                   if (handlePauseRef.current) handlePauseRef.current();
                   else { audioEngine.pause(); setIsPlaying(false); }
                 } else {
                   if (handlePlayRef.current) handlePlayRef.current();
+                  else { audioEngine.play(); setIsPlaying(true); }
                 }
                 break;
               case 'play':
                 if (handlePlayRef.current) handlePlayRef.current();
+                else { audioEngine.play(); setIsPlaying(true); }
                 break;
               case 'pause':
                 if (handlePauseRef.current) handlePauseRef.current();
@@ -1361,14 +1372,21 @@ export default function App() {
   useEffect(() => {
     if (isTvDisplayMode || isGuestMode || isDjMode) return;
 
+    const activeSong = currentSongRef.current || currentSong;
+    const effectiveIsPlaying = Boolean(audioEngine.getIsPlaying() || isPlaying);
+    const effectiveTime = audioEngine.getCurrentTime() || currentTime || 0;
+    const effectiveDuration = duration || activeSong?.duration || audioEngine.getDuration() || 0;
+    const effectiveSongTitle = activeSong?.title || (queue.length > 0 && effectiveIsPlaying ? (queue[0].songData?.title || queue[0].fileName) : '') || '';
+    const effectiveSongArtist = activeSong?.artist || (queue.length > 0 && effectiveIsPlaying ? queue[0].songData?.artist : '') || '';
+
     const djStatePayload = {
-      isPlaying,
-      currentTime: audioEngine.getCurrentTime() || currentTime || 0,
-      duration: duration || 0,
-      songTitle: currentSong?.title || '',
-      songArtist: currentSong?.artist || '',
-      detectedKey: currentSong?.key || detectedKey || 'Am',
-      bpm: currentSong?.bpm || bpm || 120,
+      isPlaying: effectiveIsPlaying,
+      currentTime: effectiveTime,
+      duration: effectiveDuration,
+      songTitle: effectiveSongTitle,
+      songArtist: effectiveSongArtist,
+      detectedKey: activeSong?.key || detectedKey || 'Am',
+      bpm: activeSong?.bpm || bpm || 120,
       pitchShift: pitchShift || 0,
       vocalGain,
       musicGain,
@@ -1401,6 +1419,7 @@ export default function App() {
     isTvDisplayMode,
     isGuestMode,
     isDjMode,
+    isPlaying,
     currentSong,
     duration,
     bpm,
@@ -1417,23 +1436,35 @@ export default function App() {
     isDjServiceEnabled,
   ]);
 
-  // 2. Lightweight Playback Delta Tick for Mobile DJ remotes (~150 bytes, throttled to 150ms)
+  // 2. Lightweight Playback Delta Tick for Mobile DJ remotes (~150 bytes, throttled to 120ms)
   const lastDjTickRef = useRef<number>(0);
+  const lastIsPlayingRef = useRef<boolean>(isPlaying);
+
   useEffect(() => {
     if (isTvDisplayMode || isGuestMode || isDjMode) return;
 
-    const now = Date.now();
-    if (now - lastDjTickRef.current < 150) return;
+    const activeSong = currentSongRef.current || currentSong;
+    const effectiveIsPlaying = Boolean(audioEngine.getIsPlaying() || isPlaying);
+    const isPlayingChanged = effectiveIsPlaying !== lastIsPlayingRef.current;
+    lastIsPlayingRef.current = effectiveIsPlaying;
+
+    const now = performance.now();
+    if (!isPlayingChanged && now - lastDjTickRef.current < 120) return;
     lastDjTickRef.current = now;
 
+    const effectiveTime = audioEngine.getCurrentTime() || currentTime || 0;
+    const effectiveDuration = duration || activeSong?.duration || audioEngine.getDuration() || 0;
+    const effectiveSongTitle = activeSong?.title || (queue.length > 0 && effectiveIsPlaying ? (queue[0].songData?.title || queue[0].fileName) : '') || '';
+    const effectiveSongArtist = activeSong?.artist || (queue.length > 0 && effectiveIsPlaying ? queue[0].songData?.artist : '') || '';
+
     const deltaPayload = {
-      isPlaying,
-      currentTime,
-      duration,
-      songTitle: currentSong?.title || '',
-      songArtist: currentSong?.artist || '',
-      detectedKey: currentSong?.key || detectedKey || 'Am',
-      bpm: currentSong?.bpm || bpm || 120,
+      isPlaying: effectiveIsPlaying,
+      currentTime: effectiveTime,
+      duration: effectiveDuration,
+      songTitle: effectiveSongTitle,
+      songArtist: effectiveSongArtist,
+      detectedKey: activeSong?.key || detectedKey || 'Am',
+      bpm: activeSong?.bpm || bpm || 120,
       pitchShift: pitchShift || 0,
       vocalGain,
       musicGain,
@@ -1455,6 +1486,7 @@ export default function App() {
     vocalGain,
     musicGain,
     isCleanTrack,
+    queue,
   ]);
 
   if (isTvDisplayMode) {

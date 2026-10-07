@@ -1264,7 +1264,7 @@ class PeerSyncService {
   // Broadcast state to all connected DJ remotes
   public broadcastDjState(state: any) {
     if (!this.isHost) return;
-    this.currentDjState = state;
+    this.currentDjState = { ...(this.currentDjState || {}), ...state };
     if (!this.isDjServiceEnabled) return;
 
     this.djConnections.forEach((conn) => {
