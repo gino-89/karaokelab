@@ -205,7 +205,7 @@ export const DjRemoteView: React.FC = () => {
     setTargetHostId(effectiveHost);
     setRoomCode(effectiveHost.replace('klab_host_', '').toUpperCase());
 
-    // Initialize WebRTC connection to host
+    // 1. Initialize WebRTC connection to host
     peerSync.initDjRemote(
       effectiveHost,
       (state) => {
@@ -234,7 +234,7 @@ export const DjRemoteView: React.FC = () => {
       }
     );
 
-    // Listen for direct live chat messages over WebRTC
+    // 2. Listen for direct live chat messages over WebRTC
     const unsubChat = peerSync.onChatMessageReceived((msg) => {
       if (!msg) return;
       setDjState((prev) => {
@@ -246,11 +246,65 @@ export const DjRemoteView: React.FC = () => {
       });
     });
 
+    // 3. Screen WakeLock (Keeps phone screen permanently on while on DJ Remote)
+    let wakeLockSentinel: any = null;
+    const requestWakeLock = async () => {
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        try {
+          if (!wakeLockSentinel) {
+            wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+            wakeLockSentinel.addEventListener('release', () => {
+              wakeLockSentinel = null;
+            });
+          }
+        } catch (_) {}
+      }
+    };
+    requestWakeLock();
+
+    // 4. Instant Lifecycle Auto-Reconnect on returning to browser / unlocking phone (0s delay)
+    const handleLifecycleWake = () => {
+      requestWakeLock();
+      if (!isSleepMode) {
+        peerSync.reconnectDjRemote();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleLifecycleWake();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleLifecycleWake);
+    window.addEventListener('pageshow', handleLifecycleWake);
+
+    // 5. Active Connection Watchdog (auto-heals silent network drops without manual page reload)
+    const watchdogTimer = setInterval(() => {
+      if (!isSleepMode && document.visibilityState === 'visible') {
+        const currentStatus = peerSync.getConnectionStatus();
+        if (currentStatus === 'disconnected' || currentStatus === 'failed') {
+          peerSync.reconnectDjRemote();
+        }
+      }
+    }, 4000);
+
     return () => {
       unsubChat();
+      if (wakeLockSentinel) {
+        try {
+          wakeLockSentinel.release();
+        } catch (_) {}
+        wakeLockSentinel = null;
+      }
+      clearInterval(watchdogTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleLifecycleWake);
+      window.removeEventListener('pageshow', handleLifecycleWake);
       peerSync.disconnectDjRemote();
     };
-  }, []);
+  }, [isSleepMode]);
 
   // Sync state values to local states if updated externally
   useEffect(() => {
