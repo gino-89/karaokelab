@@ -78,8 +78,17 @@ export default function App() {
   const vocalGainRef = useRef(vocalGain);
   vocalGainRef.current = vocalGain;
   const [musicGain, setMusicGain] = useState(1.0);
-  const [masterGain, setMasterGain] = useState(1.0);
+  const musicGainRef = useRef(musicGain);
+  musicGainRef.current = musicGain;
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
+  const bpmRef = useRef(bpm);
+  bpmRef.current = bpm;
+  const detectedKeyRef = useRef(detectedKey);
+  detectedKeyRef.current = detectedKey;
   const [pitchShift, setPitchShift] = useState(0);
+  const pitchShiftRef = useRef(pitchShift);
+  pitchShiftRef.current = pitchShift;
   const [isLooping, setIsLooping] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
   const [micGain, setMicGain] = useState(1.0);
@@ -851,14 +860,14 @@ export default function App() {
             const djStatePayload = {
               isPlaying: isPlayingRef.current,
               currentTime: audioEngine.getCurrentTime() || 0,
-              duration: duration || 0,
+              duration: durationRef.current || 0,
               songTitle: currentSongRef.current?.title || '',
               songArtist: currentSongRef.current?.artist || '',
-              detectedKey: currentSongRef.current?.key || detectedKey || 'Am',
-              bpm: currentSongRef.current?.bpm || bpm || 120,
-              pitchShift: pitchShift || 0,
+              detectedKey: currentSongRef.current?.key || detectedKeyRef.current || 'Am',
+              bpm: currentSongRef.current?.bpm || bpmRef.current || 120,
+              pitchShift: pitchShiftRef.current || 0,
               vocalGain: vocalGainRef.current,
-              musicGain,
+              musicGain: musicGainRef.current,
               isCleanTrack: isCleanTrackRef.current,
               isGuideVoiceActive: vocalGainRef.current >= 0.35 && !isCleanTrackRef.current,
               queue: latestQueue.map((q) => ({
@@ -1347,53 +1356,51 @@ export default function App() {
     pitchShift,
   ]);
 
-  // Broadcast live state to connected Mobile DJ remotes (/dj)
+  // 1. Full Structural Sync for Mobile DJ remotes (/dj) - Triggers on structural data updates
   useEffect(() => {
-    if (!isTvDisplayMode && !isGuestMode && !isDjMode) {
-      const djStatePayload = {
-        isPlaying,
-        currentTime,
-        duration,
-        songTitle: currentSong?.title || '',
-        songArtist: currentSong?.artist || '',
-        detectedKey: currentSong?.key || detectedKey || 'Am',
-        bpm: currentSong?.bpm || bpm || 120,
-        pitchShift: pitchShift || 0,
-        vocalGain,
-        musicGain,
-        isCleanTrack,
-        isGuideVoiceActive: vocalGain >= 0.35 && !isCleanTrack,
-        queue: queue.map((q) => ({
-          id: q.id,
-          songId: q.songData?.id,
-          title: q.songData?.title || q.fileName,
-          artist: q.songData?.artist || '',
-          requestedBy: q.requestedBy,
-          tableNumber: q.tableNumber,
-          status: q.status,
-        })),
-        catalog: savedSongs.map((s) => ({
-          id: s.id,
-          title: s.title,
-          artist: s.artist,
-          genre: s.genre,
-          bpm: s.bpm,
-          duration: s.duration,
-        })),
-        requests: customerRequests,
-        chatMessages,
-        profiles: profiles.filter((p) => p.id !== 'profile_all'),
-        isDjServiceEnabled,
-      };
-      peerSync.broadcastDjState(djStatePayload);
-    }
+    if (isTvDisplayMode || isGuestMode || isDjMode) return;
+
+    const djStatePayload = {
+      isPlaying,
+      currentTime: audioEngine.getCurrentTime() || currentTime || 0,
+      duration: duration || 0,
+      songTitle: currentSong?.title || '',
+      songArtist: currentSong?.artist || '',
+      detectedKey: currentSong?.key || detectedKey || 'Am',
+      bpm: currentSong?.bpm || bpm || 120,
+      pitchShift: pitchShift || 0,
+      vocalGain,
+      musicGain,
+      isCleanTrack,
+      isGuideVoiceActive: vocalGain >= 0.35 && !isCleanTrack,
+      queue: queue.map((q) => ({
+        id: q.id,
+        songId: q.songData?.id,
+        title: q.songData?.title || q.fileName,
+        artist: q.songData?.artist || '',
+        requestedBy: q.requestedBy,
+        tableNumber: q.tableNumber,
+        status: q.status,
+      })),
+      catalog: savedSongs.map((s) => ({
+        id: s.id,
+        title: s.title,
+        artist: s.artist,
+        genre: s.genre,
+        bpm: s.bpm,
+        duration: s.duration,
+      })),
+      requests: customerRequests,
+      chatMessages,
+      profiles: profiles.filter((p) => p.id !== 'profile_all'),
+      isDjServiceEnabled,
+    };
+    peerSync.broadcastDjState(djStatePayload);
   }, [
     isTvDisplayMode,
     isGuestMode,
     isDjMode,
     currentSong,
-    isPlaying,
-    currentTime,
     duration,
     bpm,
     detectedKey,
@@ -1407,6 +1414,46 @@ export default function App() {
     chatMessages,
     profiles,
     isDjServiceEnabled,
+  ]);
+
+  // 2. Lightweight Playback Delta Tick for Mobile DJ remotes (~150 bytes, throttled to 150ms)
+  const lastDjTickRef = useRef<number>(0);
+  useEffect(() => {
+    if (isTvDisplayMode || isGuestMode || isDjMode) return;
+
+    const now = Date.now();
+    if (now - lastDjTickRef.current < 150) return;
+    lastDjTickRef.current = now;
+
+    const deltaPayload = {
+      isPlaying,
+      currentTime,
+      duration,
+      songTitle: currentSong?.title || '',
+      songArtist: currentSong?.artist || '',
+      detectedKey: currentSong?.key || detectedKey || 'Am',
+      bpm: currentSong?.bpm || bpm || 120,
+      pitchShift: pitchShift || 0,
+      vocalGain,
+      musicGain,
+      isCleanTrack,
+      isGuideVoiceActive: vocalGain >= 0.35 && !isCleanTrack,
+    };
+    peerSync.broadcastDjState(deltaPayload);
+  }, [
+    isTvDisplayMode,
+    isGuestMode,
+    isDjMode,
+    currentTime,
+    isPlaying,
+    currentSong,
+    duration,
+    bpm,
+    detectedKey,
+    pitchShift,
+    vocalGain,
+    musicGain,
+    isCleanTrack,
   ]);
 
   if (isTvDisplayMode) {

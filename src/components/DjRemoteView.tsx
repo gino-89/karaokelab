@@ -224,6 +224,78 @@ export const DjRemoteView: React.FC = () => {
     };
   }, []);
 
+  // Playback sync ref and smooth interpolated timeline for 60fps/10fps fluid progression
+  const lastPlaybackSyncRef = useRef<{ serverTime: number; receivedAt: number; isPlaying: boolean }>({
+    serverTime: 0,
+    receivedAt: Date.now(),
+    isPlaying: false,
+  });
+  const [interpolatedTime, setInterpolatedTime] = useState(0);
+
+  // Safe State Reducer (Guards all incoming fields so partial ticks/catalog syncs never wipe songTitle/time)
+  const handleIncomingDjState = useCallback((state: any) => {
+    if (!state) return;
+
+    setDjState((prev) => {
+      const next = { ...prev };
+
+      if (state.isPlaying !== undefined) next.isPlaying = state.isPlaying;
+      if (state.currentTime !== undefined) next.currentTime = state.currentTime;
+      if (state.duration !== undefined) next.duration = state.duration;
+      if (state.songTitle !== undefined) next.songTitle = state.songTitle;
+      if (state.songArtist !== undefined) next.songArtist = state.songArtist;
+      if (state.detectedKey !== undefined) next.detectedKey = state.detectedKey;
+      if (state.bpm !== undefined) next.bpm = state.bpm;
+      if (state.pitchShift !== undefined) next.pitchShift = state.pitchShift;
+      if (state.vocalGain !== undefined) next.vocalGain = state.vocalGain;
+      if (state.musicGain !== undefined) next.musicGain = state.musicGain;
+      if (state.isCleanTrack !== undefined) next.isCleanTrack = state.isCleanTrack;
+      if (state.isGuideVoiceActive !== undefined) next.isGuideVoiceActive = state.isGuideVoiceActive;
+
+      if (state.queue && Array.isArray(state.queue)) next.queue = state.queue;
+      if (state.catalog && Array.isArray(state.catalog)) next.catalog = state.catalog;
+      if (state.requests && Array.isArray(state.requests)) next.requests = state.requests;
+      if (state.chatMessages && Array.isArray(state.chatMessages)) next.chatMessages = state.chatMessages;
+      if (state.profiles && Array.isArray(state.profiles)) next.profiles = state.profiles;
+      if (state.isDjServiceEnabled !== undefined) next.isDjServiceEnabled = state.isDjServiceEnabled;
+
+      return next;
+    });
+
+    if (state.currentTime !== undefined || state.isPlaying !== undefined) {
+      lastPlaybackSyncRef.current = {
+        serverTime: state.currentTime !== undefined ? state.currentTime : lastPlaybackSyncRef.current.serverTime,
+        receivedAt: Date.now(),
+        isPlaying: state.isPlaying !== undefined ? state.isPlaying : lastPlaybackSyncRef.current.isPlaying,
+      };
+      if (state.currentTime !== undefined) {
+        setInterpolatedTime(state.currentTime);
+      }
+    }
+
+    if (state.pitchShift !== undefined) setLocalPitch(state.pitchShift);
+    if (state.bpm !== undefined) setLocalBpm(state.bpm);
+    if (state.vocalGain !== undefined) setLocalVocalGain(state.vocalGain);
+    if (state.musicGain !== undefined) setLocalMusicGain(state.musicGain);
+    if (state.isDjServiceEnabled !== undefined) setIsHostDisabled(!state.isDjServiceEnabled);
+  }, []);
+
+  // Smooth timeline updater: ticks smoothly every 100ms when song is playing
+  useEffect(() => {
+    if (!djState.isPlaying || !djState.duration) {
+      setInterpolatedTime(djState.currentTime || 0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - lastPlaybackSyncRef.current.receivedAt) / 1000;
+      const current = Math.min(djState.duration, Math.max(0, lastPlaybackSyncRef.current.serverTime + elapsed));
+      setInterpolatedTime(current);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [djState.isPlaying, djState.duration, djState.currentTime]);
+
   // Parse Room ID from URL & persistent storage
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -259,24 +331,7 @@ export const DjRemoteView: React.FC = () => {
     // 1. Initialize WebRTC connection to host
     peerSync.initDjRemote(
       effectiveHost,
-      (state) => {
-        if (!state) return;
-        setDjState((prev) => ({
-          ...prev,
-          ...state,
-          queue: state.queue || prev.queue,
-          catalog: state.catalog || prev.catalog,
-          requests: state.requests || prev.requests,
-          chatMessages: state.chatMessages || prev.chatMessages || [],
-          profiles: state.profiles || prev.profiles || [],
-        }));
-
-        if (state.pitchShift !== undefined) setLocalPitch(state.pitchShift);
-        if (state.bpm !== undefined) setLocalBpm(state.bpm);
-        if (state.vocalGain !== undefined) setLocalVocalGain(state.vocalGain);
-        if (state.musicGain !== undefined) setLocalMusicGain(state.musicGain);
-        if (state.isDjServiceEnabled !== undefined) setIsHostDisabled(!state.isDjServiceEnabled);
-      },
+      handleIncomingDjState,
       (disabled) => {
         setIsHostDisabled(disabled);
       },
@@ -676,8 +731,8 @@ export const DjRemoteView: React.FC = () => {
   // Progress percent
   const progressPercent = useMemo(() => {
     if (!djState.duration || djState.duration <= 0) return 0;
-    return Math.min(100, Math.max(0, (djState.currentTime / djState.duration) * 100));
-  }, [djState.currentTime, djState.duration]);
+    return Math.min(100, Math.max(0, (interpolatedTime / djState.duration) * 100));
+  }, [interpolatedTime, djState.duration]);
 
   // Guest QR URL
   const guestQrUrl = typeof window !== 'undefined'
@@ -815,7 +870,7 @@ export const DjRemoteView: React.FC = () => {
             />
           </div>
           <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 mt-1">
-            <span>{formatTime(djState.currentTime)}</span>
+            <span>{formatTime(interpolatedTime)}</span>
             <span>{formatTime(djState.duration)}</span>
           </div>
         </div>
@@ -1911,10 +1966,7 @@ export const DjRemoteView: React.FC = () => {
                   } catch (_) {}
                   peerSync.initDjRemote(
                     newHost,
-                    (state) => {
-                      if (!state) return;
-                      setDjState((prev) => ({ ...prev, ...state }));
-                    },
+                    handleIncomingDjState,
                     (disabled) => setIsHostDisabled(disabled),
                     (status) => setConnectionStatus(status)
                   );

@@ -250,8 +250,6 @@ class PeerSyncService {
     this.initHost(onCommand || this.onCommandCallback || (() => {}), onPeerIdReady);
   }
 
-  private hostSlotIndex: number = 0;
-
   // Initialize Host session on Mac/PC player
   public initHost(
     onCommand: (cmd: string, data?: any, conn?: DataConnection) => void,
@@ -260,29 +258,29 @@ class PeerSyncService {
     this.isHost = true;
     this.onCommandCallback = onCommand;
 
-    // If host peer is already open, immediately return base room ID
+    // If host peer is already open, immediately return current ID
     if (this.peer && !this.peer.destroyed) {
-      const baseId = this.getOrCreateHostId();
+      const currentId = this.hostId || this.getOrCreateHostId();
       if (onPeerIdReady) {
-        onPeerIdReady(baseId);
+        onPeerIdReady(currentId);
       }
       return;
     }
 
-    // Use persistent base host room ID
-    const baseHostId = this.getOrCreateHostId();
-    const candidateId = this.hostSlotIndex === 0 ? baseHostId : `${baseHostId}_${this.hostSlotIndex}`;
-    this.hostId = candidateId;
+    // Use persistent host room ID so host peer ID matches the QR code 100%
+    const sessionPeerId = this.getOrCreateHostId();
+    this.hostId = sessionPeerId;
 
     try {
-      const p = new Peer(candidateId, PEER_CONFIG);
+      const p = new Peer(sessionPeerId, PEER_CONFIG);
       this.peer = p;
 
       p.on('open', (id) => {
         if (this.peer !== p) return;
         this.hostId = id;
-        console.log('✓ Host PeerJS online with ID:', id, `(Room: ${baseHostId})`);
-        if (onPeerIdReady) onPeerIdReady(baseHostId);
+        this.hostUnavailableRetryCount = 0;
+        console.log('✓ Host PeerJS online with ID:', id);
+        if (onPeerIdReady) onPeerIdReady(id);
 
         // Start sending periodic heartbeats to all connected guests & DJs every 1.5s
         if (this.hostHeartbeatTimer) clearInterval(this.hostHeartbeatTimer);
@@ -309,12 +307,12 @@ class PeerSyncService {
 
         conn.on('open', () => {
           console.log('✓ Guest/Peer connected:', conn.peer);
-          if (this.currentMiniCatalog.length > 0) {
+          if (this.currentMiniCatalog && this.currentMiniCatalog.length > 0) {
             try {
               conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
             } catch (_) {}
           }
-          if (this.currentProfiles.length > 0) {
+          if (this.currentProfiles && this.currentProfiles.length > 0) {
             try {
               conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
             } catch (_) {}
@@ -383,17 +381,17 @@ class PeerSyncService {
             this.connectedGuests.set(conn.peer, guest);
             this._notifyGuestsChanged();
 
-            if (this.currentMiniCatalog.length > 0) {
+            if (this.currentMiniCatalog && this.currentMiniCatalog.length > 0) {
               try {
                 conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
               } catch (_) {}
             }
-            if (this.currentProfiles.length > 0) {
+            if (this.currentProfiles && this.currentProfiles.length > 0) {
               try {
                 conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
               } catch (_) {}
             }
-            if (this.currentYtFavorites.length > 0) {
+            if (this.currentYtFavorites && this.currentYtFavorites.length > 0) {
               try {
                 conn.send({ type: 'YT_FAVORITES_SYNC', payload: this.currentYtFavorites });
               } catch (_) {}
@@ -522,16 +520,20 @@ class PeerSyncService {
 
       p.on('error', (err: any) => {
         if (this.peer !== p) return;
-        console.warn('Host PeerJS warning on slot:', candidateId, err);
+        console.warn('Host PeerJS warning:', err);
         if (err?.type === 'unavailable-id') {
-          // Immediately try next slot for this same room (0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 0)
-          this.hostSlotIndex = (this.hostSlotIndex + 1) % 6;
-          console.log(`Slot ${candidateId} held by previous session, claiming slot ${this.hostSlotIndex}...`);
-          try { p.destroy(); } catch (_) {}
-          this.peer = null;
-          setTimeout(() => {
-            this.initHost(onCommand, onPeerIdReady);
-          }, 80);
+          if (this.hostUnavailableRetryCount < 30) {
+            this.hostUnavailableRetryCount++;
+            console.log(`Host ID held by previous session, retrying in 1000ms (attempt ${this.hostUnavailableRetryCount}/30)...`);
+            try { p.destroy(); } catch (_) {}
+            this.peer = null;
+            setTimeout(() => {
+              this.initHost(onCommand, onPeerIdReady);
+            }, 1000);
+            return;
+          }
+          console.warn('Host ID unavailable after 30 attempts.');
+          this.hostUnavailableRetryCount = 0;
         }
       });
     } catch (e) {
@@ -1385,68 +1387,22 @@ class PeerSyncService {
     }
 
     this.isHost = false;
-    this._setConnectionStatus('reconnecting');
-
-    const cleanBase = targetHostId.replace(/_[0-9]+$/, '');
-    const candidateHostIds = [
-      cleanBase,
-      `${cleanBase}_1`,
-      `${cleanBase}_2`,
-      `${cleanBase}_3`,
-      `${cleanBase}_4`,
-      `${cleanBase}_5`,
-    ];
-
     try {
       const p = new Peer(PEER_CONFIG);
       this.peer = p;
 
       p.on('open', () => {
-        if (this.peer !== p) return;
+        if (this.peer !== p || !targetHostId) return;
 
-        console.log(`DJ Remote scanning host slots for ${cleanBase}:`, candidateHostIds);
-        let isConnected = false;
-        const candidateConns: DataConnection[] = [];
-
-        candidateHostIds.forEach((hId, index) => {
-          setTimeout(() => {
-            if (this.peer !== p || isConnected) return;
-
-            try {
-              const conn = p.connect(hId, { reliable: true });
-              candidateConns.push(conn);
-
-              conn.on('open', () => {
-                if (isConnected && this.hostConnection !== conn) {
-                  try { conn.close(); } catch (_) {}
-                  return;
-                }
-                isConnected = true;
-                this.hostConnection = conn;
-
-                // Close other candidate connections
-                candidateConns.forEach((c) => {
-                  if (c !== conn) {
-                    try { c.close(); } catch (_) {}
-                  }
-                });
-
-                this._setupDjConnectionListeners(conn, hId);
-              });
-
-              conn.on('error', () => {
-                // Silently ignore slot errors while scanning
-              });
-            } catch (_) {}
-          }, index * 30);
-        });
-
-        // Watchdog timeout if none of the candidate slots open within 4s
-        setTimeout(() => {
-          if (this.peer === p && !isConnected && (!this.hostConnection || !this.hostConnection.open)) {
-            this._setConnectionStatus('disconnected');
-          }
-        }, 4000);
+        console.log(`DJ Remote connecting directly to Host: ${targetHostId}`);
+        try {
+          const conn = p.connect(targetHostId, { reliable: true });
+          this.hostConnection = conn;
+          this._setupDjConnectionListeners(conn, targetHostId);
+        } catch (err) {
+          console.warn('DJ Remote connect exception:', err);
+          this._setConnectionStatus('disconnected');
+        }
       });
 
       p.on('disconnected', () => {
