@@ -30,6 +30,7 @@ import {
   Disc,
   Send,
   Sparkle,
+  Star,
 } from 'lucide-react';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { SongItem, SingerProfile, ChatMessage } from '../types';
@@ -158,6 +159,9 @@ export const DjRemoteView: React.FC = () => {
   // Search & Catalog
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedCatalogProfileId, setSelectedCatalogProfileId] = useState<string | null>(null);
+  const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(false);
 
   // Modals & Overlays
   const [isGuestQrModalOpen, setIsGuestQrModalOpen] = useState(false);
@@ -716,19 +720,65 @@ export const DjRemoteView: React.FC = () => {
     return `${shifted} (${sign})`;
   }, [djState.detectedKey, localPitch]);
 
-  // Catalog filtering
+  // Unique artists list from catalog
+  const uniqueArtists = useMemo(() => {
+    const map = new Map<string, number>();
+    (djState.catalog || []).forEach((s) => {
+      const art = s.artist?.trim();
+      if (art && art !== 'Desconocido') {
+        map.set(art, (map.get(art) || 0) + 1);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([artist, count]) => ({ artist, count }))
+      .sort((a, b) => b.count - a.count || a.artist.localeCompare(b.artist));
+  }, [djState.catalog]);
+
+  // Selected singer profile object
+  const activeCatalogProfile = useMemo(() => {
+    if (!selectedCatalogProfileId) return null;
+    return (djState.profiles || []).find((p) => p.id === selectedCatalogProfileId) || null;
+  }, [selectedCatalogProfileId, djState.profiles]);
+
+  // Catalog filtering by singer profiles, favorites, artists and search
   const filteredCatalog = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return djState.catalog.slice(0, 50);
+    let list = djState.catalog || [];
+
+    // 1. Filter by specific singer profile's favorites
+    if (activeCatalogProfile) {
+      const favIds = new Set(activeCatalogProfile.favoriteSongIds || []);
+      list = list.filter((s) => favIds.has(s.id));
+    } else if (showOnlyFavorites) {
+      // Global favorites across all registered profiles
+      const allFavIds = new Set<string>();
+      (djState.profiles || []).forEach((p) => {
+        (p.favoriteSongIds || []).forEach((id) => allFavIds.add(id));
+      });
+      list = list.filter((s) => allFavIds.has(s.id));
     }
-    const q = searchQuery.toLowerCase().trim();
-    return djState.catalog.filter(
-      (s) =>
-        (s.title && s.title.toLowerCase().includes(q)) ||
-        (s.artist && s.artist.toLowerCase().includes(q)) ||
-        (s.genre && s.genre.toLowerCase().includes(q))
-    );
-  }, [djState.catalog, searchQuery]);
+
+    // 2. Filter by specific artist
+    if (selectedArtist) {
+      const targetArt = selectedArtist.trim().toLowerCase();
+      list = list.filter((s) => s.artist?.trim().toLowerCase() === targetArt);
+    }
+
+    // 3. Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (s) =>
+          (s.title && s.title.toLowerCase().includes(q)) ||
+          (s.artist && s.artist.toLowerCase().includes(q)) ||
+          (s.genre && s.genre.toLowerCase().includes(q))
+      );
+    } else if (!activeCatalogProfile && !showOnlyFavorites && !selectedArtist) {
+      // Limit initial default view for snappy performance
+      list = list.slice(0, 60);
+    }
+
+    return list;
+  }, [djState.catalog, searchQuery, activeCatalogProfile, showOnlyFavorites, selectedArtist, djState.profiles]);
 
   // Format mm:ss
   const formatTime = (secs: number) => {
@@ -1352,11 +1402,176 @@ export const DjRemoteView: React.FC = () => {
               )}
             </div>
 
-            {/* Results Count */}
+            {/* 1. Biblioteca de Cantantes & Favoritos (Filtros Deslizables) */}
+            <div className="flex flex-col space-y-1.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] uppercase font-black tracking-wider text-cyan-400 font-mono flex items-center gap-1">
+                  <User className="w-3 h-3 text-cyan-400" />
+                  <span>Cantantes & Favoritos</span>
+                </span>
+                {(selectedCatalogProfileId || showOnlyFavorites || selectedArtist) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCatalogProfileId(null);
+                      setShowOnlyFavorites(false);
+                      setSelectedArtist(null);
+                    }}
+                    className="text-[9.5px] font-mono text-pink-400 hover:text-pink-300 font-bold active:scale-95 transition-all"
+                  >
+                    Restablecer filtros ✕
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                {/* Chip: Todos */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCatalogProfileId(null);
+                    setShowOnlyFavorites(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                    !selectedCatalogProfileId && !showOnlyFavorites
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(0,240,255,0.3)]'
+                      : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Music className="w-3 h-3 text-cyan-400" />
+                  <span>Todos</span>
+                </button>
+
+                {/* Chip: ⭐ Todos los Favoritos */}
+                {(() => {
+                  const totalFavs = (djState.profiles || []).reduce(
+                    (acc, p) => acc + (p.favoriteSongIds?.length || 0),
+                    0
+                  );
+                  if (totalFavs === 0) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCatalogProfileId(null);
+                        setShowOnlyFavorites((prev) => !prev);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                        showOnlyFavorites && !selectedCatalogProfileId
+                          ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
+                          : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-amber-300'
+                      }`}
+                    >
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span>Favoritos ({totalFavs})</span>
+                    </button>
+                  );
+                })()}
+
+                {/* Chips de Perfiles de Cantantes */}
+                {(djState.profiles || []).map((prof) => {
+                  const isSelected = selectedCatalogProfileId === prof.id;
+                  const favCount = prof.favoriteSongIds?.length || 0;
+                  return (
+                    <button
+                      key={prof.id}
+                      type="button"
+                      onClick={() => {
+                        setShowOnlyFavorites(false);
+                        setSelectedCatalogProfileId((curr) => (curr === prof.id ? null : prof.id));
+                      }}
+                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                        isSelected
+                          ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_14px_rgba(255,0,127,0.35)]'
+                          : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xs">{prof.avatar || '🎤'}</span>
+                      <span className="truncate max-w-[95px]">{prof.name}</span>
+                      {favCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-pink-500/30 text-pink-300 text-[9px] font-mono">
+                          ★ {favCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Filtro por Artistas (Barra Deslizable) */}
+            {uniqueArtists.length > 0 && (
+              <div className="flex flex-col space-y-1.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 font-mono flex items-center gap-1">
+                    <Music className="w-3 h-3 text-slate-400" />
+                    <span>Artistas ({uniqueArtists.length})</span>
+                  </span>
+                  {selectedArtist && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedArtist(null)}
+                      className="text-[9.5px] font-mono text-cyan-400 hover:text-cyan-300 font-bold active:scale-95 transition-all"
+                    >
+                      Ver todos ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedArtist(null)}
+                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 transition-all active:scale-95 cursor-pointer ${
+                      !selectedArtist
+                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                        : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {uniqueArtists.slice(0, 30).map(({ artist, count }) => {
+                    const isSelected = selectedArtist === artist;
+                    return (
+                      <button
+                        key={artist}
+                        type="button"
+                        onClick={() => setSelectedArtist((curr) => (curr === artist ? null : artist))}
+                        className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                            : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="truncate max-w-[110px]">{artist}</span>
+                        <span className="text-[9px] text-slate-500 font-mono">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Results Count & Active Filter Indicator */}
             <div className="flex justify-between items-center px-1 text-[10.5px] font-mono text-slate-400">
-              <span>{filteredCatalog.length} canciones encontradas</span>
-              {searchQuery && (
-                <span className="text-cyan-400">Filtrando "{searchQuery}"</span>
+              <span>{filteredCatalog.length} canciones</span>
+              {activeCatalogProfile && (
+                <span className="text-pink-400 flex items-center gap-1 truncate max-w-[170px]">
+                  <span>⭐ Favoritos de {activeCatalogProfile.name}</span>
+                </span>
+              )}
+              {showOnlyFavorites && !activeCatalogProfile && (
+                <span className="text-amber-400 flex items-center gap-1">
+                  <span>⭐ Todos los Favoritos</span>
+                </span>
+              )}
+              {selectedArtist && (
+                <span className="text-cyan-400 truncate max-w-[150px]">
+                  🎤 {selectedArtist}
+                </span>
+              )}
+              {searchQuery && !activeCatalogProfile && !selectedArtist && !showOnlyFavorites && (
+                <span className="text-cyan-400">"{searchQuery}"</span>
               )}
             </div>
 
@@ -1368,7 +1583,9 @@ export const DjRemoteView: React.FC = () => {
                   No se encontraron coincidencias
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Intenta con otro término o borra la búsqueda.
+                  {activeCatalogProfile
+                    ? `El cantante ${activeCatalogProfile.name} no tiene canciones marcadas como favoritas.`
+                    : 'Intenta con otro término o restablece los filtros.'}
                 </p>
               </div>
             ) : (
@@ -1376,6 +1593,9 @@ export const DjRemoteView: React.FC = () => {
                 {filteredCatalog.map((song) => {
                   const isEnqueued = actionButtonFeedback[`queue_${song.id}`];
                   const isPlayingNow = actionButtonFeedback[`play_${song.id}`];
+                  const isSongFavorite = (djState.profiles || []).some((p) =>
+                    (p.favoriteSongIds || []).includes(song.id)
+                  );
 
                   return (
                     <div
@@ -1383,9 +1603,14 @@ export const DjRemoteView: React.FC = () => {
                       className="p-3 rounded-2xl bg-[#0c0e1a] border border-white/10 hover:border-cyan-500/40 flex items-center justify-between gap-2.5 transition-all"
                     >
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-xs font-black text-white truncate">
-                          {song.title}
-                        </h4>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-black text-white truncate">
+                            {song.title}
+                          </h4>
+                          {isSongFavorite && (
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                          )}
+                        </div>
                         <p className="text-[10.5px] text-cyan-400/80 truncate font-medium mt-0.5">
                           {song.artist || 'Artista'}
                           {song.bpm ? ` • ${song.bpm} BPM` : ''}
