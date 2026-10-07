@@ -75,6 +75,8 @@ class PeerSyncService {
     return () => { this.onQueueReceivedCallback = null; };
   }
 
+  private hostUnavailableRetryCount: number = 0;
+
   constructor() {
     if (typeof window !== 'undefined') {
       try {
@@ -99,6 +101,17 @@ class PeerSyncService {
           }
         }
       } catch (_) {}
+
+      // Explicitly free Host Peer ID on window close / reload so PeerJS server releases ID immediately
+      const handleUnloadCleanup = () => {
+        if (this.isHost && this.peer && !this.peer.destroyed) {
+          try {
+            this.peer.destroy();
+          } catch (_) {}
+        }
+      };
+      window.addEventListener('beforeunload', handleUnloadCleanup);
+      window.addEventListener('pagehide', handleUnloadCleanup);
     } else {
       this.currentQrKey = Math.random().toString(36).substring(2, 8);
     }
@@ -263,6 +276,7 @@ class PeerSyncService {
 
       this.peer.on('open', (id) => {
         this.hostId = id;
+        this.hostUnavailableRetryCount = 0;
         console.log('✓ Host PeerJS online with ID:', id);
         if (onPeerIdReady) onPeerIdReady(id);
 
@@ -484,7 +498,20 @@ class PeerSyncService {
       this.peer.on('error', (err: any) => {
         console.warn('Host PeerJS warning:', err);
         if (err?.type === 'unavailable-id') {
-          console.log('Host ID unavailable, regenerating fresh session...');
+          if (this.hostUnavailableRetryCount < 3) {
+            this.hostUnavailableRetryCount++;
+            console.log(`Host ID temporarily held by previous session, retrying with same ID in 1.2s (attempt ${this.hostUnavailableRetryCount}/3)...`);
+            if (this.peer) {
+              try { this.peer.destroy(); } catch (_) {}
+              this.peer = null;
+            }
+            setTimeout(() => {
+              this.initHost(onCommand, onPeerIdReady);
+            }, 1200);
+            return;
+          }
+          console.log('Host ID permanently unavailable, regenerating fresh session...');
+          this.hostUnavailableRetryCount = 0;
           this.regenerateHost(onPeerIdReady, onCommand);
         }
       });
