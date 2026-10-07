@@ -80,6 +80,7 @@ export default function App() {
   const [musicGain, setMusicGain] = useState(1.0);
   const musicGainRef = useRef(musicGain);
   musicGainRef.current = musicGain;
+  const [masterGain, setMasterGain] = useState(1.0);
   const durationRef = useRef(duration);
   durationRef.current = duration;
   const bpmRef = useRef(bpm);
