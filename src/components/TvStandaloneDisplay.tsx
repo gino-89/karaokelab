@@ -517,12 +517,12 @@ export const TvStandaloneDisplay: React.FC = () => {
                   <div className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-3 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]`}>
                     {computeIntelligentWordFills(
                       { ...activeLyric, text: textClean },
-                      currentTime,
+                      effectivePlayTime,
                       upcomingLyric?.time,
-                      128
+                      bpm || 120
                     ).map((item, wIdx) => {
                       return (
-                        <span key={wIdx} className="relative inline-block select-none">
+                        <span key={wIdx} className="relative inline-block select-none" style={{ transform: 'translateZ(0)' }}>
                           {/* Layer 1: Base Unsung Word (Clear, high-contrast text with solid outline) */}
                           <span
                             className="text-white/65 inline-block"
@@ -539,6 +539,8 @@ export const TvStandaloneDisplay: React.FC = () => {
                                 clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
                                 color: curArtist.color,
                                 textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.9)',
+                                willChange: 'clip-path',
+                                transform: 'translateZ(0)',
                               }}
                             >
                               {item.word}
@@ -586,12 +588,12 @@ export const TvStandaloneDisplay: React.FC = () => {
       {/* Bottom Progress Bar */}
       <div className="relative z-10 flex items-center justify-between text-xs font-mono text-slate-400 gap-4 pt-2">
         <span className="font-bold text-cyan-400">
-          {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}
+          {Math.floor(effectivePlayTime / 60)}:{Math.floor(effectivePlayTime % 60).toString().padStart(2, '0')}
         </span>
         <div className="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
           <div
             className="h-full bg-gradient-to-r from-[#00f0ff] to-[#ff007f] transition-all duration-200"
-            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+            style={{ width: `${duration > 0 ? (effectivePlayTime / duration) * 100 : 0}%` }}
           />
         </div>
         <span>

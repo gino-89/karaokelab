@@ -1280,10 +1280,10 @@ export default function App() {
       const now = performance.now();
       const isNewSong = currentSong?.id !== lastSongIdRef.current;
       const isPitchChanged = pitchShift !== lastPitchShiftRef.current;
-      const isFullSyncNeeded = isNewSong || isPitchChanged || (now - lastFullSyncRef.current >= 2500) || !isPlaying;
+      const isFullSyncNeeded = isNewSong || isPitchChanged || (!isPlaying && now - lastFullSyncRef.current >= 4000);
 
-      // Broadcast every 60ms-80ms for ultra-smooth lyric tracking
-      if (now - lastBroadcastRef.current >= 60 || isNewSong || isPitchChanged || !isPlaying) {
+      // Broadcast every 80ms for ultra-smooth lightweight sync
+      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || !isPlaying) {
         lastBroadcastRef.current = now;
         const activeProf = profiles.find((p) => p.id === activeProfileId);
         const nextQueueItem = queue[0];

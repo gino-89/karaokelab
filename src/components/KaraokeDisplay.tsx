@@ -1572,7 +1572,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                             bpm
                           ).map((item, wIdx) => {
                             return (
-                              <span key={wIdx} className="relative inline-block select-none">
+                              <span key={wIdx} className="relative inline-block select-none" style={{ transform: 'translateZ(0)' }}>
                                 {/* Layer 1: Base Unsung Word (Clean, crisp dim text) */}
                                 <span className="text-white/25 inline-block">
                                   {item.word}
@@ -1585,6 +1585,8 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                                     style={{
                                       clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
                                       color: currentInfo?.color || '#00f0ff',
+                                      willChange: 'clip-path',
+                                      transform: 'translateZ(0)',
                                     }}
                                   >
                                     {item.word}
