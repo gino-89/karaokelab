@@ -209,8 +209,44 @@ export const TvStandaloneDisplay: React.FC = () => {
     pitchShift = 0,
   } = tvState || {};
 
+  // 60 FPS Hardware-Accelerated Local Clock Interpolation for Second Screen / iPad
+  const [interpolatedTime, setInterpolatedTime] = useState<number>(currentTime);
+  const lastSyncRef = useRef<{ time: number; receivedAt: number; isPlaying: boolean }>({
+    time: currentTime,
+    receivedAt: performance.now(),
+    isPlaying: Boolean(isPlaying),
+  });
+
+  useEffect(() => {
+    lastSyncRef.current = {
+      time: currentTime,
+      receivedAt: performance.now(),
+      isPlaying: Boolean(isPlaying),
+    };
+    setInterpolatedTime(currentTime);
+  }, [currentTime, isPlaying]);
+
+  useEffect(() => {
+    let animId: number;
+    let lastPushedTime = 0;
+    const tick = (now: number) => {
+      if (lastSyncRef.current.isPlaying) {
+        const deltaSec = (now - lastSyncRef.current.receivedAt) / 1000;
+        const current = Math.max(0, lastSyncRef.current.time + deltaSec);
+        if (Math.abs(current - lastPushedTime) >= 0.016) {
+          lastPushedTime = current;
+          setInterpolatedTime(current);
+        }
+      }
+      animId = requestAnimationFrame(tick);
+    };
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
   const safeLyrics = Array.isArray(lyrics) ? lyrics : [];
-  const playbackState = getLyricPlaybackState(safeLyrics, currentTime);
+  const effectivePlayTime = isPlaying ? interpolatedTime : currentTime;
+  const playbackState = getLyricPlaybackState(safeLyrics, effectivePlayTime);
   const activeLyric = playbackState.currentLyric;
   const upcomingLyric = playbackState.nextLyric;
   const secondsToNext = playbackState.secondsToNext;
@@ -224,7 +260,7 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   // Smooth line progress calculation
   const lineDuration = activeLyric ? activeLyric.duration || 3.5 : 1;
-  const elapsed = activeLyric ? Math.max(0, currentTime - activeLyric.time) : 0;
+  const elapsed = activeLyric ? Math.max(0, effectivePlayTime - activeLyric.time) : 0;
   const lineProgress = Math.min(100, Math.max(0, (elapsed / lineDuration) * 100));
 
   const effectiveVideoBgConfig = tvState?.videoBgConfig || videoBgConfig;
@@ -236,7 +272,7 @@ export const TvStandaloneDisplay: React.FC = () => {
         config={effectiveVideoBgConfig}
         isPlaying={isPlaying}
         songKey={`${songTitle}___${songArtist || ''}`}
-        currentTime={currentTime}
+        currentTime={effectivePlayTime}
         duration={duration}
       />
 
@@ -244,10 +280,10 @@ export const TvStandaloneDisplay: React.FC = () => {
       {isStandby && (
         <div
           onClick={toggleFullscreen}
-          className="absolute inset-0 z-30 bg-[#05050c]/95 backdrop-blur-md text-white flex flex-col items-center justify-between p-8 sm:p-12 font-sans select-none overflow-hidden cursor-pointer"
+          className="absolute inset-0 z-30 bg-[#05050c]/98 text-white flex flex-col items-center justify-between p-8 sm:p-12 font-sans select-none overflow-hidden cursor-pointer"
         >
-          {/* Ambient background glow */}
-          <div className="absolute w-[500px] h-[500px] bg-gradient-to-tr from-[#00f0ff]/15 to-[#ff007f]/15 rounded-full blur-[140px] pointer-events-none" />
+          {/* Ambient background glow (Optimized CSS Radial Gradient without expensive GPU filter blur) */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.08)_0%,rgba(255,0,127,0.05)_50%,transparent_70%)] pointer-events-none" />
 
           {/* Top bar */}
           <div className="relative z-10 w-full flex items-center justify-between">

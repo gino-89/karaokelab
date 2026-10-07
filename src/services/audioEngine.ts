@@ -144,6 +144,12 @@ export class AudioEngine {
         }).catch(() => {});
       }
 
+      // Start HTML5 silent audio element to lock background media playback session in WebKit / macOS / iOS
+      const audio = this.initKeepAliveAudio();
+      if (audio && audio.paused) {
+        audio.play().catch(() => {});
+      }
+
       // Start hardware audio pipeline anchor in Web Audio (inaudible 0.000001 gain prevents CoreAudio hardware sleep)
       if (this.ctx && !this.silentOscillator) {
         try {
@@ -158,13 +164,13 @@ export class AudioEngine {
         } catch (_) {}
       }
 
-      // Resilient background watchdog timer every 500ms
+      // Resilient background watchdog timer every 350ms to immediately revive context if another window goes fullscreen
       if (!this.keepAliveInterval) {
         this.keepAliveInterval = setInterval(() => {
           if (this.isPlaying) {
             this.resumeContextSync();
           }
-        }, 500);
+        }, 350);
       }
     } catch (_) {}
   }
@@ -173,6 +179,7 @@ export class AudioEngine {
     if (this.keepAliveAudio) {
       try {
         this.keepAliveAudio.pause();
+        this.keepAliveAudio.currentTime = 0;
       } catch (_) {}
     }
     if (this.keepAliveInterval) {
