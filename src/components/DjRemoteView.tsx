@@ -819,8 +819,7 @@ export const DjRemoteView: React.FC = () => {
       {connectionStatus !== 'connected' && !isSleepMode && (
         <div
           onClick={() => {
-            peerSync.reconnectDjRemote(true);
-            showToast('⚡ Reconectando con la cabina...', 'cyan');
+            window.location.reload();
           }}
           className="w-full bg-gradient-to-r from-cyan-950 via-indigo-950 to-pink-950 border-b border-cyan-500/30 px-3.5 py-2 flex items-center justify-between z-40 text-xs font-bold text-white shadow-md cursor-pointer transition-all active:scale-[0.99]"
         >
@@ -832,6 +831,10 @@ export const DjRemoteView: React.FC = () => {
           </div>
           <button
             type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.reload();
+            }}
             className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-500/40 to-pink-500/40 hover:from-cyan-500/60 hover:to-pink-500/60 border border-cyan-400/60 text-[10px] font-mono text-cyan-200 font-black shrink-0 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.3)]"
           >
             Reconectar ⚡
