@@ -20,12 +20,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
-  const [prevSongKey, setPrevSongKey] = useState(songKey);
-  const [prevVideoId, setPrevVideoId] = useState(config.videoId);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
   const videoDurationRef = useRef<number>(0);
-  const lastSeekTimeRef = useRef<number>(Date.now());
-  const prevTimeRef = useRef<number>(currentTime || 0);
 
   // Dynamic container sizing: adapts seamlessly to mini player box or fullscreen modes
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,20 +82,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     };
   }, [containerSize.width, containerSize.height]);
 
-  // Synchronous state adjustment during render when song or video changes
-  // Guarantees zero frames of old video bleed-through during transitions!
-  if (songKey !== prevSongKey || config.videoId !== prevVideoId) {
-    setPrevSongKey(songKey);
-    setPrevVideoId(config.videoId);
-    setIsVideoVisible(false);
-  }
-
-  // 2-second pure black fade curtain (2000ms) on song/video change
+  // Pure black fade curtain on song/video change
   useEffect(() => {
     setIsVideoVisible(false);
     try {
       const win = iframeRef.current?.contentWindow;
       if (win) {
+        win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+        win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
         win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
         if (!isPlaying) {
           win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
@@ -109,12 +99,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 2000); // Exact 2-second fade-in curtain
+    }, 1500); // 1.5s transition curtain
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
 
-  // Construct optimized, zero-controls, muted, loop URL with playlist param & youtube-nocookie
+  // Construct optimized, zero-controls, strictly muted, loop URL with playlist param & youtube-nocookie
   const embedUrl = useRef<string>('');
   const lastVideoIdRef = useRef<string>('');
   const lastSongKeyRef = useRef<string>('');
@@ -123,20 +113,9 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     lastVideoIdRef.current = config.videoId;
     lastSongKeyRef.current = songKey || '';
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    // Only autoplay if playback is currently active so TV doesn't run ahead during intermission/countdown!
     const autoPlayParam = isPlaying ? 1 : 0;
     embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
   }
-
-  // Helper: Computes exact modulo time so loop videos stay in perfect sync between Laptop and TV
-  const getSyncedPosition = (time: number) => {
-    const dur = videoDurationRef.current;
-    if (dur && dur > 0) {
-      const mod = time % dur;
-      return Math.min(dur - 0.5, Math.max(0, mod));
-    }
-    return Math.max(0, time);
-  };
 
   // Listen for iframe duration and state changes: auto-restart immediately if video ends (loop protection)
   useEffect(() => {
@@ -156,6 +135,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         if (state === 0 || state === '0') {
           const win = iframeRef.current?.contentWindow;
           if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
           }
@@ -167,8 +147,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Sync Play / Pause command when playback state changes:
-  // Starts both laptop and TV screen from second 0 at the exact same instant when playback starts!
+  // Sync Play / Pause command ONLY when isPlaying state actually changes (0 FPS postMessage overhead)
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
@@ -183,47 +162,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       if (!win) return;
 
       if (shouldPlay) {
-        // If song just started (within first 2 seconds), ensure both screens start at exact second 0 in lockstep
-        if (currentTime !== undefined && currentTime <= 2) {
-          win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
-        }
+        win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+        win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
         win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
       } else {
         win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
       }
     } catch (_) {}
-  }, [isPlaying, config.enabled, config.mode, config.videoId, currentTime, duration]);
-
-  // Sync Seek position when user jumps / seeks in the song:
-  // Keeps Laptop and TV Mode in 100% PERFECT SYNCHRONIZATION using modulo safe loop time!
-  useEffect(() => {
-    if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
-
-    const delta = Math.abs(currentTime - prevTimeRef.current);
-    const now = Date.now();
-
-    // If time jumped by more than 1.5 seconds (manual seek)
-    if (delta > 1.5 && now - lastSeekTimeRef.current > 500) {
-      lastSeekTimeRef.current = now;
-      prevTimeRef.current = currentTime;
-      try {
-        const win = iframeRef.current?.contentWindow;
-        if (win) {
-          const safeTime = getSyncedPosition(currentTime);
-          win.postMessage(
-            JSON.stringify({
-              event: 'command',
-              func: 'seekTo',
-              args: [safeTime, true],
-            }),
-            '*'
-          );
-        }
-      } catch (_) {}
-    } else {
-      prevTimeRef.current = currentTime;
-    }
-  }, [currentTime, config.enabled, config.mode, config.videoId]);
+  }, [isPlaying, config.enabled, config.mode, config.videoId, duration]);
 
   // Keep component mounted even when paused so video does NOT reload from 0s on resume
   if (!config.enabled || config.mode === 'off' || !config.videoId) {
@@ -238,7 +184,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       ref={containerRef}
       className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}
     >
-      {/* High-def Cover Transition Mask - Pure dark stage for 2s during startup & song changes */}
+      {/* High-def Cover Transition Mask - Pure dark stage during startup & song changes */}
       <div
         className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${
           isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
@@ -274,13 +220,9 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
               const win = iframeRef.current?.contentWindow;
               if (win) {
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
-                // If mounting mid-song while already playing, synchronize starting frame with host
-                if (isPlaying && currentTime && currentTime > 2) {
-                  const safeStart = getSyncedPosition(currentTime);
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [safeStart, true] }), '*');
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
-                } else if (isPlaying) {
-                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+                win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+                win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
+                if (isPlaying) {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 } else {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');

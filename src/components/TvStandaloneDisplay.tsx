@@ -335,6 +335,8 @@ export const TvStandaloneDisplay: React.FC = () => {
                 const win = ytTvIframeRef.current?.contentWindow;
                 if (win) {
                   win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
                 }
               } catch (_) {}
             }}

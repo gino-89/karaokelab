@@ -137,11 +137,6 @@ export class AudioEngine {
   private startKeepAlive() {
     if (typeof window === 'undefined') return;
     try {
-      const audio = this.initKeepAliveAudio();
-      if (audio) {
-        audio.play().catch(() => {});
-      }
-
       // Request Screen WakeLock if supported
       if ('wakeLock' in navigator && !this.wakeLockSentinel) {
         (navigator as any).wakeLock?.request('screen').then((lock: any) => {
@@ -300,9 +295,6 @@ export class AudioEngine {
     try {
       if (this.ctx && (this.ctx.state === 'suspended' || (this.ctx.state as any) === 'interrupted')) {
         this.ctx.resume().catch(() => {});
-      }
-      if (this.isPlaying && this.keepAliveAudio && this.keepAliveAudio.paused) {
-        this.keepAliveAudio.play().catch(() => {});
       }
     } catch (_) {}
   }
