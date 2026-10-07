@@ -178,6 +178,50 @@ export const DjRemoteView: React.FC = () => {
     }, 2200);
   }, []);
 
+  // Dynamic PWA Manifest & App Identity for DJ Remote mode
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const originalTitle = document.title;
+    document.title = 'KaraokeLab DJ Remote';
+
+    // Update manifest link to point to manifest-dj.json
+    const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+    const originalManifest = manifestLink?.getAttribute('href') || '/manifest.json';
+    if (manifestLink) {
+      manifestLink.setAttribute('href', '/manifest-dj.json');
+    }
+
+    // Update Apple Mobile Web App title (used when adding to Home Screen on iOS)
+    const appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]') as HTMLMetaElement | null;
+    const originalAppleTitle = appleTitleMeta?.getAttribute('content') || 'KaraokeLab Player';
+    if (appleTitleMeta) {
+      appleTitleMeta.setAttribute('content', 'KaraokeLab DJ');
+    }
+
+    // Update application-name
+    const appNameMeta = document.querySelector('meta[name="application-name"]') as HTMLMetaElement | null;
+    const originalAppName = appNameMeta?.getAttribute('content') || 'KaraokeLab Player';
+    if (appNameMeta) {
+      appNameMeta.setAttribute('content', 'KaraokeLab DJ');
+    }
+
+    // Update theme-color
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+    const originalThemeColor = themeColorMeta?.getAttribute('content') || '#080811';
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', '#0c0e18');
+    }
+
+    return () => {
+      document.title = originalTitle;
+      if (manifestLink) manifestLink.setAttribute('href', originalManifest);
+      if (appleTitleMeta) appleTitleMeta.setAttribute('content', originalAppleTitle);
+      if (appNameMeta) appNameMeta.setAttribute('content', originalAppName);
+      if (themeColorMeta) themeColorMeta.setAttribute('content', originalThemeColor);
+    };
+  }, []);
+
   // Parse Room ID from URL
   useEffect(() => {
     if (typeof window === 'undefined') return;

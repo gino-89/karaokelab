@@ -1,0 +1,24 @@
+{
+  "short_name": "KaraokeLab DJ",
+  "name": "KaraokeLab DJ Remote",
+  "description": "Control Remoto Profesional de Cabina DJ para KaraokeLab Player",
+  "icons": [
+    {
+      "src": "/logo-icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/dj",
+  "background_color": "#06070e",
+  "theme_color": "#0c0e18",
+  "display": "standalone",
+  "orientation": "portrait"
+}
