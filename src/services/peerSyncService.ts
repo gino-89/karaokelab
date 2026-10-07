@@ -1278,15 +1278,7 @@ class PeerSyncService {
 
   // Setup connection event listeners for DJ Remote DataConnection
   private _setupDjConnectionListeners(conn: DataConnection, targetHostId: string) {
-    let connectTimeout: any = setTimeout(() => {
-      if (!this.hostConnection || !this.hostConnection.open) {
-        console.warn('DJ Remote connect timeout to host:', targetHostId);
-        this._setConnectionStatus('disconnected');
-      }
-    }, 4500);
-
-    conn.on('open', () => {
-      if (connectTimeout) clearTimeout(connectTimeout);
+    const handleConnected = () => {
       console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
       this.lastHeartbeatReceived = Date.now();
       this._setConnectionStatus('connected');
@@ -1313,7 +1305,23 @@ class PeerSyncService {
           this._setConnectionStatus('connected');
         }
       }, 2000);
-    });
+    };
+
+    if (conn.open) {
+      handleConnected();
+    } else {
+      let connectTimeout: any = setTimeout(() => {
+        if (!this.hostConnection || !this.hostConnection.open) {
+          console.warn('DJ Remote connect timeout to host:', targetHostId);
+          this._setConnectionStatus('disconnected');
+        }
+      }, 4500);
+
+      conn.on('open', () => {
+        if (connectTimeout) clearTimeout(connectTimeout);
+        handleConnected();
+      });
+    }
 
     conn.on('data', (data: any) => {
       if (!data) return;
@@ -1353,13 +1361,11 @@ class PeerSyncService {
     });
 
     conn.on('close', () => {
-      if (connectTimeout) clearTimeout(connectTimeout);
       console.log('DJ Remote connection closed');
       this._setConnectionStatus('disconnected');
     });
 
     conn.on('error', (err) => {
-      if (connectTimeout) clearTimeout(connectTimeout);
       console.warn('DJ Remote connection error:', err);
       this._setConnectionStatus('disconnected');
     });
