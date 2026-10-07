@@ -2880,6 +2880,7 @@ export default function App() {
     setCurrentSong(null);
     setLyrics([]);
     setDuration(0);
+    setVideoBgConfig((prev) => ({ ...prev, videoId: undefined, videoTitle: undefined }));
   };
 
   const handleSeek = (seconds: number) => {

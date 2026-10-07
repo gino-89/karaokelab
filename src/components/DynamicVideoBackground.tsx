@@ -226,8 +226,16 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     }
   }, [currentTime, config.enabled, config.mode, config.videoId]);
 
-  // Mantener componente montado para no reiniciar de 0s al pausar
-  if (!config.enabled || config.mode === 'off' || !config.videoId) {
+  const hasValidSong = Boolean(
+    songKey &&
+    songKey.trim() !== '' &&
+    !songKey.startsWith('___') &&
+    !songKey.startsWith('—') &&
+    !songKey.includes('— Selecciona una canción —')
+  );
+
+  // Mantener componente montado solo si hay una canción válida y video configurado
+  if (!config.enabled || config.mode === 'off' || !config.videoId || !hasValidSong) {
     return null;
   }
 

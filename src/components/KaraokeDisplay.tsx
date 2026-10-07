@@ -1498,14 +1498,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
             </div>
           ) : (
             <>
-              {/* Dynamic Video Background Layer */}
-              <DynamicVideoBackground
-                config={videoBgConfig}
-                isPlaying={isPlaying}
-                songKey={`${songTitle}___${songArtist || ''}`}
-                currentTime={currentTime}
-                duration={duration}
-              />
+              {/* Dynamic Video Background Layer (Only rendered when there is an active song and video) */}
+              {songTitle && songTitle !== '— Selecciona una canción —' && videoBgConfig?.enabled && videoBgConfig?.mode !== 'off' && videoBgConfig?.videoId && (
+                <DynamicVideoBackground
+                  config={videoBgConfig}
+                  isPlaying={isPlaying}
+                  songKey={`${songTitle}___${songArtist || ''}`}
+                  currentTime={currentTime}
+                  duration={duration}
+                />
+              )}
 
               {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
               <div className="h-7 w-full flex items-center justify-center shrink-0 z-10">
