@@ -462,10 +462,31 @@ class PeerSyncService {
               try {
                 conn.send({ type: 'DJ_SERVICE_STATUS', payload: { disabled: true } });
               } catch (_) {}
-            } else if (this.currentDjState) {
-              try {
-                conn.send({ type: 'DJ_STATE_SYNC', payload: this.currentDjState });
-              } catch (_) {}
+            } else {
+              // 1. Sync catalog immediately if available
+              if (this.currentMiniCatalog && this.currentMiniCatalog.length > 0) {
+                try {
+                  conn.send({ type: 'CATALOG_SYNC', payload: this.currentMiniCatalog });
+                } catch (_) {}
+              }
+              // 2. Sync profiles immediately if available
+              if (this.currentProfiles && this.currentProfiles.length > 0) {
+                try {
+                  conn.send({ type: 'PROFILES_SYNC', payload: this.currentProfiles });
+                } catch (_) {}
+              }
+              // 3. Sync queue immediately if available
+              if (this.currentQueue && this.currentQueue.length > 0) {
+                try {
+                  conn.send({ type: 'QUEUE_SYNC', payload: this.currentQueue });
+                } catch (_) {}
+              }
+              // 4. Sync live DJ state
+              if (this.currentDjState) {
+                try {
+                  conn.send({ type: 'DJ_STATE_SYNC', payload: this.currentDjState });
+                } catch (_) {}
+              }
             }
             if (this.onCommandCallback) {
               this.onCommandCallback('DJ_JOIN', data.payload, conn);
@@ -651,7 +672,7 @@ class PeerSyncService {
     }
   }
 
-  // Broadcast updated catalog to all connected guest phones
+  // Broadcast updated catalog to all connected guest phones and DJ remotes
   public broadcastCatalogToGuests(songs: SongItem[]) {
     if (!this.isHost) return;
     const miniCatalog = songs.map((s) => ({
@@ -676,9 +697,17 @@ class PeerSyncService {
         } catch (_) {}
       }
     });
+
+    this.djConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'CATALOG_SYNC', payload: miniCatalog });
+        } catch (_) {}
+      }
+    });
   }
 
-  // Broadcast updated singer profiles to all connected guest phones
+  // Broadcast updated singer profiles to all connected guest phones and DJ remotes
   public broadcastProfilesToGuests(profiles: SingerProfile[]) {
     if (!this.isHost) return;
     this.currentProfiles = profiles;
@@ -690,9 +719,17 @@ class PeerSyncService {
         } catch (_) {}
       }
     });
+
+    this.djConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'PROFILES_SYNC', payload: profiles });
+        } catch (_) {}
+      }
+    });
   }
 
-  // Broadcast updated YouTube favorites to all connected guest phones
+  // Broadcast updated YouTube favorites to all connected guest phones and DJ remotes
   public broadcastYouTubeFavoritesToGuests(favorites: YouTubeFavoriteTrack[]) {
     if (!this.isHost) return;
     this.currentYtFavorites = favorites;
@@ -704,14 +741,30 @@ class PeerSyncService {
         } catch (_) {}
       }
     });
+
+    this.djConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'YT_FAVORITES_SYNC', payload: favorites });
+        } catch (_) {}
+      }
+    });
   }
 
-  // Broadcast updated room queue to all connected guest phones
+  // Broadcast updated room queue to all connected guest phones and DJ remotes
   public broadcastQueueToGuests(queue: any[]) {
     if (!this.isHost) return;
     this.currentQueue = queue;
 
     this.guestConnections.forEach((conn) => {
+      if (conn.open) {
+        try {
+          conn.send({ type: 'QUEUE_SYNC', payload: queue });
+        } catch (_) {}
+      }
+    });
+
+    this.djConnections.forEach((conn) => {
       if (conn.open) {
         try {
           conn.send({ type: 'QUEUE_SYNC', payload: queue });
@@ -1264,6 +1317,18 @@ class PeerSyncService {
         if (this.onDjStateReceivedCallback) {
           this.onDjStateReceivedCallback(data.payload);
         }
+      } else if (data.type === 'CATALOG_SYNC' && Array.isArray(data.payload)) {
+        if (this.onDjStateReceivedCallback) {
+          this.onDjStateReceivedCallback({ catalog: data.payload });
+        }
+      } else if (data.type === 'QUEUE_SYNC' && Array.isArray(data.payload)) {
+        if (this.onDjStateReceivedCallback) {
+          this.onDjStateReceivedCallback({ queue: data.payload });
+        }
+      } else if (data.type === 'PROFILES_SYNC' && Array.isArray(data.payload)) {
+        if (this.onDjStateReceivedCallback) {
+          this.onDjStateReceivedCallback({ profiles: data.payload });
+        }
       } else if (data.type === 'DJ_SERVICE_STATUS') {
         if (this.onDjServiceStatusCallback) {
           this.onDjServiceStatusCallback(!!data.payload?.disabled);
@@ -1373,7 +1438,7 @@ class PeerSyncService {
                 // Silently ignore slot errors while scanning
               });
             } catch (_) {}
-          }, index * 80);
+          }, index * 30);
         });
 
         // Watchdog timeout if none of the candidate slots open within 4s

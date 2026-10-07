@@ -830,6 +830,60 @@ export default function App() {
             }
           } else if (cmd === 'DJ_JOIN') {
             showAlertToast('📱 Control DJ Remoto conectado en vivo');
+            const latestSongs = savedSongsRef.current || [];
+            const latestQueue = queueRef.current || [];
+            if (latestSongs.length > 0) {
+              peerSync.broadcastCatalogToGuests(latestSongs);
+            }
+            if (latestQueue.length > 0) {
+              peerSync.broadcastQueueToGuests(
+                latestQueue.map((q) => ({
+                  id: q.id,
+                  songId: q.songData?.id,
+                  title: q.songData?.title || q.fileName,
+                  artist: q.songData?.artist || '',
+                  requestedBy: q.requestedBy,
+                  tableNumber: q.tableNumber,
+                  status: q.status,
+                }))
+              );
+            }
+            const djStatePayload = {
+              isPlaying: isPlayingRef.current,
+              currentTime: audioEngine.getCurrentTime() || 0,
+              duration: duration || 0,
+              songTitle: currentSongRef.current?.title || '',
+              songArtist: currentSongRef.current?.artist || '',
+              detectedKey: currentSongRef.current?.key || detectedKey || 'Am',
+              bpm: currentSongRef.current?.bpm || bpm || 120,
+              pitchShift: pitchShift || 0,
+              vocalGain: vocalGainRef.current,
+              musicGain,
+              isCleanTrack: isCleanTrackRef.current,
+              isGuideVoiceActive: vocalGainRef.current >= 0.35 && !isCleanTrackRef.current,
+              queue: latestQueue.map((q) => ({
+                id: q.id,
+                songId: q.songData?.id,
+                title: q.songData?.title || q.fileName,
+                artist: q.songData?.artist || '',
+                requestedBy: q.requestedBy,
+                tableNumber: q.tableNumber,
+                status: q.status,
+              })),
+              catalog: latestSongs.map((s) => ({
+                id: s.id,
+                title: s.title,
+                artist: s.artist || '',
+                genre: s.genre || '',
+                bpm: s.bpm || 120,
+                duration: s.duration || 180,
+              })),
+              requests: customerRequests,
+              chatMessages,
+              profiles: profiles.filter((p) => p.id !== 'profile_all'),
+              isDjServiceEnabled,
+            };
+            peerSync.broadcastDjState(djStatePayload);
           } else if (cmd === 'DJ_ACTION') {
             const action = data?.action;
             const payload = data?.payload || {};
