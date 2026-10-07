@@ -262,11 +262,14 @@ export const DjRemoteView: React.FC = () => {
     };
     requestWakeLock();
 
-    // 4. Instant Lifecycle Auto-Reconnect on returning to browser / unlocking phone (0s delay)
+    // 4. Instant Lifecycle Auto-Reconnect on returning to browser / unlocking phone
     const handleLifecycleWake = () => {
       requestWakeLock();
       if (!isSleepMode) {
-        peerSync.reconnectDjRemote();
+        // Small 200ms delay to let phone network hardware awaken
+        setTimeout(() => {
+          peerSync.reconnectDjRemote();
+        }, 200);
       }
     };
 
@@ -276,9 +279,19 @@ export const DjRemoteView: React.FC = () => {
       }
     };
 
+    const handleUserInteraction = () => {
+      requestWakeLock();
+      if (!isSleepMode && (peerSync.getConnectionStatus() === 'disconnected' || peerSync.getConnectionStatus() === 'failed')) {
+        peerSync.reconnectDjRemote();
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleLifecycleWake);
     window.addEventListener('pageshow', handleLifecycleWake);
+    window.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    window.addEventListener('pointerdown', handleUserInteraction, { passive: true });
+    window.addEventListener('click', handleUserInteraction, { passive: true });
 
     // 5. Active Connection Watchdog (auto-heals silent network drops without manual page reload)
     const watchdogTimer = setInterval(() => {
@@ -288,7 +301,7 @@ export const DjRemoteView: React.FC = () => {
           peerSync.reconnectDjRemote();
         }
       }
-    }, 4000);
+    }, 3000);
 
     return () => {
       unsubChat();
@@ -302,6 +315,9 @@ export const DjRemoteView: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleLifecycleWake);
       window.removeEventListener('pageshow', handleLifecycleWake);
+      window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('pointerdown', handleUserInteraction);
+      window.removeEventListener('click', handleUserInteraction);
       peerSync.disconnectDjRemote();
     };
   }, [isSleepMode]);
@@ -668,6 +684,30 @@ export const DjRemoteView: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* ─── BANNER DE ESTADO / RECONEXIÓN AUTOMÁTICA EN VIVO ─── */}
+      {connectionStatus !== 'connected' && !isSleepMode && (
+        <div
+          onClick={() => {
+            peerSync.reconnectDjRemote();
+            showToast('⚡ Reconectando con la cabina...', 'cyan');
+          }}
+          className="w-full bg-gradient-to-r from-cyan-950 via-indigo-950 to-pink-950 border-b border-cyan-500/30 px-3.5 py-1.5 flex items-center justify-between z-40 text-xs font-bold text-white shadow-md cursor-pointer transition-all active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-pink-400 animate-ping shrink-0" />
+            <span className="text-[11px] truncate text-slate-200">
+              {connectionStatus === 'reconnecting' ? 'Reconectando con la cabina...' : 'Conexión en espera · Toca para reconectar'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-cyan-500/30 to-pink-500/30 hover:from-cyan-500/40 hover:to-pink-500/40 border border-cyan-400/50 text-[10px] font-mono text-cyan-300 font-black shrink-0 active:scale-95 cursor-pointer"
+          >
+            Reconectar ⚡
+          </button>
+        </div>
+      )}
 
       {/* ─── B. TARJETA DE CANCIÓN ACTUAL (NOW PLAYING) ─── */}
       <section className="w-full bg-[#0a0c16] border-b border-white/5 px-4 py-2.5 shrink-0">

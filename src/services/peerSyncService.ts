@@ -1195,10 +1195,23 @@ class PeerSyncService {
     this.onDjServiceStatusCallback = onServiceStatusChanged || null;
     this.onConnectionStatusCallback = onStatusChanged || null;
 
+    if (this.guestHeartbeatMonitorTimer) {
+      clearInterval(this.guestHeartbeatMonitorTimer);
+      this.guestHeartbeatMonitorTimer = null;
+    }
+
+    if (this.hostConnection) {
+      try {
+        this.hostConnection.close();
+      } catch (_) {}
+      this.hostConnection = null;
+    }
+
     if (this.peer && !this.peer.destroyed) {
       try {
         this.peer.destroy();
       } catch (_) {}
+      this.peer = null;
     }
 
     this.isHost = false;
@@ -1206,6 +1219,14 @@ class PeerSyncService {
 
     try {
       this.peer = new Peer(PEER_CONFIG);
+
+      // Connection watchdog timeout: if connection doesn't open within 4.5s, retry
+      let connectTimeout: any = setTimeout(() => {
+        if (!this.hostConnection || !this.hostConnection.open) {
+          console.warn('DJ Remote connect timeout, auto-retrying...');
+          this.reconnectDjRemote();
+        }
+      }, 4500);
 
       this.peer.on('open', () => {
         if (!this.peer || !targetHostId) return;
@@ -1215,6 +1236,7 @@ class PeerSyncService {
         this.hostConnection = conn;
 
         conn.on('open', () => {
+          if (connectTimeout) clearTimeout(connectTimeout);
           console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
           this.lastHeartbeatReceived = Date.now();
           this._setConnectionStatus('connected');
@@ -1224,20 +1246,23 @@ class PeerSyncService {
             payload: { ts: Date.now() },
           });
 
-          // Heartbeat monitor for DJ
+          // Heartbeat monitor for DJ with fast detection (7s threshold)
           if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
           this.guestHeartbeatMonitorTimer = setInterval(() => {
             if (!this.hostConnection || !this.hostConnection.open) {
               this._setConnectionStatus('disconnected');
+              this.reconnectDjRemote();
               return;
             }
             const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-            if (timeSinceLastHeartbeat > 20000) {
+            if (timeSinceLastHeartbeat > 7000) {
+              console.warn('DJ Remote heartbeat lost, auto-reconnecting...');
               this._setConnectionStatus('disconnected');
+              this.reconnectDjRemote();
             } else {
               this._setConnectionStatus('connected');
             }
-          }, 3000);
+          }, 2500);
         });
 
         conn.on('data', (data: any) => {
@@ -1266,10 +1291,12 @@ class PeerSyncService {
         });
 
         conn.on('close', () => {
+          if (connectTimeout) clearTimeout(connectTimeout);
           this._setConnectionStatus('disconnected');
         });
 
         conn.on('error', (err) => {
+          if (connectTimeout) clearTimeout(connectTimeout);
           console.warn('DJ Remote connection error:', err);
           this._setConnectionStatus('disconnected');
         });
@@ -1319,14 +1346,23 @@ class PeerSyncService {
   }
 
   public reconnectDjRemote() {
-    if (this.targetHostId && !this.isHost && this.onDjStateReceivedCallback) {
-      this.initDjRemote(
-        this.targetHostId,
-        this.onDjStateReceivedCallback,
-        this.onDjServiceStatusCallback || undefined,
-        this.onConnectionStatusCallback || undefined
-      );
+    if (!this.targetHostId || this.isHost || !this.onDjStateReceivedCallback) return;
+
+    // If hostConnection is currently open and healthy, request state sync immediately
+    if (this.hostConnection && this.hostConnection.open) {
+      try {
+        this.hostConnection.send({ type: 'DJ_JOIN', payload: { ts: Date.now() } });
+        this._setConnectionStatus('connected');
+        return;
+      } catch (_) {}
     }
+
+    this.initDjRemote(
+      this.targetHostId,
+      this.onDjStateReceivedCallback,
+      this.onDjServiceStatusCallback || undefined,
+      this.onConnectionStatusCallback || undefined
+    );
   }
 }
 
