@@ -1183,6 +1183,83 @@ class PeerSyncService {
     });
   }
 
+  // Setup connection event listeners for DJ Remote DataConnection
+  private _setupDjConnectionListeners(conn: DataConnection, targetHostId: string) {
+    let connectTimeout: any = setTimeout(() => {
+      if (!this.hostConnection || !this.hostConnection.open) {
+        console.warn('DJ Remote connect timeout to host:', targetHostId);
+        this._setConnectionStatus('disconnected');
+      }
+    }, 5000);
+
+    conn.on('open', () => {
+      if (connectTimeout) clearTimeout(connectTimeout);
+      console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
+      this.lastHeartbeatReceived = Date.now();
+      this._setConnectionStatus('connected');
+
+      try {
+        conn.send({
+          type: 'DJ_JOIN',
+          payload: { ts: Date.now() },
+        });
+      } catch (_) {}
+
+      // Heartbeat monitor for DJ with fast detection (8s threshold)
+      if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
+      this.guestHeartbeatMonitorTimer = setInterval(() => {
+        if (!this.hostConnection || !this.hostConnection.open) {
+          this._setConnectionStatus('disconnected');
+          return;
+        }
+        const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
+        if (timeSinceLastHeartbeat > 8000) {
+          console.warn('DJ Remote heartbeat lost, updating connection status to disconnected');
+          this._setConnectionStatus('disconnected');
+        } else {
+          this._setConnectionStatus('connected');
+        }
+      }, 2500);
+    });
+
+    conn.on('data', (data: any) => {
+      if (!data) return;
+
+      this.lastHeartbeatReceived = Date.now();
+      this._setConnectionStatus('connected');
+
+      if (data.type === 'HEARTBEAT') {
+        try {
+          conn.send({ type: 'HEARTBEAT_ACK', payload: { ts: Date.now() } });
+        } catch (_) {}
+      } else if (data.type === 'DJ_STATE_SYNC' && data.payload) {
+        if (this.onDjStateReceivedCallback) {
+          this.onDjStateReceivedCallback(data.payload);
+        }
+      } else if (data.type === 'DJ_SERVICE_STATUS') {
+        if (this.onDjServiceStatusCallback) {
+          this.onDjServiceStatusCallback(!!data.payload?.disabled);
+        }
+      } else if (data.type === 'CHAT_MESSAGE' && data.payload) {
+        if (this.onChatMessageReceivedCallback) {
+          this.onChatMessageReceivedCallback(data.payload);
+        }
+      }
+    });
+
+    conn.on('close', () => {
+      if (connectTimeout) clearTimeout(connectTimeout);
+      console.log('DJ Remote connection closed');
+      this._setConnectionStatus('disconnected');
+    });
+
+    conn.on('error', (err) => {
+      if (connectTimeout) clearTimeout(connectTimeout);
+      console.warn('DJ Remote connection error:', err);
+      this._setConnectionStatus('disconnected');
+    });
+  }
+
   // Initialize DJ Remote session on mobile phone at /dj
   public initDjRemote(
     targetHostId: string,
@@ -1220,86 +1297,22 @@ class PeerSyncService {
     try {
       this.peer = new Peer(PEER_CONFIG);
 
-      // Connection watchdog timeout: if connection doesn't open within 4.5s, retry
-      let connectTimeout: any = setTimeout(() => {
-        if (!this.hostConnection || !this.hostConnection.open) {
-          console.warn('DJ Remote connect timeout, auto-retrying...');
-          this.reconnectDjRemote();
-        }
-      }, 4500);
-
       this.peer.on('open', () => {
-        if (!this.peer || !targetHostId) return;
+        if (!this.peer || !this.targetHostId) return;
 
-        console.log(`DJ Remote connecting to Host: ${targetHostId}`);
-        const conn = this.peer.connect(targetHostId, { reliable: true });
+        console.log(`DJ Remote connecting to Host: ${this.targetHostId}`);
+        const conn = this.peer.connect(this.targetHostId, { reliable: true });
         this.hostConnection = conn;
+        this._setupDjConnectionListeners(conn, this.targetHostId);
+      });
 
-        conn.on('open', () => {
-          if (connectTimeout) clearTimeout(connectTimeout);
-          console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
-          this.lastHeartbeatReceived = Date.now();
-          this._setConnectionStatus('connected');
-
-          conn.send({
-            type: 'DJ_JOIN',
-            payload: { ts: Date.now() },
-          });
-
-          // Heartbeat monitor for DJ with fast detection (7s threshold)
-          if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
-          this.guestHeartbeatMonitorTimer = setInterval(() => {
-            if (!this.hostConnection || !this.hostConnection.open) {
-              this._setConnectionStatus('disconnected');
-              this.reconnectDjRemote();
-              return;
-            }
-            const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-            if (timeSinceLastHeartbeat > 7000) {
-              console.warn('DJ Remote heartbeat lost, auto-reconnecting...');
-              this._setConnectionStatus('disconnected');
-              this.reconnectDjRemote();
-            } else {
-              this._setConnectionStatus('connected');
-            }
-          }, 2500);
-        });
-
-        conn.on('data', (data: any) => {
-          if (!data) return;
-
-          this.lastHeartbeatReceived = Date.now();
-          this._setConnectionStatus('connected');
-
-          if (data.type === 'HEARTBEAT') {
-            try {
-              conn.send({ type: 'HEARTBEAT_ACK', payload: { ts: Date.now() } });
-            } catch (_) {}
-          } else if (data.type === 'DJ_STATE_SYNC' && data.payload) {
-            if (this.onDjStateReceivedCallback) {
-              this.onDjStateReceivedCallback(data.payload);
-            }
-          } else if (data.type === 'DJ_SERVICE_STATUS') {
-            if (this.onDjServiceStatusCallback) {
-              this.onDjServiceStatusCallback(!!data.payload?.disabled);
-            }
-          } else if (data.type === 'CHAT_MESSAGE' && data.payload) {
-            if (this.onChatMessageReceivedCallback) {
-              this.onChatMessageReceivedCallback(data.payload);
-            }
+      this.peer.on('disconnected', () => {
+        console.warn('DJ Remote Peer signaling disconnected, reconnecting signaling...');
+        try {
+          if (this.peer && !this.peer.destroyed) {
+            this.peer.reconnect();
           }
-        });
-
-        conn.on('close', () => {
-          if (connectTimeout) clearTimeout(connectTimeout);
-          this._setConnectionStatus('disconnected');
-        });
-
-        conn.on('error', (err) => {
-          if (connectTimeout) clearTimeout(connectTimeout);
-          console.warn('DJ Remote connection error:', err);
-          this._setConnectionStatus('disconnected');
-        });
+        } catch (_) {}
       });
 
       this.peer.on('error', (err) => {
@@ -1345,11 +1358,11 @@ class PeerSyncService {
     this._setConnectionStatus('disconnected');
   }
 
-  public reconnectDjRemote() {
+  public reconnectDjRemote(forceFullReset = false) {
     if (!this.targetHostId || this.isHost || !this.onDjStateReceivedCallback) return;
 
-    // If hostConnection is currently open and healthy, request state sync immediately
-    if (this.hostConnection && this.hostConnection.open) {
+    // 1. If hostConnection is currently open and healthy, request state sync immediately (0ms)
+    if (!forceFullReset && this.hostConnection && this.hostConnection.open) {
       try {
         this.hostConnection.send({ type: 'DJ_JOIN', payload: { ts: Date.now() } });
         this._setConnectionStatus('connected');
@@ -1357,6 +1370,35 @@ class PeerSyncService {
       } catch (_) {}
     }
 
+    this._setConnectionStatus('reconnecting');
+
+    // 2. If peer is alive and not destroyed, connect directly without tearing down PeerJS instance
+    if (!forceFullReset && this.peer && !this.peer.destroyed) {
+      if (this.peer.disconnected) {
+        try {
+          this.peer.reconnect();
+        } catch (_) {}
+      }
+
+      if (this.hostConnection) {
+        try {
+          this.hostConnection.close();
+        } catch (_) {}
+        this.hostConnection = null;
+      }
+
+      try {
+        console.log(`DJ Remote reconnecting directly on existing peer to Host: ${this.targetHostId}`);
+        const conn = this.peer.connect(this.targetHostId, { reliable: true });
+        this.hostConnection = conn;
+        this._setupDjConnectionListeners(conn, this.targetHostId);
+        return;
+      } catch (e) {
+        console.warn('Re-connecting on existing peer failed, falling back to full init:', e);
+      }
+    }
+
+    // 3. Fallback: Full init if peer was destroyed or forceFullReset requested
     this.initDjRemote(
       this.targetHostId,
       this.onDjStateReceivedCallback,
@@ -1367,3 +1409,4 @@ class PeerSyncService {
 }
 
 export const peerSync = new PeerSyncService();
+

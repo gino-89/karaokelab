@@ -161,6 +161,8 @@ export const DjRemoteView: React.FC = () => {
 
   // Modals & Overlays
   const [isGuestQrModalOpen, setIsGuestQrModalOpen] = useState(false);
+  const [isRoomCodeModalOpen, setIsRoomCodeModalOpen] = useState(false);
+  const [tempRoomCodeInput, setTempRoomCodeInput] = useState('');
 
   // Action Feedback Toasts
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'cyan' | 'pink' | 'emerald' } | null>(null);
@@ -222,7 +224,7 @@ export const DjRemoteView: React.FC = () => {
     };
   }, []);
 
-  // Parse Room ID from URL
+  // Parse Room ID from URL & persistent storage
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -235,15 +237,19 @@ export const DjRemoteView: React.FC = () => {
     }
 
     if (!effectiveHost) {
-      // Fallback: search localStorage
+      // Fallback: search localStorage for previous successful DJ room connection
       try {
-        const saved = localStorage.getItem('karaokelab_p2p_host_id');
+        const saved = localStorage.getItem('karaokelab_dj_target_host') || localStorage.getItem('karaokelab_p2p_host_id');
         if (saved) effectiveHost = saved;
       } catch (_) {}
     }
 
     if (!effectiveHost) {
       effectiveHost = 'klab_host_default';
+    } else {
+      try {
+        localStorage.setItem('karaokelab_dj_target_host', effectiveHost);
+      } catch (_) {}
     }
 
     setTargetHostId(effectiveHost);
@@ -310,10 +316,14 @@ export const DjRemoteView: React.FC = () => {
     const handleLifecycleWake = () => {
       requestWakeLock();
       if (!isSleepMode) {
-        // Small 200ms delay to let phone network hardware awaken
+        // Immediate ping/reconnect
+        peerSync.reconnectDjRemote();
+        // Guaranteed secondary attempt after 600ms as phone antenna re-associates with WiFi
         setTimeout(() => {
-          peerSync.reconnectDjRemote();
-        }, 200);
+          if (peerSync.getConnectionStatus() !== 'connected') {
+            peerSync.reconnectDjRemote(true);
+          }
+        }, 600);
       }
     };
 
@@ -325,7 +335,7 @@ export const DjRemoteView: React.FC = () => {
 
     const handleUserInteraction = () => {
       requestWakeLock();
-      if (!isSleepMode && (peerSync.getConnectionStatus() === 'disconnected' || peerSync.getConnectionStatus() === 'failed')) {
+      if (!isSleepMode && peerSync.getConnectionStatus() === 'disconnected') {
         peerSync.reconnectDjRemote();
       }
     };
@@ -341,11 +351,11 @@ export const DjRemoteView: React.FC = () => {
     const watchdogTimer = setInterval(() => {
       if (!isSleepMode && document.visibilityState === 'visible') {
         const currentStatus = peerSync.getConnectionStatus();
-        if (currentStatus === 'disconnected' || currentStatus === 'failed') {
+        if (currentStatus === 'disconnected') {
           peerSync.reconnectDjRemote();
         }
       }
-    }, 3000);
+    }, 2500);
 
     return () => {
       unsubChat();
@@ -693,7 +703,21 @@ export const DjRemoteView: React.FC = () => {
         </div>
 
         {/* Action Buttons & Status LED */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* Room Code Badge (Tappable to change room) */}
+          <button
+            type="button"
+            onClick={() => {
+              setTempRoomCodeInput(roomCode || '');
+              setIsRoomCodeModalOpen(true);
+            }}
+            className="px-2 py-1 rounded-lg bg-[#121626] hover:bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 active:scale-95 transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer font-mono"
+            title="Código de Sala DJ (Toca para cambiar de sala)"
+          >
+            <Radio className="w-3 h-3 text-cyan-400 shrink-0" />
+            <span className="text-white font-black">{roomCode || '—'}</span>
+          </button>
+
           {/* QR Clientes */}
           <button
             type="button"
@@ -733,20 +757,20 @@ export const DjRemoteView: React.FC = () => {
       {connectionStatus !== 'connected' && !isSleepMode && (
         <div
           onClick={() => {
-            peerSync.reconnectDjRemote();
+            peerSync.reconnectDjRemote(true);
             showToast('⚡ Reconectando con la cabina...', 'cyan');
           }}
-          className="w-full bg-gradient-to-r from-cyan-950 via-indigo-950 to-pink-950 border-b border-cyan-500/30 px-3.5 py-1.5 flex items-center justify-between z-40 text-xs font-bold text-white shadow-md cursor-pointer transition-all active:scale-[0.99]"
+          className="w-full bg-gradient-to-r from-cyan-950 via-indigo-950 to-pink-950 border-b border-cyan-500/30 px-3.5 py-2 flex items-center justify-between z-40 text-xs font-bold text-white shadow-md cursor-pointer transition-all active:scale-[0.99]"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-pink-400 animate-ping shrink-0" />
-            <span className="text-[11px] truncate text-slate-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-pink-400 animate-ping shrink-0" />
+            <span className="text-[11px] truncate text-slate-200 font-semibold">
               {connectionStatus === 'reconnecting' ? 'Reconectando con la cabina...' : 'Conexión en espera · Toca para reconectar'}
             </span>
           </div>
           <button
             type="button"
-            className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-cyan-500/30 to-pink-500/30 hover:from-cyan-500/40 hover:to-pink-500/40 border border-cyan-400/50 text-[10px] font-mono text-cyan-300 font-black shrink-0 active:scale-95 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-500/40 to-pink-500/40 hover:from-cyan-500/60 hover:to-pink-500/60 border border-cyan-400/60 text-[10px] font-mono text-cyan-200 font-black shrink-0 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.3)]"
           >
             Reconectar ⚡
           </button>
@@ -1830,6 +1854,72 @@ export const DjRemoteView: React.FC = () => {
             <RefreshCw className="w-4 h-4" />
             <span>🔄 Reintentar Conexión</span>
           </button>
+        </div>
+      )}
+
+      {/* 4. Modal para Cambiar / Ingresar Código de Sala */}
+      {isRoomCodeModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl bg-[#0c0e18] border border-cyan-500/40 p-6 flex flex-col items-center text-center shadow-[0_0_50px_rgba(0,240,255,0.2)]">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-950/50 border border-cyan-500/50 flex items-center justify-center mb-3">
+              <Radio className="w-7 h-7 text-cyan-400 animate-pulse" />
+            </div>
+
+            <h3 className="text-lg font-black text-white uppercase tracking-wider">
+              Conectar a Sala DJ
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 mb-4">
+              Ingresa el código de sala mostrado en la pantalla de la computadora o en el botón DJ:
+            </p>
+
+            <div className="w-full relative mb-4">
+              <input
+                type="text"
+                value={tempRoomCodeInput}
+                onChange={(e) => setTempRoomCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                placeholder="EJ: 9A4X"
+                maxLength={10}
+                className="w-full py-3 px-4 rounded-xl bg-slate-900/90 border-2 border-cyan-500/60 text-center font-mono text-2xl font-black text-white tracking-widest uppercase focus:outline-none focus:border-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.2)]"
+              />
+            </div>
+
+            <div className="flex gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => setIsRoomCodeModalOpen(false)}
+                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs uppercase cursor-pointer hover:bg-slate-700 active:scale-95 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const cleaned = tempRoomCodeInput.trim().toLowerCase();
+                  if (!cleaned) return;
+                  const newHost = cleaned.startsWith('klab_host_') ? cleaned : `klab_host_${cleaned}`;
+                  setTargetHostId(newHost);
+                  setRoomCode(cleaned.replace('klab_host_', '').toUpperCase());
+                  try {
+                    localStorage.setItem('karaokelab_dj_target_host', newHost);
+                  } catch (_) {}
+                  peerSync.initDjRemote(
+                    newHost,
+                    (state) => {
+                      if (!state) return;
+                      setDjState((prev) => ({ ...prev, ...state }));
+                    },
+                    (disabled) => setIsHostDisabled(disabled),
+                    (status) => setConnectionStatus(status)
+                  );
+                  setIsRoomCodeModalOpen(false);
+                  showToast('⚡ Conectando a sala ' + cleaned.toUpperCase(), 'cyan');
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-black font-black text-xs uppercase cursor-pointer hover:from-cyan-400 hover:to-emerald-300 shadow-[0_0_20px_rgba(0,240,255,0.4)] active:scale-95 transition-all"
+              >
+                Conectar ⚡
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
