@@ -20,8 +20,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
+  const [prevSongKey, setPrevSongKey] = useState(songKey);
+  const [prevVideoId, setPrevVideoId] = useState(config.videoId);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
   const videoDurationRef = useRef<number>(0);
+  const lastSeekTimeRef = useRef<number>(Date.now());
+  const prevTimeRef = useRef<number>(currentTime || 0);
 
   // Dynamic container sizing: adapts seamlessly to mini player box or fullscreen modes
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,7 +86,16 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     };
   }, [containerSize.width, containerSize.height]);
 
-  // Pure black fade curtain on song/video change
+  // 1. REQUISITO: CERO BLEED-THROUGH (Anti-destello del video anterior)
+  // Ajuste de estado síncrono durante render: en cuanto cambia la canción o video,
+  // la cortina se vuelve 100% NEGRA antes de pintar cualquier fotograma.
+  if (songKey !== prevSongKey || config.videoId !== prevVideoId) {
+    setPrevSongKey(songKey);
+    setPrevVideoId(config.videoId);
+    setIsVideoVisible(false);
+  }
+
+  // Cortina de transición oscura de 1.8 segundos durante cambio de canción
   useEffect(() => {
     setIsVideoVisible(false);
     try {
@@ -99,12 +112,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 1500); // 1.5s transition curtain
+    }, 1800);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);
 
-  // Construct optimized, zero-controls, strictly muted, loop URL with playlist param & youtube-nocookie
+  // Construcción de URL con mute estricto, loop y sin controles
   const embedUrl = useRef<string>('');
   const lastVideoIdRef = useRef<string>('');
   const lastSongKeyRef = useRef<string>('');
@@ -117,7 +130,19 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
   }
 
-  // Listen for iframe duration and state changes: auto-restart immediately if video ends (loop protection)
+  // 2. REQUISITO: SINCRONIZACIÓN MILIMÉTRICA EN CUALQUIER MOMENTO (MODULO TIMELINE)
+  // Calcula el fotograma exacto para que el video de fondo en cualquier pantalla
+  // (Mini-player, TV, Modal) coincida exactamente en el mismo segundo relativo.
+  const getSyncedPosition = (time: number) => {
+    const dur = videoDurationRef.current;
+    if (dur && dur > 0) {
+      const mod = time % dur;
+      return Math.min(dur - 0.5, Math.max(0, mod));
+    }
+    return Math.max(0, time);
+  };
+
+  // Escucha duración y eventos de loop del video de YouTube
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -131,7 +156,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }
 
         const state = data?.info?.playerState ?? data?.infoDelivery?.playerState;
-        // If background video ever reaches end, immediately restart at 0 to guarantee continuous loop without end screens
+        // Si el video de fondo llega al final, reinicia en 0 inmediatamente en bucle continuo
         if (state === 0 || state === '0') {
           const win = iframeRef.current?.contentWindow;
           if (win) {
@@ -147,7 +172,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Sync Play / Pause command ONLY when isPlaying state actually changes (0 FPS postMessage overhead)
+  // Sincronización de Play / Pausa cuando cambia el estado de reproducción
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
@@ -171,12 +196,42 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     } catch (_) {}
   }, [isPlaying, config.enabled, config.mode, config.videoId, duration]);
 
-  // Keep component mounted even when paused so video does NOT reload from 0s on resume
+  // Sincronización solo cuando el usuario hace un salto / seek manual grande (>2 segundos)
+  useEffect(() => {
+    if (!config.enabled || config.mode === 'off' || !config.videoId || currentTime === undefined) return;
+
+    const delta = Math.abs(currentTime - prevTimeRef.current);
+    const now = Date.now();
+
+    // Solo si hubo un salto manual real (> 2s) y con debounce de 600ms para no saturar postMessages
+    if (delta > 2.0 && now - lastSeekTimeRef.current > 600) {
+      lastSeekTimeRef.current = now;
+      prevTimeRef.current = currentTime;
+      try {
+        const win = iframeRef.current?.contentWindow;
+        if (win) {
+          const safeTime = getSyncedPosition(currentTime);
+          win.postMessage(
+            JSON.stringify({
+              event: 'command',
+              func: 'seekTo',
+              args: [safeTime, true],
+            }),
+            '*'
+          );
+        }
+      } catch (_) {}
+    } else {
+      prevTimeRef.current = currentTime;
+    }
+  }, [currentTime, config.enabled, config.mode, config.videoId]);
+
+  // Mantener componente montado para no reiniciar de 0s al pausar
   if (!config.enabled || config.mode === 'off' || !config.videoId) {
     return null;
   }
 
-  // Balanced cinematic contrast overlay (77% dark tint) - Clear video & high lyric readability
+  // Capa oscura de contraste cinemático (77% - 96%)
   const overlayOpacity = Math.max(0.77, Math.min(0.96, config.overlayOpacity ?? 0.77));
 
   return (
@@ -184,14 +239,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
       ref={containerRef}
       className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0 bg-[#04060c] ${className}`}
     >
-      {/* High-def Cover Transition Mask - Pure dark stage during startup & song changes */}
+      {/* Cortina Negra Anti-Bleed: Se activa al 100% de inmediato al cambiar de canción */}
       <div
         className={`absolute inset-0 bg-[#04060c] transition-opacity duration-1000 z-10 ${
           isVideoVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
       />
 
-      {/* Scaled & Centered 16:9 Frame - Scaled 1.25x to safely crop top title and bottom bars without distortion */}
+      {/* Frame 16:9 con escala 1.25x para recortar barras y títulos de YouTube */}
       <div
         className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
           isVideoVisible ? 'opacity-100' : 'opacity-0'
@@ -222,7 +277,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
-                if (isPlaying) {
+                
+                // Si la pantalla se abre a mitad de canción (ej. a los 40s), sincroniza inmediatamente
+                if (isPlaying && currentTime && currentTime > 2) {
+                  const safeStart = getSyncedPosition(currentTime);
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [safeStart, true] }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+                } else if (isPlaying) {
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
                   win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 } else {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
@@ -233,7 +295,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         />
       </div>
 
-      {/* Dark Contrast Overlay - Zero GPU-cost flat alpha layer */}
+      {/* Capa de contraste oscuro */}
       <div
         className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
         style={{
@@ -242,7 +304,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }}
       />
 
-      {/* Center Reading Spotlight: subtle dark halo right where the lyrics sit */}
+      {/* Halo de lectura central */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -250,7 +312,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }}
       />
 
-      {/* Subtle Vignette & Gradient Edges */}
+      {/* Viñeta sutil */}
       <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-slate-950/90 pointer-events-none" />
     </div>
   );
