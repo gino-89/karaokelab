@@ -31,6 +31,9 @@ import {
   Send,
   Sparkle,
   Star,
+  ChevronDown,
+  ChevronUp,
+  Filter,
 } from 'lucide-react';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { SongItem, SingerProfile, ChatMessage } from '../types';
@@ -162,6 +165,8 @@ export const DjRemoteView: React.FC = () => {
   const [selectedCatalogProfileId, setSelectedCatalogProfileId] = useState<string | null>(null);
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(false);
+  const [isSingersFilterOpen, setIsSingersFilterOpen] = useState<boolean>(false);
+  const [isArtistsFilterOpen, setIsArtistsFilterOpen] = useState<boolean>(false);
 
   // Modals & Overlays
   const [isGuestQrModalOpen, setIsGuestQrModalOpen] = useState(false);
@@ -1402,116 +1407,195 @@ export const DjRemoteView: React.FC = () => {
               )}
             </div>
 
-            {/* 1. Biblioteca de Cantantes & Favoritos (Filtros Deslizables) */}
-            <div className="flex flex-col space-y-1.5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] uppercase font-black tracking-wider text-cyan-400 font-mono flex items-center gap-1">
-                  <User className="w-3 h-3 text-cyan-400" />
-                  <span>Cantantes & Favoritos</span>
-                </span>
-                {(selectedCatalogProfileId || showOnlyFavorites || selectedArtist) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCatalogProfileId(null);
-                      setShowOnlyFavorites(false);
-                      setSelectedArtist(null);
-                    }}
-                    className="text-[9.5px] font-mono text-pink-400 hover:text-pink-300 font-bold active:scale-95 transition-all"
-                  >
-                    Restablecer filtros ✕
-                  </button>
+            {/* Top Collapsible Filter Toggles Bar */}
+            <div className="flex items-center gap-2">
+              {/* Botón Desplegable: Cantantes & Favoritos */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSingersFilterOpen((prev) => !prev);
+                  if (!isSingersFilterOpen) setIsArtistsFilterOpen(false);
+                }}
+                className={`flex-1 py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-between active:scale-95 cursor-pointer ${
+                  selectedCatalogProfileId || showOnlyFavorites
+                    ? 'bg-pink-500/20 border-pink-400/80 text-pink-200 shadow-[0_0_10px_rgba(255,0,127,0.25)]'
+                    : isSingersFilterOpen
+                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                    : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <User className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                  <span className="truncate">
+                    {activeCatalogProfile
+                      ? `${activeCatalogProfile.avatar || '👤'} ${activeCatalogProfile.name}`
+                      : showOnlyFavorites
+                      ? '⭐ Favoritos'
+                      : 'Cantantes & Favs'}
+                  </span>
+                </div>
+                {isSingersFilterOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                 )}
-              </div>
+              </button>
 
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
-                {/* Chip: Todos */}
+              {/* Botón Desplegable: Artistas */}
+              {uniqueArtists.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsArtistsFilterOpen((prev) => !prev);
+                    if (!isArtistsFilterOpen) setIsSingersFilterOpen(false);
+                  }}
+                  className={`flex-1 py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-between active:scale-95 cursor-pointer ${
+                    selectedArtist
+                      ? 'bg-cyan-500/20 border-cyan-400/80 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.25)]'
+                      : isArtistsFilterOpen
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                      : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Music className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span className="truncate">
+                      {selectedArtist ? selectedArtist : `Artistas (${uniqueArtists.length})`}
+                    </span>
+                  </div>
+                  {isArtistsFilterOpen ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                  )}
+                </button>
+              )}
+
+              {/* Reset Filters Icon Button if any filter is active */}
+              {(selectedCatalogProfileId || showOnlyFavorites || selectedArtist) && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedCatalogProfileId(null);
                     setShowOnlyFavorites(false);
+                    setSelectedArtist(null);
                   }}
-                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
-                    !selectedCatalogProfileId && !showOnlyFavorites
-                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(0,240,255,0.3)]'
-                      : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
-                  }`}
+                  className="p-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/50 text-rose-300 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  title="Restablecer filtros"
                 >
-                  <Music className="w-3 h-3 text-cyan-400" />
-                  <span>Todos</span>
+                  <X className="w-3.5 h-3.5" />
                 </button>
+              )}
+            </div>
 
-                {/* Chip: ⭐ Todos los Favoritos */}
-                {(() => {
-                  const totalFavs = (djState.profiles || []).reduce(
-                    (acc, p) => acc + (p.favoriteSongIds?.length || 0),
-                    0
-                  );
-                  if (totalFavs === 0) return null;
-                  return (
+            {/* Panel Desplegable 1: Cantantes & Favoritos */}
+            {isSingersFilterOpen && (
+              <div className="p-2.5 rounded-2xl bg-[#0a0c16] border border-pink-500/30 shadow-[0_0_15px_rgba(255,0,127,0.08)] flex flex-col space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span className="font-bold text-pink-300 uppercase tracking-wider flex items-center gap-1">
+                    <span>Biblioteca de Cantantes</span>
+                  </span>
+                  {(selectedCatalogProfileId || showOnlyFavorites) && (
                     <button
                       type="button"
                       onClick={() => {
                         setSelectedCatalogProfileId(null);
-                        setShowOnlyFavorites((prev) => !prev);
-                      }}
-                      className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
-                        showOnlyFavorites && !selectedCatalogProfileId
-                          ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
-                          : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-amber-300'
-                      }`}
-                    >
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <span>Favoritos ({totalFavs})</span>
-                    </button>
-                  );
-                })()}
-
-                {/* Chips de Perfiles de Cantantes */}
-                {(djState.profiles || []).map((prof) => {
-                  const isSelected = selectedCatalogProfileId === prof.id;
-                  const favCount = prof.favoriteSongIds?.length || 0;
-                  return (
-                    <button
-                      key={prof.id}
-                      type="button"
-                      onClick={() => {
                         setShowOnlyFavorites(false);
-                        setSelectedCatalogProfileId((curr) => (curr === prof.id ? null : prof.id));
                       }}
-                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
-                        isSelected
-                          ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_14px_rgba(255,0,127,0.35)]'
-                          : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
-                      }`}
+                      className="text-pink-400 font-bold hover:underline"
                     >
-                      <span className="text-xs">{prof.avatar || '🎤'}</span>
-                      <span className="truncate max-w-[95px]">{prof.name}</span>
-                      {favCount > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-md bg-pink-500/30 text-pink-300 text-[9px] font-mono">
-                          ★ {favCount}
-                        </span>
-                      )}
+                      Todos ✕
                     </button>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
+                </div>
 
-            {/* 2. Filtro por Artistas (Barra Deslizable) */}
-            {uniqueArtists.length > 0 && (
-              <div className="flex flex-col space-y-1.5">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 font-mono flex items-center gap-1">
-                    <Music className="w-3 h-3 text-slate-400" />
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                  {/* Chip: Todos */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCatalogProfileId(null);
+                      setShowOnlyFavorites(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                      !selectedCatalogProfileId && !showOnlyFavorites
+                        ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_10px_rgba(255,0,127,0.3)]'
+                        : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>Todos</span>
+                  </button>
+
+                  {/* Chip: ⭐ Todos los Favoritos */}
+                  {(() => {
+                    const totalFavs = (djState.profiles || []).reduce(
+                      (acc, p) => acc + (p.favoriteSongIds?.length || 0),
+                      0
+                    );
+                    if (totalFavs === 0) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCatalogProfileId(null);
+                          setShowOnlyFavorites((prev) => !prev);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                          showOnlyFavorites && !selectedCatalogProfileId
+                            ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
+                            : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-amber-300'
+                        }`}
+                      >
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span>Favoritos ({totalFavs})</span>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Chips de Perfiles */}
+                  {(djState.profiles || []).map((prof) => {
+                    const isSelected = selectedCatalogProfileId === prof.id;
+                    const favCount = prof.favoriteSongIds?.length || 0;
+                    return (
+                      <button
+                        key={prof.id}
+                        type="button"
+                        onClick={() => {
+                          setShowOnlyFavorites(false);
+                          setSelectedCatalogProfileId((curr) => (curr === prof.id ? null : prof.id));
+                        }}
+                        className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_14px_rgba(255,0,127,0.35)]'
+                            : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-xs">{prof.avatar || '🎤'}</span>
+                        <span className="truncate max-w-[95px]">{prof.name}</span>
+                        {favCount > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-md bg-pink-500/30 text-pink-300 text-[9px] font-mono">
+                            ★ {favCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Panel Desplegable 2: Artistas */}
+            {isArtistsFilterOpen && uniqueArtists.length > 0 && (
+              <div className="p-2.5 rounded-2xl bg-[#0a0c16] border border-cyan-500/30 shadow-[0_0_15px_rgba(0,240,255,0.08)] flex flex-col space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span className="font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1">
                     <span>Artistas ({uniqueArtists.length})</span>
                   </span>
                   {selectedArtist && (
                     <button
                       type="button"
                       onClick={() => setSelectedArtist(null)}
-                      className="text-[9.5px] font-mono text-cyan-400 hover:text-cyan-300 font-bold active:scale-95 transition-all"
+                      className="text-cyan-400 font-bold hover:underline"
                     >
                       Ver todos ✕
                     </button>
