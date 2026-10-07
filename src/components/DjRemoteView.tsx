@@ -244,8 +244,9 @@ export const DjRemoteView: React.FC = () => {
       } catch (_) {}
     }
 
-    if (!effectiveHost) {
+    if (!effectiveHost || effectiveHost === 'klab_host_default') {
       effectiveHost = 'klab_host_default';
+      setIsRoomCodeModalOpen(true);
     } else {
       try {
         localStorage.setItem('karaokelab_dj_target_host', effectiveHost);
@@ -708,14 +709,20 @@ export const DjRemoteView: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setTempRoomCodeInput(roomCode || '');
+              setTempRoomCodeInput(roomCode === 'DEFAULT' ? '' : roomCode || '');
               setIsRoomCodeModalOpen(true);
             }}
-            className="px-2 py-1 rounded-lg bg-[#121626] hover:bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 active:scale-95 transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer font-mono"
+            className={`px-2 py-1 rounded-lg ${
+              roomCode === 'DEFAULT' || !roomCode
+                ? 'bg-amber-500/20 border-amber-400/80 text-amber-300 animate-pulse'
+                : 'bg-[#121626] border-cyan-500/40 text-cyan-300 hover:bg-cyan-950/50'
+            } border active:scale-95 transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer font-mono`}
             title="Código de Sala DJ (Toca para cambiar de sala)"
           >
             <Radio className="w-3 h-3 text-cyan-400 shrink-0" />
-            <span className="text-white font-black">{roomCode || '—'}</span>
+            <span className="text-white font-black">
+              {roomCode === 'DEFAULT' || !roomCode ? 'Ingresar Sala' : roomCode}
+            </span>
           </button>
 
           {/* QR Clientes */}

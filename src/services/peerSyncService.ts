@@ -449,6 +449,9 @@ class PeerSyncService {
                 conn.send({ type: 'DJ_STATE_SYNC', payload: this.currentDjState });
               } catch (_) {}
             }
+            if (this.onCommandCallback) {
+              this.onCommandCallback('DJ_JOIN', data.payload, conn);
+            }
           } else if (data.type === 'DJ_ACTION') {
             if (this.isDjServiceEnabled && this.onCommandCallback) {
               this.onCommandCallback('DJ_ACTION', data.payload, conn);

@@ -828,6 +828,8 @@ export default function App() {
               }
               peerSync.broadcastChatMessageToGuests(msg);
             }
+          } else if (cmd === 'DJ_JOIN') {
+            showAlertToast('📱 Control DJ Remoto conectado en vivo');
           } else if (cmd === 'DJ_ACTION') {
             const action = data?.action;
             const payload = data?.payload || {};
