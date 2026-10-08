@@ -1830,19 +1830,19 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 {/* Right: Next Song in Queue + Exit Button */}
                 <div className="pointer-events-auto flex items-center gap-3 sm:gap-4 shrink-0">
                   {nextSongTitle ? (
-                    <div className="hidden md:flex items-center gap-3 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-950/90 border border-indigo-500/50 shadow-[0_8px_32px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
-                      <span className="text-base sm:text-lg">⏭</span>
+                    <div className="hidden md:flex items-center gap-3.5 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl sm:rounded-3xl bg-slate-950/95 border-2 border-indigo-500/60 shadow-[0_10px_35px_rgba(99,102,241,0.25)] backdrop-blur-2xl">
+                      <span className="text-xl sm:text-2xl text-indigo-400 animate-pulse">⏭</span>
                       <div className="text-left min-w-0">
-                        <span className="text-[10px] sm:text-xs font-mono font-extrabold tracking-widest text-indigo-300 uppercase block leading-none">
+                        <span className="text-xs sm:text-sm font-mono font-black tracking-widest text-indigo-300 uppercase block leading-none">
                           A continuación
                         </span>
-                        <p className="text-xs sm:text-sm md:text-base font-bold text-white truncate max-w-[220px] lg:max-w-[320px] leading-snug mt-0.5">
+                        <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-white truncate max-w-[260px] sm:max-w-[360px] lg:max-w-[420px] leading-tight mt-1">
                           {nextSongTitle}
-                          {nextSongArtist ? <span className="text-slate-400 font-normal"> · {nextSongArtist}</span> : ''}
+                          {nextSongArtist ? <span className="text-indigo-200/80 font-semibold text-xs sm:text-sm md:text-base"> · {nextSongArtist}</span> : ''}
                         </p>
                       </div>
                       {nextSongRequestedBy && (
-                        <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-indigo-950/90 border border-indigo-500/40 text-indigo-200 font-bold shrink-0">
+                        <span className="text-xs sm:text-sm font-mono font-bold px-3 py-1.5 rounded-xl bg-indigo-600/30 border border-indigo-400/50 text-indigo-100 shrink-0 shadow-sm">
                           🎤 {nextSongRequestedBy}
                         </span>
                       )}
