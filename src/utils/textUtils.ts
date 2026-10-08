@@ -20,17 +20,25 @@ export function normalizeSearchText(text: string | null | undefined): string {
   return text
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ñ/gi, 'n')
     .toLowerCase()
     .trim();
 }
 
 /**
- * Returns true if target contains the query, ignoring case and accents/tildes.
+ * Returns true if target contains the query, ignoring case, accents/tildes, and 'ñ'/'n'.
+ * Also supports multi-word token matching.
  */
 export function searchMatches(target: string | null | undefined, query: string): boolean {
   if (!query) return true;
   if (!target) return false;
   const normalizedTarget = normalizeSearchText(target);
   const normalizedQuery = normalizeSearchText(query);
-  return normalizedTarget.includes(normalizedQuery);
+  if (!normalizedQuery) return true;
+  if (normalizedTarget.includes(normalizedQuery)) return true;
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1) {
+    return tokens.every((token) => normalizedTarget.includes(token));
+  }
+  return false;
 }

@@ -38,6 +38,7 @@ import {
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { SongItem, SingerProfile, ChatMessage } from '../types';
 import { transposeKey } from '../services/dspAnalysis';
+import { searchMatches } from '../utils/textUtils';
 
 interface DjRemoteState {
   isPlaying: boolean;
@@ -768,14 +769,13 @@ export const DjRemoteView: React.FC = () => {
       list = list.filter((s) => s.artist?.trim().toLowerCase() === targetArt);
     }
 
-    // 3. Filter by search query
+    // 3. Filter by search query (accent-insensitive, tilde-insensitive, and ñ/n matching)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
       list = list.filter(
         (s) =>
-          (s.title && s.title.toLowerCase().includes(q)) ||
-          (s.artist && s.artist.toLowerCase().includes(q)) ||
-          (s.genre && s.genre.toLowerCase().includes(q))
+          searchMatches(s.title, searchQuery) ||
+          searchMatches(s.artist, searchQuery) ||
+          searchMatches(s.genre, searchQuery)
       );
     } else if (!activeCatalogProfile && !showOnlyFavorites && !selectedArtist) {
       // Limit initial default view for snappy performance
