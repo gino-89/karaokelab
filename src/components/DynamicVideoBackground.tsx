@@ -19,6 +19,10 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   className = '',
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
   const [prevSongKey, setPrevSongKey] = useState(songKey);
   const [prevVideoId, setPrevVideoId] = useState(config.videoId);
@@ -167,19 +171,23 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
           }
         }
 
-        // Si YouTube se pausa automáticamente mientras la canción está sonando, forzar play inmediato para eliminar el botón de pausa
-        if ((state === 2 || state === '2') && isPlaying) {
+        // Si YouTube se pausa automáticamente mientras la canción está sonando, forzar play solo si está activa
+        if ((state === 2 || state === '2') && isPlayingRef.current) {
           if (win) {
             win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
           }
         }
 
-        // Si el video de fondo llega al final, reinicia en 0 inmediatamente en bucle continuo
+        // Si el video de fondo llega al final, reinicia en 0 en bucle respetando el estado de pausa
         if (state === 0 || state === '0') {
           if (win) {
             win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
-            win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+            if (isPlayingRef.current) {
+              win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+            } else {
+              win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+            }
             win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
           }
         }
@@ -190,15 +198,12 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Sincronización de Play / Pausa cuando cambia el estado de reproducción
+  // Sincronización instantánea de Play / Pausa cuando cambia el estado de reproducción
   useEffect(() => {
     if (!config.enabled || config.mode === 'off' || !config.videoId) return;
 
     const isSongEnded = duration !== undefined && duration > 0 && currentTime !== undefined && currentTime >= duration - 0.5;
     const shouldPlay = isPlaying && !isSongEnded;
-
-    if (prevIsPlayingRef.current === shouldPlay) return;
-    prevIsPlayingRef.current = shouldPlay;
 
     try {
       const win = iframeRef.current?.contentWindow;
