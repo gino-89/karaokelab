@@ -1469,22 +1469,29 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         {/* ── TELEPROMPTER LYRICS / YOUTUBE STAGE ── */}
         <div className="karaoke-teleprompter-stage flex flex-col justify-between items-center text-center px-6 py-5 select-none relative bg-[#06070e] overflow-hidden">
           {youTubeEmbedId ? (
-            <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20">
+            <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20 overflow-hidden">
               <iframe
                 id="karaokelab-yt-stage-iframe"
                 ref={ytIframeRef}
                 key={`yt_stage_${youTubeEmbedId}`}
-                src={`https://www.youtube.com/embed/${youTubeEmbedId}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                src={`https://www.youtube-nocookie.com/embed/${youTubeEmbedId}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&webkit-playsinline=1&enablejsapi=1&cc_load_policy=0&cc_lang_pref=off&iv_load_policy=3&disablekb=1&fs=0&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                 title={songTitle || 'YouTube Karaoke Player'}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+                className="w-full h-full border-0 pointer-events-none scale-[1.06]"
+                allow="autoplay; encrypted-media"
                 onLoad={() => {
                   try {
                     const win = ytIframeRef.current?.contentWindow;
                     if (win) {
                       win.postMessage(
                         JSON.stringify({ event: 'listening', id: youTubeEmbedId }),
+                        '*'
+                      );
+                      win.postMessage(
+                        JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }),
+                        '*'
+                      );
+                      win.postMessage(
+                        JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }),
                         '*'
                       );
                       win.postMessage(

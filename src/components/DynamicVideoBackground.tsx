@@ -156,13 +156,24 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }
 
         const state = data?.info?.playerState ?? data?.infoDelivery?.playerState;
+        const win = iframeRef.current?.contentWindow;
+
+        // Cada vez que el video empieza o cambia de estado, desactiva inmediatamente los subtítulos (CC)
+        if (state === 1 || state === '1' || state === 2 || state === '2') {
+          if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'fontSize', -1] }), '*');
+          }
+        }
+
         // Si el video de fondo llega al final, reinicia en 0 inmediatamente en bucle continuo
         if (state === 0 || state === '0') {
-          const win = iframeRef.current?.contentWindow;
           if (win) {
             win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
           }
         }
       } catch (_) {}
@@ -338,7 +349,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         />
 
         {/* Escudo protector invisible contra toques de iPadOS (evita que aparezcan los botones gigantes centrales de Apple) */}
-        <div className="absolute inset-0 pointer-events-none z-10" />
+        <div className="absolute inset-0 pointer-events-auto z-10 select-none" style={{ touchAction: 'none' }} />
       </div>
 
       {/* Capa de contraste oscuro */}
