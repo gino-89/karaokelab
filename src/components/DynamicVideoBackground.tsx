@@ -226,6 +226,38 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     }
   }, [currentTime, config.enabled, config.mode, config.videoId]);
 
+  // Auto-resync y reanudación del video de fondo al volver de otra pestaña o app en iPad / Safari
+  useEffect(() => {
+    if (!config.enabled || config.mode === 'off' || !config.videoId) return;
+
+    const handleWakeSync = () => {
+      if (document.visibilityState === 'visible' && isPlaying) {
+        try {
+          const win = iframeRef.current?.contentWindow;
+          if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
+            if (currentTime !== undefined && currentTime > 0) {
+              const safeTime = getSyncedPosition(currentTime);
+              win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [safeTime, true] }), '*');
+            }
+            win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+          }
+        } catch (_) {}
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeSync);
+    window.addEventListener('focus', handleWakeSync);
+    window.addEventListener('pageshow', handleWakeSync);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeSync);
+      window.removeEventListener('focus', handleWakeSync);
+      window.removeEventListener('pageshow', handleWakeSync);
+    };
+  }, [isPlaying, currentTime, config.enabled, config.mode, config.videoId]);
+
   const hasValidSong = Boolean(
     songKey &&
     songKey.trim() !== '' &&
