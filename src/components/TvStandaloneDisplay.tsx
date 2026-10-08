@@ -6,7 +6,7 @@ import { cleanLyricText, resolveArtistInfo, getLyricPlaybackState, getLineEnd } 
 import { StageCountdownCard } from './StageCountdownCard';
 import { transposeKey } from '../services/dspAnalysis';
 import { computeIntelligentWordFills } from '../services/smartCueAnalyzer';
-import { Music, Tv, Maximize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
+import { Music, Tv, Maximize2, Minimize2, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { DynamicVideoBackground } from './DynamicVideoBackground';
 import { VideoBackgroundConfig } from '../types';
 import { KaraokeScoreAndTransitionModal } from './KaraokeScoreAndTransitionModal';
@@ -179,6 +179,16 @@ export const TvStandaloneDisplay: React.FC = () => {
     window.addEventListener('message', handleTvYtMessage);
     return () => window.removeEventListener('message', handleTvYtMessage);
   }, [cleanYoutubeId]);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   const toggleFullscreen = () => {
     const isAppleTouch = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
@@ -401,114 +411,105 @@ export const TvStandaloneDisplay: React.FC = () => {
       {/* Ambient Visualizer Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-950 to-black" />
 
-      {/* Top Header Bar for TV */}
-      <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl overflow-hidden border border-cyan-400/60 shadow-[0_0_15px_rgba(0,240,255,0.6)] shrink-0">
+      {/* Top Floating Cinema HUD Header Bar */}
+      <div className="absolute top-4 sm:top-6 left-4 sm:left-8 right-4 sm:right-8 z-50 flex items-center justify-between gap-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+        {/* Left: Active Song Info & Telemetry Capsule */}
+        <div className="pointer-events-auto flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-950/90 border border-slate-700/80 shadow-[0_8px_32px_rgba(0,0,0,0.9)] backdrop-blur-2xl max-w-2xl">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden border border-cyan-400/60 shadow-[0_0_20px_rgba(0,240,255,0.5)] shrink-0">
             <img
               src="/logo-highres.jpg"
-              alt="KaraokeLab TV Emblem"
+              alt="KaraokeLab Emblem"
               className="w-full h-full object-cover"
             />
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-white truncate max-w-xl">
-              {songTitle || 'Selecciona una Canción'}
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs font-mono text-cyan-400 font-bold truncate max-w-xs">
-                {songArtist || 'KaraokeLab TV'}
+          <div className="text-left min-w-0">
+            <h2 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white truncate max-w-xs sm:max-w-md lg:max-w-lg tracking-tight leading-tight">
+              {songTitle || 'KARAOKELAB STAGE'}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 sm:mt-1.5">
+              <p className="text-xs sm:text-sm md:text-base font-mono text-cyan-300 font-bold truncate max-w-[180px] sm:max-w-[260px]">
+                {songArtist || 'KaraokeLab Studio'}
               </p>
-
               {/* BPM Capsule */}
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-inner shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]" />
-                <span className="text-xs font-mono font-black text-white tracking-tight">
-                  {bpm || 120}
-                </span>
-                <span className="text-[9px] font-mono font-extrabold text-[#00f0ff] tracking-wider">
-                  BPM
-                </span>
+              <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-black/75 border border-slate-800 text-xs sm:text-sm font-mono shrink-0 shadow-inner">
+                <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_8px_rgba(0,240,255,0.9)]" />
+                <span className="text-white font-bold">{bpm || 120}</span>
+                <span className="text-[#00f0ff] font-extrabold text-[10px] sm:text-xs">BPM</span>
               </div>
-
-              {/* Escala / Tono Capsule */}
-              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl bg-slate-950/80 border transition-all shadow-inner shrink-0 ${
-                pitchShift !== 0
-                  ? 'border-[#ff007f]/50 shadow-[0_0_12px_rgba(255,0,127,0.2)]'
-                  : 'border-slate-800'
+              {/* Key / Tono Capsule */}
+              <div className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-black/75 border text-xs sm:text-sm font-mono shrink-0 shadow-inner ${
+                pitchShift && pitchShift !== 0
+                  ? 'border-[#ff007f]/60 text-pink-300 shadow-[0_0_12px_rgba(255,0,127,0.35)]'
+                  : 'border-slate-800 text-slate-300'
               }`}>
-                <span className="text-[9px] font-mono font-extrabold tracking-wider text-slate-400">
-                  Tono:
-                </span>
-                <span className={`text-xs font-mono font-black ${pitchShift !== 0 ? 'text-[#ff007f]' : 'text-amber-300'}`}>
-                  {detectedKey ? transposeKey(detectedKey, pitchShift || 0) : 'Am'}
-                </span>
-                <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded ${
-                  !pitchShift || pitchShift === 0
-                    ? 'bg-slate-800 text-slate-400'
-                    : 'bg-[#ff007f]/20 text-[#ff007f] font-black'
-                }`}>
-                  {!pitchShift || pitchShift === 0 ? 'ORG' : `${pitchShift > 0 ? '+' : ''}${pitchShift}`}
-                </span>
+                <span className="text-slate-400 text-[10px] sm:text-xs font-bold">TONO:</span>
+                <span className="text-white font-black">{detectedKey ? transposeKey(detectedKey, pitchShift || 0) : 'Am'}</span>
+                {pitchShift && pitchShift !== 0 ? (
+                  <span className="text-[#ff007f] font-black">{pitchShift > 0 ? `+${pitchShift}` : pitchShift}</span>
+                ) : null}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Singer Profile Badge & Fullscreen Button */}
-        <div className="flex items-center gap-3">
-          {activeSingerName && (
-            <div className="px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-2 shadow-lg">
-              <span className="text-base">{activeSingerAvatar || '🎤'}</span>
-              <span>Cantando: {activeSingerName}</span>
-            </div>
-          )}
-
-          {nextSongTitle && (
-            <div className="flex flex-col text-right px-4 py-2 rounded-2xl bg-amber-950/70 border border-amber-500/60 shadow-[0_0_25px_rgba(245,158,11,0.4)] animate-pulse">
-              <span className="text-amber-300 font-mono font-black text-xs sm:text-sm uppercase tracking-widest flex items-center justify-end gap-1">
-                <span>▶ SIGUIENTE CANCIÓN:</span>
-              </span>
-              <span className="text-[#00f0ff] font-black text-base sm:text-lg md:text-xl truncate max-w-[280px] sm:max-w-[420px]">
-                {nextSongTitle}
-              </span>
+        {/* Right: Next Song in Queue + Fullscreen Toggle */}
+        <div className="pointer-events-auto flex items-center gap-3 sm:gap-4 shrink-0">
+          {nextSongTitle ? (
+            <div className="hidden md:flex items-center gap-3.5 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl sm:rounded-3xl bg-slate-950/95 border-2 border-indigo-500/60 shadow-[0_10px_35px_rgba(99,102,241,0.25)] backdrop-blur-2xl">
+              <span className="text-xl sm:text-2xl text-indigo-400 animate-pulse">⏭</span>
+              <div className="text-left min-w-0">
+                <span className="text-xs sm:text-sm font-mono font-black tracking-widest text-indigo-300 uppercase block leading-none">
+                  A continuación
+                </span>
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-white truncate max-w-[260px] sm:max-w-[360px] lg:max-w-[420px] leading-tight mt-1">
+                  {nextSongTitle}
+                  {nextSongArtist ? <span className="text-indigo-200/80 font-semibold text-xs sm:text-sm md:text-base"> · {nextSongArtist}</span> : ''}
+                </p>
+              </div>
               {nextSongRequestedBy && (
-                <span className="text-pink-300 font-bold text-xs sm:text-sm truncate max-w-[280px] sm:max-w-[420px] flex items-center justify-end gap-1">
-                  <span>🎤 {nextSongRequestedBy}</span>
+                <span className="text-xs sm:text-sm font-mono font-bold px-3 py-1.5 rounded-xl bg-indigo-600/30 border border-indigo-400/50 text-indigo-100 shrink-0 shadow-sm">
+                  🎤 {nextSongRequestedBy}
                 </span>
               )}
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-slate-300 text-xs sm:text-sm font-mono backdrop-blur-xl">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>Cola al día</span>
             </div>
           )}
 
           <button
+            type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
-            title="Pantalla Completa (F11)"
+            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/90 text-white text-xs sm:text-sm font-bold cursor-pointer shadow-2xl backdrop-blur-2xl transition-all active:scale-95 hover:border-cyan-400/70"
+            title="Alternar Pantalla Completa (F11)"
           >
-            <Maximize2 className="w-4 h-4 text-cyan-400" />
+            {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />}
+            <span className="hidden sm:inline">{isFullscreen ? 'Salir' : 'Maximizar'}</span>
           </button>
         </div>
       </div>
 
       {/* Main Lyrics Center Display */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6 text-center max-w-7xl mx-auto w-full px-2 sm:px-4">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-between text-center max-w-7xl mx-auto w-full px-2 sm:px-6 pt-24 sm:pt-28 pb-2">
         <div className="flex flex-col items-center justify-between gap-4 w-full flex-1 min-h-0 py-2 overflow-hidden">
           {/* Slot 1: Active Singer Badge / Countdown */}
-          <div className="h-9 flex items-center justify-center shrink-0">
+          <div className="w-full flex items-center justify-center shrink-0 z-10 transition-all h-12 sm:h-14">
             {showCountdown && upcomingLyric ? (
-              <div className="inline-flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-[#181206]/90 border border-amber-500/50 text-amber-300 text-sm sm:text-base font-bold shadow-[0_0_15px_rgba(251,191,36,0.25)] animate-pulse">
+              <div className="inline-flex items-center gap-2.5 rounded-full bg-[#181206]/90 border border-amber-500/50 text-amber-300 font-bold shadow-[0_0_25px_rgba(251,191,36,0.35)] animate-pulse px-6 sm:px-8 py-2 sm:py-2.5 text-sm sm:text-base md:text-xl">
                 <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                <span className="font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-200 flex items-center gap-1">
+                <span className="font-mono px-3 py-1 rounded-full bg-black/80 border border-amber-500/40 text-amber-200 flex items-center gap-1.5 text-xs sm:text-sm md:text-base">
                   <span>🎤</span>
                   <span>{nextArtist.isBoth ? 'TODOS / DÚO' : nextArtist.name}</span>
                 </span>
               </div>
             ) : activeLyric ? (
               <div
-                className="inline-flex items-center gap-2 font-mono text-sm sm:text-base font-extrabold uppercase tracking-widest"
+                className="inline-flex items-center gap-2.5 font-mono font-black uppercase tracking-wider px-6 sm:px-8 py-2 sm:py-2.5 rounded-full bg-slate-950/90 border border-white/20 text-sm sm:text-base md:text-xl lg:text-2xl shadow-[0_8px_30px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                 style={{ color: curArtist.color }}
               >
-                <span className="text-base sm:text-lg">{curArtist.isBoth ? '👥' : '🎤'}</span>
+                <span className="text-lg sm:text-2xl">{curArtist.isBoth ? '👥' : '🎤'}</span>
                 <span>{curArtist.isBoth ? `DÚO · ${curArtist.name.toUpperCase()}` : `VOZ: ${curArtist.name.toUpperCase()}`}</span>
               </div>
             ) : null}
