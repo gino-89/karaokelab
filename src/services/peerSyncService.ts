@@ -23,7 +23,7 @@ export interface BlockedGuestDevice {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google public STUN servers for 100% reliable cross-device WebRTC NAT traversal
+// Google & Twilio public STUN servers for 100% reliable cross-device WebRTC NAT traversal (including iPadOS/iOS)
 const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -32,7 +32,9 @@ const PEER_CONFIG = {
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
     ],
+    iceCandidatePoolSize: 10,
   },
 };
 
@@ -298,9 +300,15 @@ class PeerSyncService {
           console.log('✓ Host PeerJS online with ID:', id);
           if (onPeerIdReady) onPeerIdReady(id);
 
-          // Start sending periodic heartbeats to all connected guests & DJs every 1.5s
+          // Start sending periodic heartbeats to all connected guests & DJs every 1.5s, plus keep signaling alive on iPadOS
           if (this.hostHeartbeatTimer) clearInterval(this.hostHeartbeatTimer);
           this.hostHeartbeatTimer = setInterval(() => {
+            if (this.peer === p && !p.destroyed) {
+              if (p.disconnected) {
+                console.warn('Host Peer disconnected on background/standby, reconnecting signaling...');
+                try { p.reconnect(); } catch (_) {}
+              }
+            }
             this.guestConnections.forEach((conn) => {
               if (conn.open) {
                 try {
@@ -534,6 +542,16 @@ class PeerSyncService {
           });
         });
 
+        p.on('disconnected', () => {
+          if (this.peer !== p) return;
+          console.warn(`Host slot ${sessionPeerId} signaling disconnected, reconnecting...`);
+          if (!p.destroyed) {
+            try {
+              p.reconnect();
+            } catch (_) {}
+          }
+        });
+
         p.on('error', (err: any) => {
           if (this.peer !== p) return;
           console.warn(`Host slot ${sessionPeerId} error:`, err?.type || err);
@@ -541,6 +559,14 @@ class PeerSyncService {
             try { p.destroy(); } catch (_) {}
             this.peer = null;
             trySlot(slotIdx + 1);
+          } else if (err?.type === 'network' || err?.type === 'server-error' || err?.type === 'socket-closed' || err?.type === 'socket-error') {
+            if (!p.destroyed && p.disconnected) {
+              setTimeout(() => {
+                if (this.peer === p && !p.destroyed && p.disconnected) {
+                  try { p.reconnect(); } catch (_) {}
+                }
+              }, 1000);
+            }
           }
         });
       } catch (e) {
