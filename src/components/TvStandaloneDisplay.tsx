@@ -65,6 +65,7 @@ export const TvStandaloneDisplay: React.FC = () => {
           lyrics: newState.lyrics !== undefined ? newState.lyrics : prev.lyrics,
           songTitle: newState.songTitle !== undefined ? newState.songTitle : prev.songTitle,
           songArtist: newState.songArtist !== undefined ? newState.songArtist : prev.songArtist,
+          videoBgConfig: newState.videoBgConfig !== undefined ? newState.videoBgConfig : prev.videoBgConfig,
         };
       });
       setConnectionStatus('connected');

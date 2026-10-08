@@ -1277,40 +1277,44 @@ export default function App() {
   const lastFullSyncRef = useRef<number>(0);
   const lastSongIdRef = useRef<string | null>(null);
   const lastPitchShiftRef = useRef<number>(0);
+  const lastVideoBgIdRef = useRef<string | undefined>(undefined);
   const forceFullTvSyncRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
       const now = performance.now();
-      const isNewSong = currentSong?.id !== lastSongIdRef.current;
+      const activeProf = profiles.find((p) => p.id === activeProfileId);
+      const nextQueueItem = queue[0];
+
+      // Determine active song & background to broadcast (pre-load NEXT song immediately if score modal is open)
+      const isIntermission = Boolean(scoreModalState.isOpen && scoreModalState.nextSong);
+      const targetSong = isIntermission ? scoreModalState.nextSong : currentSong;
+      const targetLyrics = isIntermission ? (scoreModalState.nextSong?.lyrics || []) : lyrics;
+      const targetYtId = isIntermission
+        ? (scoreModalState.nextSong?.id?.startsWith('yt_') ? scoreModalState.nextSong.id : null)
+        : youTubeEmbedId;
+      const targetVideoBgConfig = isIntermission
+        ? (scoreModalState.nextSong?.videoBgConfig || videoBgConfig)
+        : videoBgConfig;
+
+      const isNewSong = targetSong?.id !== lastSongIdRef.current;
       const isPitchChanged = pitchShift !== lastPitchShiftRef.current;
+      const isVideoBgChanged = targetVideoBgConfig?.videoId !== lastVideoBgIdRef.current;
       const isForcedSync = forceFullTvSyncRef.current;
       if (forceFullTvSyncRef.current) {
         forceFullTvSyncRef.current = false;
       }
-      const isFullSyncNeeded = isNewSong || isPitchChanged || isForcedSync || (!isPlaying && now - lastFullSyncRef.current >= 4000);
+      const isFullSyncNeeded = isNewSong || isPitchChanged || isVideoBgChanged || isForcedSync || (!isPlaying && now - lastFullSyncRef.current >= 4000);
 
       // Broadcast every 80ms for ultra-smooth lightweight sync
-      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || isForcedSync || !isPlaying) {
+      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || isVideoBgChanged || isForcedSync || !isPlaying) {
         lastBroadcastRef.current = now;
-        const activeProf = profiles.find((p) => p.id === activeProfileId);
-        const nextQueueItem = queue[0];
-
-        // Determine active song & background to broadcast (pre-load NEXT song immediately if score modal is open)
-        const isIntermission = Boolean(scoreModalState.isOpen && scoreModalState.nextSong);
-        const targetSong = isIntermission ? scoreModalState.nextSong : currentSong;
-        const targetLyrics = isIntermission ? (scoreModalState.nextSong?.lyrics || []) : lyrics;
-        const targetYtId = isIntermission
-          ? (scoreModalState.nextSong?.id?.startsWith('yt_') ? scoreModalState.nextSong.id : null)
-          : youTubeEmbedId;
-        const targetVideoBgConfig = isIntermission
-          ? (scoreModalState.nextSong?.videoBgConfig || videoBgConfig)
-          : videoBgConfig;
 
         if (isFullSyncNeeded || isIntermission) {
           lastFullSyncRef.current = now;
           lastSongIdRef.current = targetSong?.id || null;
           lastPitchShiftRef.current = pitchShift;
+          lastVideoBgIdRef.current = targetVideoBgConfig?.videoId;
 
           // Full state payload (sent on song change, play/pause, or periodic 2.5s heartbeat)
           const fullPayload = {
