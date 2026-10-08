@@ -229,10 +229,16 @@ export class AudioEngine {
       const handleLifecycleResume = () => {
         if (this.isPlaying) {
           this.resumeContextSync();
+          const audio = this.initKeepAliveAudio();
+          if (audio && audio.paused) {
+            audio.play().catch(() => {});
+          }
         }
       };
 
       document.addEventListener('visibilitychange', handleLifecycleResume);
+      document.addEventListener('fullscreenchange', handleLifecycleResume);
+      document.addEventListener('webkitfullscreenchange', handleLifecycleResume);
       window.addEventListener('focus', handleLifecycleResume);
       window.addEventListener('blur', handleLifecycleResume);
       window.addEventListener('pageshow', handleLifecycleResume);

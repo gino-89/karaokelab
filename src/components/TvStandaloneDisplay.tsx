@@ -181,6 +181,15 @@ export const TvStandaloneDisplay: React.FC = () => {
   }, [cleanYoutubeId]);
 
   const toggleFullscreen = () => {
+    const isAppleTouch = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+    // On iOS / iPadOS (Safari & Chrome), invoking native WebKit requestFullscreen triggers AVPlayer which suspends Web Audio.
+    // TvStandaloneDisplay is already a fixed inset-0 full viewport component; skipping native requestFullscreen on iOS keeps audio 100% active!
+    if (isAppleTouch) {
+      window.scrollTo(0, 0);
+      return;
+    }
+
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => { });
     } else {
