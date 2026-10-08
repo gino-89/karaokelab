@@ -1604,12 +1604,18 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               )}
 
               {/* SLOT 1: SINGER NAME / DUET BADGE / COUNTDOWN CUE */}
-              <div className="h-7 w-full flex items-center justify-center shrink-0 z-10">
+              <div className={`w-full flex items-center justify-center shrink-0 z-10 transition-all ${
+                isFullscreenStage ? 'h-12 sm:h-14 mt-14 sm:mt-20' : 'h-7'
+              }`}>
                 {isPlaying && (
                   showCountdown && upcomingLyric && nextInfo ? (
-                    <div className="inline-flex items-center gap-2.5 px-4 py-1 rounded-full bg-[#181206]/90 border border-amber-500/50 text-amber-300 text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(251,191,36,0.25)] animate-pulse">
+                    <div className={`inline-flex items-center gap-2.5 rounded-full bg-[#181206]/90 border border-amber-500/50 text-amber-300 font-bold shadow-[0_0_25px_rgba(251,191,36,0.35)] animate-pulse ${
+                      isFullscreenStage ? 'px-6 sm:px-8 py-2 sm:py-2.5 text-sm sm:text-base md:text-xl' : 'px-4 py-1 text-xs sm:text-sm'
+                    }`}>
                       <span>● ● ● ¡Prepárate para cantar en {Math.ceil(secondsToNext)}s!</span>
-                      <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-200 flex items-center gap-1">
+                      <span className={`font-mono px-3 py-1 rounded-full bg-black/80 border border-amber-500/40 text-amber-200 flex items-center gap-1.5 ${
+                        isFullscreenStage ? 'text-xs sm:text-sm md:text-base' : 'text-[11px]'
+                      }`}>
                         <span>🎤</span>
                         <span>{nextInfo.isBoth ? 'TODOS / DÚO' : nextInfo.name}</span>
                       </span>
@@ -1617,11 +1623,15 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                   ) : activeLyric && currentInfo ? (
                     <div
                       onClick={handleToggleActiveLineSinger}
-                      className="inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform font-mono text-xs font-bold uppercase tracking-wider"
+                      className={`inline-flex items-center gap-2.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform font-mono font-black uppercase tracking-wider ${
+                        isFullscreenStage
+                          ? 'px-6 sm:px-8 py-2 sm:py-2.5 rounded-full bg-slate-950/90 border border-white/20 text-sm sm:text-base md:text-xl lg:text-2xl shadow-[0_8px_30px_rgba(0,0,0,0.85)] backdrop-blur-xl'
+                          : 'text-xs font-bold'
+                      }`}
                       style={{ color: currentInfo.color }}
                       title="Haz clic para alternar de cantante / artista"
                     >
-                      <span>{currentInfo.isBoth ? '👥' : '🎤'}</span>
+                      <span className={isFullscreenStage ? 'text-lg sm:text-2xl' : 'text-xs'}>{currentInfo.isBoth ? '👥' : '🎤'}</span>
                       <span>{currentInfo.isBoth ? `DÚO · ${currentInfo.name.toUpperCase()}` : `VOZ: ${currentInfo.name.toUpperCase()}`}</span>
                     </div>
                   ) : null
@@ -1777,10 +1787,10 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           {isFullscreenStage && (
             <>
               {/* Top Floating Cinema HUD Header Bar */}
-              <div className="absolute top-5 left-5 right-5 z-50 flex items-center justify-between gap-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="absolute top-4 sm:top-6 left-4 sm:left-8 right-4 sm:right-8 z-50 flex items-center justify-between gap-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
                 {/* Left: Active Song Info & Telemetry Capsule */}
-                <div className="pointer-events-auto flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-slate-950/85 border border-slate-700/80 shadow-[0_4px_25px_rgba(0,0,0,0.85)] backdrop-blur-xl max-w-xl">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden border border-cyan-400/60 shadow-[0_0_15px_rgba(0,240,255,0.4)] shrink-0">
+                <div className="pointer-events-auto flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-950/90 border border-slate-700/80 shadow-[0_8px_32px_rgba(0,0,0,0.9)] backdrop-blur-2xl max-w-2xl">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl overflow-hidden border border-cyan-400/60 shadow-[0_0_20px_rgba(0,240,255,0.5)] shrink-0">
                     <img
                       src="/logo-highres.jpg"
                       alt="KaraokeLab Emblem"
@@ -1788,26 +1798,26 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                     />
                   </div>
                   <div className="text-left min-w-0">
-                    <h2 className="text-sm sm:text-base font-black text-white truncate max-w-xs sm:max-w-md tracking-tight leading-snug">
+                    <h2 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black text-white truncate max-w-xs sm:max-w-md lg:max-w-lg tracking-tight leading-tight">
                       {songTitle || 'KARAOKELAB STAGE'}
                     </h2>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-[11px] font-mono text-cyan-300 font-bold truncate max-w-[160px]">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 sm:mt-1.5">
+                      <p className="text-xs sm:text-sm md:text-base font-mono text-cyan-300 font-bold truncate max-w-[180px] sm:max-w-[260px]">
                         {songArtist || 'KaraokeLab Studio'}
                       </p>
                       {/* BPM Capsule */}
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/60 border border-slate-800 text-[10px] font-mono shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]" />
+                      <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-black/75 border border-slate-800 text-xs sm:text-sm font-mono shrink-0 shadow-inner">
+                        <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_8px_rgba(0,240,255,0.9)]" />
                         <span className="text-white font-bold">{bpm || 120}</span>
-                        <span className="text-[#00f0ff] font-extrabold text-[8.5px]">BPM</span>
+                        <span className="text-[#00f0ff] font-extrabold text-[10px] sm:text-xs">BPM</span>
                       </div>
                       {/* Key / Tono Capsule */}
-                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 border text-[10px] font-mono shrink-0 ${
+                      <div className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-black/75 border text-xs sm:text-sm font-mono shrink-0 shadow-inner ${
                         pitchShift && pitchShift !== 0
-                          ? 'border-[#ff007f]/50 text-pink-300 shadow-[0_0_8px_rgba(255,0,127,0.3)]'
+                          ? 'border-[#ff007f]/60 text-pink-300 shadow-[0_0_12px_rgba(255,0,127,0.35)]'
                           : 'border-slate-800 text-slate-300'
                       }`}>
-                        <span className="text-slate-400 text-[8.5px] font-bold">TONO:</span>
+                        <span className="text-slate-400 text-[10px] sm:text-xs font-bold">TONO:</span>
                         <span className="text-white font-black">{detectedKey || 'Am'}</span>
                         {pitchShift && pitchShift !== 0 ? (
                           <span className="text-[#ff007f] font-black">{pitchShift > 0 ? `+${pitchShift}` : pitchShift}</span>
@@ -1818,28 +1828,28 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 </div>
 
                 {/* Right: Next Song in Queue + Exit Button */}
-                <div className="pointer-events-auto flex items-center gap-3 shrink-0">
+                <div className="pointer-events-auto flex items-center gap-3 sm:gap-4 shrink-0">
                   {nextSongTitle ? (
-                    <div className="hidden md:flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-slate-950/85 border border-indigo-500/40 shadow-xl backdrop-blur-xl">
-                      <span className="text-xs">⏭</span>
+                    <div className="hidden md:flex items-center gap-3 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-950/90 border border-indigo-500/50 shadow-[0_8px_32px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
+                      <span className="text-base sm:text-lg">⏭</span>
                       <div className="text-left min-w-0">
-                        <span className="text-[9.5px] font-mono font-extrabold tracking-widest text-indigo-300 uppercase block leading-none">
+                        <span className="text-[10px] sm:text-xs font-mono font-extrabold tracking-widest text-indigo-300 uppercase block leading-none">
                           A continuación
                         </span>
-                        <p className="text-xs font-bold text-white truncate max-w-[200px] lg:max-w-[260px] leading-tight mt-0.5">
+                        <p className="text-xs sm:text-sm md:text-base font-bold text-white truncate max-w-[220px] lg:max-w-[320px] leading-snug mt-0.5">
                           {nextSongTitle}
                           {nextSongArtist ? <span className="text-slate-400 font-normal"> · {nextSongArtist}</span> : ''}
                         </p>
                       </div>
                       {nextSongRequestedBy && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-950/80 border border-indigo-500/30 text-indigo-200 shrink-0">
+                        <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-indigo-950/90 border border-indigo-500/40 text-indigo-200 font-bold shrink-0">
                           🎤 {nextSongRequestedBy}
                         </span>
                       )}
                     </div>
                   ) : (
-                    <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-400 text-[10px] font-mono backdrop-blur-md">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+                    <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-slate-300 text-xs sm:text-sm font-mono backdrop-blur-xl">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
                       <span>Cola al día</span>
                     </div>
                   )}
@@ -1847,10 +1857,10 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                   <button
                     type="button"
                     onClick={handleToggleFullscreen}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-white text-xs font-bold cursor-pointer shadow-2xl backdrop-blur-md transition-all active:scale-95 hover:border-amber-400/60"
+                    className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/90 text-white text-xs sm:text-sm font-bold cursor-pointer shadow-2xl backdrop-blur-2xl transition-all active:scale-95 hover:border-amber-400/70"
                     title="Salir de Pantalla Completa (Esc)"
                   >
-                    <Minimize2 className="w-4 h-4 text-amber-400" />
+                    <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                     <span>Salir</span>
                   </button>
                 </div>
