@@ -195,7 +195,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   const handleToggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
-        const el = stageRef.current;
+        const el = document.documentElement;
         if (el) {
           if (el.requestFullscreen) {
             await el.requestFullscreen();
