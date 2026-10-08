@@ -127,7 +127,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     lastSongKeyRef.current = songKey || '';
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const autoPlayParam = isPlaying ? 1 : 0;
-    embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&webkit-playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&cc_lang_pref=none&origin=${encodeURIComponent(origin)}`;
+    embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&enablejsapi=1&playsinline=1&webkit-playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&cc_lang_pref=none&origin=${encodeURIComponent(origin)}`;
   }
 
   // 2. REQUISITO: SINCRONIZACIÓN MILIMÉTRICA EN CUALQUIER MOMENTO (MODULO TIMELINE)
@@ -318,7 +318,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             height: targetDims.height,
             maxWidth: 'none',
             maxHeight: 'none',
-            transform: 'scale(1.35)',
+            transform: 'scale(1.45)',
             transformOrigin: 'center center',
             pointerEvents: 'none',
           }}
@@ -326,11 +326,24 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             try {
               const win = iframeRef.current?.contentWindow;
               if (win) {
+                const disableCaptions = () => {
+                  try {
+                    win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
+                    win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
+                    win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'fontSize', -3] }), '*');
+                    win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['cc', 'track', {}] }), '*');
+                  } catch (_) {}
+                };
+
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
-                win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
-                win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
+                disableCaptions();
+
+                // Reintentos automáticos para atrapar el módulo de captions en cuanto YouTube lo inicialice
+                setTimeout(disableCaptions, 400);
+                setTimeout(disableCaptions, 1200);
+                setTimeout(disableCaptions, 2500);
                 
                 // Si la pantalla se abre a mitad de canción (ej. a los 40s), sincroniza inmediatamente
                 if (isPlaying && currentTime && currentTime > 2) {
