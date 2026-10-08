@@ -128,6 +128,9 @@ interface KaraokeDisplayProps {
   onTimeUpdate?: (time: number, duration?: number) => void;
   isCleanTrack?: boolean;
   onToggleCleanTrack?: () => void;
+  nextSongTitle?: string;
+  nextSongArtist?: string;
+  nextSongRequestedBy?: string;
 }
 
 export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
@@ -175,6 +178,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   youTubeEmbedId = null,
   isCleanTrack = false,
   onToggleCleanTrack,
+  nextSongTitle,
+  nextSongArtist,
+  nextSongRequestedBy,
 }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1770,17 +1776,84 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           {/* Floating Fullscreen Controls */}
           {isFullscreenStage && (
             <>
-              {/* Top-Right Exit Button */}
-              <div className="absolute top-5 right-5 z-50 flex items-center gap-2 animate-in fade-in duration-200">
-                <button
-                  type="button"
-                  onClick={handleToggleFullscreen}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-white text-xs font-bold cursor-pointer shadow-2xl backdrop-blur-md transition-all active:scale-95"
-                  title="Salir de Pantalla Completa (Esc)"
-                >
-                  <Minimize2 className="w-4 h-4 text-amber-400" />
-                  <span>Salir</span>
-                </button>
+              {/* Top Floating Cinema HUD Header Bar */}
+              <div className="absolute top-5 left-5 right-5 z-50 flex items-center justify-between gap-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+                {/* Left: Active Song Info & Telemetry Capsule */}
+                <div className="pointer-events-auto flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-slate-950/85 border border-slate-700/80 shadow-[0_4px_25px_rgba(0,0,0,0.85)] backdrop-blur-xl max-w-xl">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden border border-cyan-400/60 shadow-[0_0_15px_rgba(0,240,255,0.4)] shrink-0">
+                    <img
+                      src="/logo-highres.jpg"
+                      alt="KaraokeLab Emblem"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <h2 className="text-sm sm:text-base font-black text-white truncate max-w-xs sm:max-w-md tracking-tight leading-snug">
+                      {songTitle || 'KARAOKELAB STAGE'}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[11px] font-mono text-cyan-300 font-bold truncate max-w-[160px]">
+                        {songArtist || 'KaraokeLab Studio'}
+                      </p>
+                      {/* BPM Capsule */}
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/60 border border-slate-800 text-[10px] font-mono shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]" />
+                        <span className="text-white font-bold">{bpm || 120}</span>
+                        <span className="text-[#00f0ff] font-extrabold text-[8.5px]">BPM</span>
+                      </div>
+                      {/* Key / Tono Capsule */}
+                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 border text-[10px] font-mono shrink-0 ${
+                        pitchShift && pitchShift !== 0
+                          ? 'border-[#ff007f]/50 text-pink-300 shadow-[0_0_8px_rgba(255,0,127,0.3)]'
+                          : 'border-slate-800 text-slate-300'
+                      }`}>
+                        <span className="text-slate-400 text-[8.5px] font-bold">TONO:</span>
+                        <span className="text-white font-black">{detectedKey || 'Am'}</span>
+                        {pitchShift && pitchShift !== 0 ? (
+                          <span className="text-[#ff007f] font-black">{pitchShift > 0 ? `+${pitchShift}` : pitchShift}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Next Song in Queue + Exit Button */}
+                <div className="pointer-events-auto flex items-center gap-3 shrink-0">
+                  {nextSongTitle ? (
+                    <div className="hidden md:flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-slate-950/85 border border-indigo-500/40 shadow-xl backdrop-blur-xl">
+                      <span className="text-xs">⏭</span>
+                      <div className="text-left min-w-0">
+                        <span className="text-[9.5px] font-mono font-extrabold tracking-widest text-indigo-300 uppercase block leading-none">
+                          A continuación
+                        </span>
+                        <p className="text-xs font-bold text-white truncate max-w-[200px] lg:max-w-[260px] leading-tight mt-0.5">
+                          {nextSongTitle}
+                          {nextSongArtist ? <span className="text-slate-400 font-normal"> · {nextSongArtist}</span> : ''}
+                        </p>
+                      </div>
+                      {nextSongRequestedBy && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-950/80 border border-indigo-500/30 text-indigo-200 shrink-0">
+                          🎤 {nextSongRequestedBy}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-400 text-[10px] font-mono backdrop-blur-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+                      <span>Cola al día</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleToggleFullscreen}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-white text-xs font-bold cursor-pointer shadow-2xl backdrop-blur-md transition-all active:scale-95 hover:border-amber-400/60"
+                    title="Salir de Pantalla Completa (Esc)"
+                  >
+                    <Minimize2 className="w-4 h-4 text-amber-400" />
+                    <span>Salir</span>
+                  </button>
+                </div>
               </div>
 
               {/* Bottom Floating Transport Bar */}

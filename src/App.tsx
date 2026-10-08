@@ -3284,6 +3284,9 @@ export default function App() {
               youTubeEmbedId={youTubeEmbedId}
               bpm={bpm}
               detectedKey={detectedKey}
+              nextSongTitle={queue[0]?.songData?.title || (queue[0]?.fileName ? queue[0].fileName.replace(/^🎬\s*\[YouTube\]\s*/, '') : undefined)}
+              nextSongArtist={queue[0]?.songData?.artist}
+              nextSongRequestedBy={queue[0]?.requestedBy}
               stems={currentSong?.stems}
               audioBlob={currentSong?.audioBlob}
               onPlay={handlePlay}
