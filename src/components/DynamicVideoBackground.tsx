@@ -127,7 +127,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     lastSongKeyRef.current = songKey || '';
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const autoPlayParam = isPlaying ? 1 : 0;
-    embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(origin)}`;
+    embedUrl.current = `https://www.youtube-nocookie.com/embed/${config.videoId}?autoplay=${autoPlayParam}&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${config.videoId}&enablejsapi=1&playsinline=1&webkit-playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&cc_lang_pref=none&origin=${encodeURIComponent(origin)}`;
   }
 
   // 2. REQUISITO: SINCRONIZACIÓN MILIMÉTRICA EN CUALQUIER MOMENTO (MODULO TIMELINE)
@@ -286,7 +286,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }`}
       />
 
-      {/* Frame 16:9 con escala 1.25x para recortar barras y títulos de YouTube */}
+      {/* Frame 16:9 con escala 1.35x para recortar barras, logos y controles de YouTube */}
       <div
         className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
           isVideoVisible ? 'opacity-100' : 'opacity-0'
@@ -307,8 +307,9 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             height: targetDims.height,
             maxWidth: 'none',
             maxHeight: 'none',
-            transform: 'scale(1.25)',
+            transform: 'scale(1.35)',
             transformOrigin: 'center center',
+            pointerEvents: 'none',
           }}
           onLoad={() => {
             try {
@@ -317,6 +318,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
                 win.postMessage(JSON.stringify({ event: 'listening', id: config.videoId }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
                 win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
+                win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
+                win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
                 
                 // Si la pantalla se abre a mitad de canción (ej. a los 40s), sincroniza inmediatamente
                 if (isPlaying && currentTime && currentTime > 2) {
@@ -333,6 +336,9 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             } catch (_) {}
           }}
         />
+
+        {/* Escudo protector invisible contra toques de iPadOS (evita que aparezcan los botones gigantes centrales de Apple) */}
+        <div className="absolute inset-0 pointer-events-none z-10" />
       </div>
 
       {/* Capa de contraste oscuro */}

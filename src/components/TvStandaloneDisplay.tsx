@@ -371,12 +371,11 @@ export const TvStandaloneDisplay: React.FC = () => {
           <iframe
             ref={ytTvIframeRef}
             key={`yt_tv_${cleanYoutubeId}`}
-            src={`https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0`}
+            src={`https://www.youtube-nocookie.com/embed/${cleanYoutubeId}?autoplay=1&mute=1&controls=0&playsinline=1&webkit-playsinline=1&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&cc_lang_pref=none&enablejsapi=1&rel=0`}
             title="YouTube Karaoke TV"
-            className="w-full h-full border-0 pointer-events-none scale-[1.06]"
-            style={{ width: '100vw', height: '100vh' }}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+            className="w-full h-full border-0 pointer-events-none scale-[1.08]"
+            style={{ width: '100vw', height: '100vh', pointerEvents: 'none' }}
+            allow="autoplay; encrypted-media"
             onLoad={() => {
               try {
                 const win = ytTvIframeRef.current?.contentWindow;
@@ -384,6 +383,8 @@ export const TvStandaloneDisplay: React.FC = () => {
                   win.postMessage(JSON.stringify({ event: 'listening', id: cleanYoutubeId }), '*');
                   win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
                   win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
                 }
               } catch (_) {}
             }}
