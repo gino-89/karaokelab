@@ -1623,7 +1623,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               </div>
 
               {/* SLOT 2: ACTIVE LINE STAGE WITH CLEAN LUMINOUS TYPOGRAPHY */}
-              <div className="teleprompter-active-line-slot w-full max-w-4xl mx-auto flex flex-col items-center justify-center shrink-0 px-4 overflow-hidden z-10 min-h-[160px]">
+              <div className={`teleprompter-active-line-slot w-full max-w-5xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden z-10 transition-all ${
+                isFullscreenStage ? 'flex-1 min-h-0 my-auto' : 'shrink-0 min-h-[160px]'
+              }`}>
                 {!isPlaying ? (
                   <div className="flex flex-col items-center justify-center gap-2.5 text-center opacity-60">
                     <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center shadow-inner">
@@ -1644,15 +1646,21 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                   (() => {
                     const textClean = cleanLyricText(activeLyric.text);
                     const textLen = textClean.length;
-                    const fontSizeClass = textLen <= 25
-                      ? 'text-3xl sm:text-4xl lg:text-5xl'
-                      : textLen <= 50
-                        ? 'text-2xl sm:text-3xl lg:text-4xl'
-                        : 'text-xl sm:text-2xl lg:text-3xl';
+                    const fontSizeClass = isFullscreenStage
+                      ? (textLen <= 25
+                          ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]'
+                          : textLen <= 50
+                            ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]'
+                            : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]')
+                      : (textLen <= 25
+                          ? 'text-3xl sm:text-4xl lg:text-5xl'
+                          : textLen <= 50
+                            ? 'text-2xl sm:text-3xl lg:text-4xl'
+                            : 'text-xl sm:text-2xl lg:text-3xl');
 
                     return (
                       <div className="flex flex-col items-center justify-center gap-2 w-full overflow-hidden">
-                        <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 font-black ${fontSizeClass} leading-snug tracking-tight text-center max-w-full`}>
+                        <div className={`flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-6 gap-y-2 font-black ${fontSizeClass} leading-tight tracking-tight text-center max-w-full`}>
                           {computeIntelligentWordFills(
                             { ...activeLyric, text: textClean },
                             effectiveTime,
@@ -1661,8 +1669,11 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                           ).map((item, wIdx) => {
                             return (
                               <span key={wIdx} className="relative inline-block select-none" style={{ transform: 'translateZ(0)' }}>
-                                {/* Layer 1: Base Unsung Word (Clean, crisp dim text) */}
-                                <span className="text-white/25 inline-block">
+                                {/* Layer 1: Base Unsung Word (Clean, crisp high-contrast text) */}
+                                <span
+                                  className={`${isFullscreenStage ? 'text-white/60' : 'text-white/25'} inline-block`}
+                                  style={{ textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 16px rgba(0,0,0,0.9)' }}
+                                >
                                   {item.word}
                                 </span>
 
@@ -1673,6 +1684,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                                     style={{
                                       clipPath: `inset(0 ${Math.max(0, Math.min(100, 100 - item.fillPercentage))}% 0 0)`,
                                       color: currentInfo?.color || '#00f0ff',
+                                      textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 16px rgba(0,0,0,0.9)',
                                       willChange: 'clip-path',
                                       transform: 'translateZ(0)',
                                     }}
@@ -1692,7 +1704,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                     secondsToNext={secondsToNext}
                     nextLyric={upcomingLyric}
                     artist={nextInfo}
-                    variant="standard"
+                    variant={isFullscreenStage ? "tv" : "standard"}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 text-center py-4 animate-in fade-in duration-300">
@@ -1707,28 +1719,45 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               </div>
 
               {/* SLOT 3: UPCOMING NEXT LINE PREVIEW */}
-              <div className="h-16 w-full max-w-3xl flex flex-col items-center justify-center shrink-0 overflow-hidden z-10">
+              <div className={`w-full flex flex-col items-center justify-center shrink-0 z-10 transition-all ${
+                isFullscreenStage
+                  ? 'mb-28 max-w-4xl px-6 py-3.5 rounded-2xl bg-slate-950/85 border border-slate-700/80 shadow-2xl backdrop-blur-md'
+                  : 'h-16 max-w-3xl overflow-hidden'
+              }`}>
                 {isPlaying && upcomingLyric && !showCountdown ? (
-                  <div className="flex flex-col items-center gap-0.5 animate-in fade-in duration-200">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/70 font-mono">
-                      {nextInfo?.isBoth ? '👥 DÚO' : `🎤 ${nextInfo?.name.toUpperCase() || 'CANTA'}`}
+                  <div className="flex flex-col items-center gap-1 animate-in fade-in duration-200">
+                    <span
+                      className={`font-mono font-black uppercase tracking-widest block ${
+                        isFullscreenStage
+                          ? 'text-xs sm:text-sm md:text-base mb-0.5'
+                          : 'text-[10px]'
+                      }`}
+                      style={{ color: nextSinger === 'singer2' ? '#ff007f' : nextSinger === 'singer1' ? '#00f0ff' : '#10b981' }}
+                    >
+                      {nextInfo?.isBoth ? '👥 DÚO' : `[A CONTINUACIÓN: 🎤 ${nextInfo?.name.toUpperCase() || 'CANTA'}]`}
                     </span>
                     <p
                       onClick={() => onSeek(upcomingLyric.time)}
-                      className={`text-sm sm:text-lg font-bold transition-colors cursor-pointer truncate max-w-2xl ${
+                      className={`font-extrabold transition-colors cursor-pointer truncate max-w-3xl text-center ${
+                        isFullscreenStage
+                          ? 'text-2xl sm:text-3xl md:text-4xl'
+                          : 'text-sm sm:text-lg font-bold'
+                      } ${
                         !isDuetMode
                           ? 'text-emerald-400 hover:text-emerald-300'
                           : nextSinger === 'singer1'
-                            ? 'text-[#00f0ff]/80 hover:text-[#00f0ff]'
+                            ? 'text-[#00f0ff] hover:brightness-125'
                             : nextSinger === 'singer2'
-                              ? 'text-[#ff007f]/80 hover:text-[#ff007f]'
-                              : 'text-[#ffe600]/80 hover:text-[#ffe600]'
+                              ? 'text-[#ff007f] hover:brightness-125'
+                              : 'text-[#ffe600] hover:brightness-125'
                       }`}
                     >
                       {cleanLyricText(upcomingLyric.text)}
                     </p>
                     {nextNextLyric && (
-                      <p className="text-[11px] text-slate-500 font-medium truncate max-w-xl">
+                      <p className={`text-slate-500 font-medium truncate max-w-2xl ${
+                        isFullscreenStage ? 'text-xs sm:text-sm mt-0.5' : 'text-[11px]'
+                      }`}>
                         {cleanLyricText(nextNextLyric.text)}
                       </p>
                     )}
