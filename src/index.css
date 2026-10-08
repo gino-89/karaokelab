@@ -54,6 +54,30 @@
     -webkit-user-select: none;
     user-select: none;
   }
+
+  /* ── Hide all native Apple iOS / iPadOS WebKit Media Controls & Overlays ── */
+  video::-webkit-media-controls,
+  video::-webkit-media-controls-start-playback-button,
+  video::-webkit-media-controls-play-button,
+  video::-webkit-media-controls-overlay-play-button,
+  video::-webkit-media-controls-panel,
+  video::-webkit-media-controls-container,
+  video::-webkit-media-controls-enclosure,
+  ::-webkit-media-controls-overlay-enclosure {
+    display: none !important;
+    -webkit-appearance: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Prevent Apple Safari Live Text / Video Control Buttons on background videos */
+  iframe[src*="youtube"] {
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
 }
 
 
