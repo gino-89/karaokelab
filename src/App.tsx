@@ -1134,6 +1134,7 @@ export default function App() {
   // Broadcast updated queue to guests whenever queue changes
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
+      forceFullTvSyncRef.current = true;
       peerSync.broadcastQueueToGuests(
         queue.map((q) => ({
           id: q.id,
@@ -1279,6 +1280,7 @@ export default function App() {
   const lastPitchShiftRef = useRef<number>(0);
   const lastVideoBgIdRef = useRef<string | undefined>(undefined);
   const forceFullTvSyncRef = useRef<boolean>(false);
+  const lastNextSongSignatureRef = useRef<string>('');
 
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
@@ -1297,6 +1299,8 @@ export default function App() {
         ? (scoreModalState.nextSong?.videoBgConfig || videoBgConfig)
         : videoBgConfig;
 
+      const nextSongSignature = `${nextQueueItem?.id || ''}_${nextQueueItem?.songData?.id || ''}_${nextQueueItem?.fileName || ''}_${nextQueueItem?.songData?.title || ''}`;
+      const isNextSongChanged = nextSongSignature !== lastNextSongSignatureRef.current;
       const isNewSong = targetSong?.id !== lastSongIdRef.current;
       const isPitchChanged = pitchShift !== lastPitchShiftRef.current;
       const isVideoBgChanged = targetVideoBgConfig?.videoId !== lastVideoBgIdRef.current;
@@ -1304,10 +1308,10 @@ export default function App() {
       if (forceFullTvSyncRef.current) {
         forceFullTvSyncRef.current = false;
       }
-      const isFullSyncNeeded = isNewSong || isPitchChanged || isVideoBgChanged || isForcedSync || (!isPlaying && now - lastFullSyncRef.current >= 4000);
+      const isFullSyncNeeded = isNewSong || isPitchChanged || isVideoBgChanged || isNextSongChanged || isForcedSync || (now - lastFullSyncRef.current >= 3000);
 
       // Broadcast every 80ms for ultra-smooth lightweight sync
-      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || isVideoBgChanged || isForcedSync || !isPlaying) {
+      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || isVideoBgChanged || isNextSongChanged || isForcedSync || !isPlaying) {
         lastBroadcastRef.current = now;
 
         if (isFullSyncNeeded || isIntermission) {
@@ -1315,6 +1319,7 @@ export default function App() {
           lastSongIdRef.current = targetSong?.id || null;
           lastPitchShiftRef.current = pitchShift;
           lastVideoBgIdRef.current = targetVideoBgConfig?.videoId;
+          lastNextSongSignatureRef.current = nextSongSignature;
 
           // Full state payload (sent on song change, play/pause, or periodic 2.5s heartbeat)
           const fullPayload = {
@@ -1350,6 +1355,9 @@ export default function App() {
             duration,
             isPlaying,
             currentIndex,
+            nextSongTitle: nextQueueItem?.songData?.title || (nextQueueItem?.fileName ? nextQueueItem.fileName.replace(/^🎬\s*\[YouTube\]\s*/, '') : undefined),
+            nextSongArtist: nextQueueItem?.songData?.artist,
+            nextSongRequestedBy: nextQueueItem?.requestedBy,
             scoreModalState: scoreModalState.isOpen ? scoreModalState : null,
             timestamp: Date.now(),
             isTick: true,

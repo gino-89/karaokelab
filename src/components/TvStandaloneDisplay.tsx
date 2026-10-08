@@ -45,13 +45,16 @@ export const TvStandaloneDisplay: React.FC = () => {
           : (prev.scoreModalState !== undefined ? prev.scoreModalState : newState.scoreModalState);
 
         if (newState.isTick) {
-          // Fast-path delta tick: update time, duration, isPlaying, currentIndex, timestamp, scoreModalState
+          // Fast-path delta tick: update time, duration, isPlaying, currentIndex, timestamp, scoreModalState, next song
           return {
             ...prev,
             currentTime: newState.currentTime,
             duration: newState.duration || prev.duration,
             isPlaying: newState.isPlaying !== undefined ? newState.isPlaying : prev.isPlaying,
             currentIndex: newState.currentIndex !== undefined ? newState.currentIndex : prev.currentIndex,
+            nextSongTitle: newState.nextSongTitle !== undefined ? newState.nextSongTitle : prev.nextSongTitle,
+            nextSongArtist: newState.nextSongArtist !== undefined ? newState.nextSongArtist : prev.nextSongArtist,
+            nextSongRequestedBy: newState.nextSongRequestedBy !== undefined ? newState.nextSongRequestedBy : prev.nextSongRequestedBy,
             scoreModalState: effectiveScoreModalState,
             timestamp: newState.timestamp || Date.now(),
           };
