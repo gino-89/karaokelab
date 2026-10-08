@@ -375,7 +375,7 @@ export const TvStandaloneDisplay: React.FC = () => {
             title="YouTube Karaoke TV"
             className="w-full h-full border-0 pointer-events-none scale-[1.08]"
             style={{ width: '100vw', height: '100vh', pointerEvents: 'none' }}
-            allow="autoplay; encrypted-media"
+            allow="autoplay *; encrypted-media *; fullscreen *"
             onLoad={() => {
               try {
                 const win = ytTvIframeRef.current?.contentWindow;
@@ -385,6 +385,7 @@ export const TvStandaloneDisplay: React.FC = () => {
                   win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
                   win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
                   win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
+                  win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
                 }
               } catch (_) {}
             }}
@@ -624,6 +625,7 @@ export const TvStandaloneDisplay: React.FC = () => {
         onClose={() => {}}
         isReadOnly={true}
         muteAudio={true}
+        isPartyMode={true}
       />
     </div>
   );
