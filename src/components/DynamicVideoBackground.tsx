@@ -95,15 +95,15 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     setIsVideoVisible(false);
   }
 
-  // Cortina de transición oscura de 1.8 segundos durante cambio de canción
+  // Cortina de transición suave durante cambio de canción
   useEffect(() => {
-    setIsVideoVisible(false);
     try {
       const win = iframeRef.current?.contentWindow;
       if (win) {
         win.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: '' }), '*');
         win.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [0] }), '*');
         win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+        win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
         if (!isPlaying) {
           win.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
         }
@@ -112,7 +112,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
 
     const timer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 1800);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [config.videoId, songKey]);

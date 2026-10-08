@@ -3188,18 +3188,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#080811] text-slate-100 flex flex-col bg-grid-cyber selection:bg-[#ff007f] selection:text-white relative overflow-x-hidden">
-      {/* Persistent Dynamic Video Background for Fullscreen Party Mode */}
-      {isPartyMode && currentSong && videoBgConfig.enabled && videoBgConfig.mode !== 'off' && videoBgConfig.videoId && (
-        <DynamicVideoBackground
-          config={videoBgConfig}
-          isPlaying={isPlaying}
-          songKey={`${currentSong?.title}___${currentSong?.artist || ''}`}
-          currentTime={currentTime}
-          duration={duration}
-          className="fixed inset-0 pointer-events-none transition-opacity duration-500 z-[48] opacity-100 visible"
-        />
-      )}
-
       {/* Header */}
       <Header
         onOpenAboutModal={handleOpenAboutModal}
