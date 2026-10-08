@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LyricLine, AudioStems, ArtistRole, VideoBackgroundConfig } from '../types';
-import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders, Tv } from 'lucide-react';
+import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders, Tv, Maximize2, Minimize2 } from 'lucide-react';
 import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractAllArtistsFromMetadata, titleCaseArtist, FEMALE_PALETTE, MALE_PALETTE, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo, getLyricPlaybackState, getLineEnd } from '../services/lrcParser';
 import { StageCountdownCard } from './StageCountdownCard';
 import { searchLrclib, searchLrclibSuggestions, LrcSuggestion } from '../services/lrcApi';
@@ -188,6 +188,17 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   const [isSearchingLrc, setIsSearchingLrc] = useState(false);
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [showLyricTools, setShowLyricTools] = useState(false);
+  const [isExpandedStage, setIsExpandedStage] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isExpandedStage) {
+        setIsExpandedStage(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExpandedStage]);
 
   // ── Dynamic Video Background state ───────────────────────────────────
   const [localVideoBgConfig, setLocalVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
@@ -1193,7 +1204,11 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   return (
     <div className="flex flex-col gap-3">
       {/* ── PROFESSIONAL KARAOKE TELEPROMPTER STAGE ───── */}
-      <div className="relative bg-[#0c0e17] border border-slate-700/70 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+      <div className={`relative bg-[#0c0e17] transition-all duration-300 overflow-hidden flex flex-col shadow-2xl ${
+        isExpandedStage
+          ? 'fixed inset-0 z-[100] w-screen h-screen rounded-none border-none'
+          : 'border border-slate-700/70 rounded-2xl'
+      }`}>
         {/* Top Title & Calibration Header */}
         <div className="flex flex-col px-3 sm:px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 gap-2">
           {/* Row 1: Song Title - Artist & Duet Tag */}
@@ -1335,6 +1350,20 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                 <Tv className="w-3.5 h-3.5 text-slate-950" />
                 <span>Modo TV</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setIsExpandedStage(!isExpandedStage)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md active:scale-95 border ${
+                  isExpandedStage
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]'
+                }`}
+                title={isExpandedStage ? 'Restaurar tamaño normal (Esc)' : 'Expandir Mini Player a Pantalla Completa'}
+              >
+                {isExpandedStage ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                <span>{isExpandedStage ? 'Reducir' : 'Expandir'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1467,7 +1496,9 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         )}
 
         {/* ── TELEPROMPTER LYRICS / YOUTUBE STAGE ── */}
-        <div className="karaoke-teleprompter-stage flex flex-col justify-between items-center text-center px-6 py-5 select-none relative bg-[#06070e] overflow-hidden">
+        <div className={`karaoke-teleprompter-stage flex flex-col justify-between items-center text-center px-6 py-5 select-none relative bg-[#06070e] overflow-hidden transition-all duration-300 ${
+          isExpandedStage ? 'flex-1 min-h-0' : ''
+        }`}>
           {youTubeEmbedId ? (
             <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20 overflow-hidden">
               <iframe
