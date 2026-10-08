@@ -325,8 +325,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             height: targetDims.height,
             maxWidth: 'none',
             maxHeight: 'none',
-            transform: 'scale(1.6) translateY(-4%)',
-            transformOrigin: 'center top',
+            transform: 'scale(1.25)',
+            transformOrigin: 'center center',
             pointerEvents: 'none',
           }}
           onLoad={() => {
