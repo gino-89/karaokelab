@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LyricLine, AudioStems, ArtistRole, VideoBackgroundConfig } from '../types';
-import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders, Tv, Maximize2, Minimize2 } from 'lucide-react';
+import { Search, Edit3, Sparkles, Play, Pause, Square, RotateCcw, SkipForward, Mic, ChevronDown, ChevronUp, Users, Clock, Wand2, RefreshCw, Globe, Music2, Plus, Film, Sliders, Tv, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
 import { parseLRC, formatLRC, generateGenericLyrics, cleanLyricText, isGeniusFormat, parseGeniusLyrics, extractAllArtistsFromMetadata, titleCaseArtist, FEMALE_PALETTE, MALE_PALETTE, mergeGeniusRolesWithSyncedLrc, cleanSectionHeader, updateSectionHeaderSinger, resolveArtistInfo, getLyricPlaybackState, getLineEnd } from '../services/lrcParser';
 import { StageCountdownCard } from './StageCountdownCard';
 import { searchLrclib, searchLrclibSuggestions, LrcSuggestion } from '../services/lrcApi';
@@ -222,6 +222,28 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
       // Fallback a pantalla completa CSS en navegadores táctiles
       setIsFullscreenStage(prev => !prev);
     }
+  };
+
+  const handleOpenFloatingStage = () => {
+    try {
+      const width = 1280;
+      const height = 720;
+      const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+      const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+      const popoutUrl = `${window.location.origin}${window.location.pathname}?tv=1`;
+
+      const stageWin = window.open(
+        popoutUrl,
+        'KaraokeLab_Floating_Stage',
+        `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no`
+      );
+
+      if (stageWin) {
+        stageWin.focus();
+      } else {
+        alert('Por favor habilita las ventanas emergentes en tu navegador para abrir el Escenario Flotante en tu segunda pantalla o TV.');
+      }
+    } catch (_) {}
   };
 
   useEffect(() => {
@@ -1404,6 +1426,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
 
               <button
                 type="button"
+                onClick={handleOpenFloatingStage}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 text-xs font-bold cursor-pointer transition-all shadow-sm active:scale-95"
+                title="Desacoplar Escenario en Ventana Flotante Independiente (Para monitor secundario o TV por HDMI)"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Flotante</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleToggleFullscreen}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md active:scale-95 border ${
                   isFullscreenStage
@@ -1853,6 +1885,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                       <span>Cola al día</span>
                     </div>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={handleOpenFloatingStage}
+                    className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl sm:rounded-3xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/50 hover:border-cyan-300 text-cyan-300 text-xs sm:text-sm font-bold cursor-pointer shadow-xl backdrop-blur-2xl transition-all active:scale-95"
+                    title="Desacoplar en Ventana Flotante (Para 2da Pantalla o TV por HDMI)"
+                  >
+                    <ExternalLink className="w-4 h-4 text-cyan-400" />
+                    <span className="hidden sm:inline">Desacoplar</span>
+                  </button>
 
                   <button
                     type="button"
