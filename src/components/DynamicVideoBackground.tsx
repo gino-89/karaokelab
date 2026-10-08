@@ -163,7 +163,14 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
           if (win) {
             win.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }), '*');
             win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'track', {}] }), '*');
-            win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'fontSize', -1] }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'setOption', args: ['captions', 'fontSize', -3] }), '*');
+          }
+        }
+
+        // Si YouTube se pausa automáticamente mientras la canción está sonando, forzar play inmediato para eliminar el botón de pausa
+        if ((state === 2 || state === '2') && isPlaying) {
+          if (win) {
+            win.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
           }
         }
 
@@ -318,8 +325,8 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
             height: targetDims.height,
             maxWidth: 'none',
             maxHeight: 'none',
-            transform: 'scale(1.45)',
-            transformOrigin: 'center center',
+            transform: 'scale(1.6) translateY(-4%)',
+            transformOrigin: 'center top',
             pointerEvents: 'none',
           }}
           onLoad={() => {
