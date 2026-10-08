@@ -189,16 +189,61 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [showLyricTools, setShowLyricTools] = useState(false);
   const [isExpandedStage, setIsExpandedStage] = useState(false);
+  const [isFullscreenStage, setIsFullscreenStage] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        const el = stageRef.current;
+        if (el) {
+          if (el.requestFullscreen) {
+            await el.requestFullscreen();
+          } else if ((el as any).webkitRequestFullscreen) {
+            await (el as any).webkitRequestFullscreen();
+          }
+        }
+        setIsFullscreenStage(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        setIsFullscreenStage(false);
+      }
+    } catch (_) {
+      // Fallback a pantalla completa CSS en navegadores táctiles
+      setIsFullscreenStage(prev => !prev);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement);
+      setIsFullscreenStage(isFs);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isExpandedStage) {
-        setIsExpandedStage(false);
+      if (e.key === 'Escape') {
+        if (isFullscreenStage) {
+          handleToggleFullscreen();
+        } else if (isExpandedStage) {
+          setIsExpandedStage(false);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isExpandedStage]);
+  }, [isExpandedStage, isFullscreenStage]);
 
   // ── Dynamic Video Background state ───────────────────────────────────
   const [localVideoBgConfig, setLocalVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
@@ -1353,16 +1398,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsExpandedStage(!isExpandedStage)}
+                onClick={handleToggleFullscreen}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md active:scale-95 border ${
-                  isExpandedStage
+                  isFullscreenStage
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
                     : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]'
                 }`}
-                title={isExpandedStage ? 'Restaurar tamaño normal (Esc)' : 'Expandir Mini Player a Pantalla Completa'}
+                title={isFullscreenStage ? 'Salir de Pantalla Completa (Esc)' : 'Pantalla Completa Real del Escenario'}
               >
-                {isExpandedStage ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                <span>{isExpandedStage ? 'Reducir' : 'Expandir'}</span>
+                {isFullscreenStage ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                <span>{isFullscreenStage ? 'Salir' : 'Pantalla Completa'}</span>
               </button>
             </div>
           </div>
@@ -1496,9 +1541,14 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
         )}
 
         {/* ── TELEPROMPTER LYRICS / YOUTUBE STAGE ── */}
-        <div className={`karaoke-teleprompter-stage flex flex-col justify-between items-center text-center px-6 py-5 select-none relative bg-[#06070e] overflow-hidden transition-all duration-300 ${
-          isExpandedStage ? 'flex-1 min-h-0' : ''
-        }`}>
+        <div
+          ref={stageRef}
+          className={`karaoke-teleprompter-stage flex flex-col justify-between items-center text-center select-none relative bg-[#06070e] overflow-hidden transition-all duration-300 ${
+            isFullscreenStage
+              ? 'fixed inset-0 z-[999999] w-screen h-screen p-8 sm:p-14'
+              : 'px-6 py-5'
+          }`}
+        >
           {youTubeEmbedId ? (
             <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20 overflow-hidden">
               <iframe
@@ -1684,6 +1734,65 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                     )}
                   </div>
                 ) : null}
+              </div>
+            </>
+          )}
+
+          {/* Floating Fullscreen Controls */}
+          {isFullscreenStage && (
+            <>
+              {/* Top-Right Exit Button */}
+              <div className="absolute top-5 right-5 z-50 flex items-center gap-2 animate-in fade-in duration-200">
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-white text-xs font-bold cursor-pointer shadow-2xl backdrop-blur-md transition-all active:scale-95"
+                  title="Salir de Pantalla Completa (Esc)"
+                >
+                  <Minimize2 className="w-4 h-4 text-amber-400" />
+                  <span>Salir</span>
+                </button>
+              </div>
+
+              {/* Bottom Floating Transport Bar */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-6 py-2.5 rounded-full bg-slate-950/90 border border-slate-700/90 shadow-[0_0_30px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in duration-200">
+                <button
+                  type="button"
+                  onClick={() => onSeek(0)}
+                  className="w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
+                  title="Reiniciar (00:00)"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={isPlaying ? onPause : onPlay}
+                  className="w-12 h-12 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 flex items-center justify-center font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] hover:scale-105 active:scale-95 cursor-pointer transition-all"
+                  title={isPlaying ? 'Pausar' : 'Reproducir'}
+                >
+                  {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                </button>
+
+                {onNextInQueue && hasNextInQueue && (
+                  <button
+                    type="button"
+                    onClick={onNextInQueue}
+                    className="w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
+                    title="Siguiente canción"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-90"
+                  title="Salir de Pantalla Completa"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                </button>
               </div>
             </>
           )}
