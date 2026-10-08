@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Trophy, 
   Sparkles, 
@@ -221,7 +222,7 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div className={`fixed inset-0 z-[10000000] flex items-center justify-center p-3 sm:p-4 select-none ${
       isPartyMode 
         ? 'bg-black/95 backdrop-blur-2xl' 
@@ -486,4 +487,14 @@ export const KaraokeScoreAndTransitionModal: React.FC<KaraokeScoreAndTransitionM
       </div>
     </div>
   );
+
+  const fsTarget = typeof document !== 'undefined'
+    ? (document.fullscreenElement || (document as any).webkitFullscreenElement)
+    : null;
+
+  if (fsTarget) {
+    return createPortal(modalContent, fsTarget);
+  }
+
+  return modalContent;
 };

@@ -516,20 +516,7 @@ export default function App() {
     nextSinger: null,
   });
 
-  // When score modal opens at the end of a song, exit native fullscreen cleanly so modal displays in front
-  useEffect(() => {
-    if (scoreModalState.isOpen) {
-      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
-        try {
-          if (document.exitFullscreen) {
-            document.exitFullscreen();
-          } else if ((document as any).webkitExitFullscreen) {
-            (document as any).webkitExitFullscreen();
-          }
-        } catch (_) {}
-      }
-    }
-  }, [scoreModalState.isOpen]);
+  // Sync lightweight catalog to localStorage for guest mobile remote views
   useEffect(() => {
     if (savedSongs.length > 0) {
       try {
