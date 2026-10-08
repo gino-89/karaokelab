@@ -86,6 +86,7 @@ export const TvStandaloneDisplay: React.FC = () => {
 
     // 2. Same-Device BroadcastChannel (Multi-monitor / Independent browser window)
     const unsub = tvBroadcast.onStateUpdate(handleStateUpdate);
+    tvBroadcast.sendRemoteCommand('REQUEST_TV_STATE');
 
     return () => {
       unsub();

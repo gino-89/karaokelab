@@ -1123,6 +1123,9 @@ export default function App() {
       const unsub = tvBroadcast.onRemoteCommand((cmd, data) => {
         if (cmd === 'ADD_TO_QUEUE') handleRemoteRequest(data);
         if (cmd === 'TRACK_ENDED') handleTrackEnded();
+        if (cmd === 'REQUEST_TV_STATE') {
+          forceFullTvSyncRef.current = true;
+        }
       });
       return () => unsub();
     }
@@ -1274,16 +1277,21 @@ export default function App() {
   const lastFullSyncRef = useRef<number>(0);
   const lastSongIdRef = useRef<string | null>(null);
   const lastPitchShiftRef = useRef<number>(0);
+  const forceFullTvSyncRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!isTvDisplayMode && !isGuestMode) {
       const now = performance.now();
       const isNewSong = currentSong?.id !== lastSongIdRef.current;
       const isPitchChanged = pitchShift !== lastPitchShiftRef.current;
-      const isFullSyncNeeded = isNewSong || isPitchChanged || (!isPlaying && now - lastFullSyncRef.current >= 4000);
+      const isForcedSync = forceFullTvSyncRef.current;
+      if (forceFullTvSyncRef.current) {
+        forceFullTvSyncRef.current = false;
+      }
+      const isFullSyncNeeded = isNewSong || isPitchChanged || isForcedSync || (!isPlaying && now - lastFullSyncRef.current >= 4000);
 
       // Broadcast every 80ms for ultra-smooth lightweight sync
-      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || !isPlaying) {
+      if (now - lastBroadcastRef.current >= 80 || isNewSong || isPitchChanged || isForcedSync || !isPlaying) {
         lastBroadcastRef.current = now;
         const activeProf = profiles.find((p) => p.id === activeProfileId);
         const nextQueueItem = queue[0];

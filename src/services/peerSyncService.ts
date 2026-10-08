@@ -800,7 +800,7 @@ class PeerSyncService {
   // Broadcast live TV state (lyrics, song, playback, visualizer, video bg) to Smart TV displays
   public broadcastTvState(state: any) {
     if (!this.isHost) return;
-    this.currentTvState = state;
+    this.currentTvState = { ...(this.currentTvState || {}), ...state };
 
     this.guestConnections.forEach((conn) => {
       if (conn.open) {

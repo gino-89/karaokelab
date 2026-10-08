@@ -63,8 +63,25 @@ class TvBroadcastService {
     if (this.channel) {
       this.channel.postMessage({ type: 'TV_STATE_UPDATE', payload: fullPayload });
     }
-    // Also save in localStorage for instant sync on window open
+    // Also save in localStorage for instant sync on window open, preserving lyrics and song metadata across ticks
     try {
+      if (fullPayload.isTick) {
+        const saved = this.getInitialState();
+        if (saved) {
+          const merged: TvStatePayload = {
+            ...saved,
+            currentTime: fullPayload.currentTime,
+            duration: fullPayload.duration || saved.duration,
+            isPlaying: fullPayload.isPlaying,
+            currentIndex: fullPayload.currentIndex !== undefined ? fullPayload.currentIndex : saved.currentIndex,
+            scoreModalState: fullPayload.scoreModalState !== undefined ? fullPayload.scoreModalState : saved.scoreModalState,
+            timestamp: fullPayload.timestamp,
+            isTick: true,
+          };
+          localStorage.setItem('karaokelab_tv_state', JSON.stringify(merged));
+          return;
+        }
+      }
       localStorage.setItem('karaokelab_tv_state', JSON.stringify(fullPayload));
     } catch (e) {
       // ignore
