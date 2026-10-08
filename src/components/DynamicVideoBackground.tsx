@@ -27,6 +27,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
   const [prevSongKey, setPrevSongKey] = useState(songKey);
   const [prevVideoId, setPrevVideoId] = useState(config.videoId);
   const [isVideoVisible, setIsVideoVisible] = useState(false);
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
   const videoDurationRef = useRef<number>(0);
   const lastSeekTimeRef = useRef<number>(Date.now());
   const prevTimeRef = useRef<number>(currentTime || 0);
@@ -97,6 +98,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
     setPrevSongKey(songKey);
     setPrevVideoId(config.videoId);
     setIsVideoVisible(false);
+    setHasPlaybackError(false);
   }
 
   // Cortina de transición suave durante cambio de canción
@@ -154,6 +156,20 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         if (typeof data === 'string') {
           try { data = JSON.parse(data); } catch (_) { return; }
         }
+        // Check for YouTube Embed playback errors (150: Author disabled embed, 101, 100, 2, 5)
+        const isYtError =
+          data?.event === 'onError' ||
+          (typeof data?.info === 'number' && [2, 5, 100, 101, 150].includes(data.info)) ||
+          data?.info?.errorCode !== undefined ||
+          data?.infoDelivery?.errorCode !== undefined;
+
+        if (isYtError) {
+          console.warn('[DynamicVideoBackground] YouTube video embed restriction detected, activating fallback stage visualizer:', data);
+          setHasPlaybackError(true);
+          setIsVideoVisible(false);
+          return;
+        }
+
         const dur = data?.info?.duration ?? data?.infoDelivery?.duration;
         if (typeof dur === 'number' && dur > 0) {
           videoDurationRef.current = dur;
@@ -309,13 +325,24 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         }`}
       />
 
+      {/* Fallback Cyber Ambient Stage Visualizer when YouTube video has embed restrictions */}
+      {hasPlaybackError && (
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
+          <div className="absolute inset-0 bg-gradient-to-tr from-indigo-950 via-slate-950 to-purple-950 opacity-90" />
+          <div className="absolute -top-[30%] -left-[20%] w-[140%] h-[140%] bg-[radial-gradient(ellipse_at_center,rgba(0,240,255,0.18)_0%,rgba(147,51,234,0.12)_40%,transparent_70%)] animate-pulse" />
+          <div className="absolute -bottom-[20%] -right-[20%] w-[120%] h-[120%] bg-[radial-gradient(ellipse_at_center,rgba(255,0,127,0.15)_0%,rgba(99,102,241,0.10)_45%,transparent_70%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.6)_100%)]" />
+        </div>
+      )}
+
       {/* Frame 16:9 con escala 1.35x para recortar barras, logos y controles de YouTube */}
-      <div
-        className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
-          isVideoVisible ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
-      >
+      {!hasPlaybackError && (
+        <div
+          className={`absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden pointer-events-none transition-opacity duration-1000 ${
+            isVideoVisible ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ pointerEvents: 'none', touchAction: 'none', transform: 'translateZ(0)', willChange: 'opacity' }}
+        >
         <iframe
           ref={iframeRef}
           key={`${config.videoId}_${songKey || 'default'}`}
@@ -376,6 +403,7 @@ export const DynamicVideoBackground: React.FC<DynamicVideoBackgroundProps> = ({
         {/* Escudo protector invisible contra toques de iPadOS (evita que aparezcan los botones gigantes centrales de Apple) */}
         <div className="absolute inset-0 pointer-events-auto z-10 select-none" style={{ touchAction: 'none' }} />
       </div>
+      )}
 
       {/* Capa de contraste oscuro */}
       <div

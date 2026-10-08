@@ -368,9 +368,15 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
     onTimeUpdateRef.current = onTimeUpdate;
   }, [onNextInQueue, onPlay, onPause, onTimeUpdate]);
 
+  const [ytPlaybackError, setYtPlaybackError] = useState(false);
+
+  useEffect(() => {
+    setYtPlaybackError(false);
+  }, [youTubeEmbedId]);
+
   // Synchronize Host isPlaying state directly to YouTube iframe
   useEffect(() => {
-    if (!youTubeEmbedId) return;
+    if (!youTubeEmbedId || ytPlaybackError) return;
     try {
       const win = ytIframeRef.current?.contentWindow;
       if (win) {
@@ -418,6 +424,19 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
           } catch (_) {
             return;
           }
+        }
+
+        // Detect YouTube Embed playback restrictions (150: Author disabled embed, 101, 100, 2, 5)
+        const isYtError =
+          data?.event === 'onError' ||
+          (typeof data?.info === 'number' && [2, 5, 100, 101, 150].includes(data.info)) ||
+          data?.info?.errorCode !== undefined ||
+          data?.infoDelivery?.errorCode !== undefined;
+
+        if (isYtError) {
+          console.warn('[KaraokeDisplay] YouTube video embed restriction detected, protecting stage with clean fallback:', data);
+          setYtPlaybackError(true);
+          return;
         }
 
         // Live currentTime & duration delivery from YouTube
@@ -1587,7 +1606,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               : 'px-6 py-5'
           }`}
         >
-          {youTubeEmbedId ? (
+          {youTubeEmbedId && !ytPlaybackError ? (
             <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center z-20 overflow-hidden">
               <iframe
                 id="karaokelab-yt-stage-iframe"

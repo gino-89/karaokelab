@@ -16,6 +16,7 @@ export const TvStandaloneDisplay: React.FC = () => {
   const [tvState, setTvState] = useState<TvStatePayload | null>(() => tvBroadcast.getInitialState());
   const [videoBgConfig, setVideoBgConfig] = useState<VideoBackgroundConfig>(() => loadVideoBackgroundConfig());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('reconnecting');
+  const [ytPlaybackError, setYtPlaybackError] = useState(false);
 
   // Read target host ID from URL (?tv=code or ?join=xxx or ?host=xxx)
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -151,6 +152,7 @@ export const TvStandaloneDisplay: React.FC = () => {
 
   // Listen for YouTube video end events on TV screen and notify host
   useEffect(() => {
+    setYtPlaybackError(false);
     if (!cleanYoutubeId) return;
 
     let hasNotified = false;
@@ -159,6 +161,19 @@ export const TvStandaloneDisplay: React.FC = () => {
         let data = event.data;
         if (typeof data === 'string') {
           try { data = JSON.parse(data); } catch (_) { return; }
+        }
+
+        // Detect YouTube Embed playback restrictions (150: Not allowed in embeds, 101, 100, 2, 5)
+        const isYtError =
+          data?.event === 'onError' ||
+          (typeof data?.info === 'number' && [2, 5, 100, 101, 150].includes(data.info)) ||
+          data?.info?.errorCode !== undefined ||
+          data?.infoDelivery?.errorCode !== undefined;
+
+        if (isYtError) {
+          console.warn('[TvStandaloneDisplay] YouTube video embed restriction detected, hiding iframe to protect stage:', data);
+          setYtPlaybackError(true);
+          return;
         }
 
         const state = data?.info?.playerState !== undefined
@@ -379,7 +394,7 @@ export const TvStandaloneDisplay: React.FC = () => {
       )}
 
       {/* 3. Fullscreen YouTube Cinema Video Player (When playing YouTube songs) */}
-      {!isStandby && cleanYoutubeId && (
+      {!isStandby && cleanYoutubeId && !ytPlaybackError && (
         <div className="absolute inset-0 w-full h-full z-25 bg-black flex items-center justify-center overflow-hidden select-none">
           <iframe
             ref={ytTvIframeRef}
