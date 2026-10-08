@@ -1888,16 +1888,6 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
 
                   <button
                     type="button"
-                    onClick={handleOpenFloatingStage}
-                    className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl sm:rounded-3xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/50 hover:border-cyan-300 text-cyan-300 text-xs sm:text-sm font-bold cursor-pointer shadow-xl backdrop-blur-2xl transition-all active:scale-95"
-                    title="Desacoplar en Ventana Flotante (Para 2da Pantalla o TV por HDMI)"
-                  >
-                    <ExternalLink className="w-4 h-4 text-cyan-400" />
-                    <span className="hidden sm:inline">Desacoplar</span>
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={handleToggleFullscreen}
                     className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/90 text-white text-xs sm:text-sm font-bold cursor-pointer shadow-2xl backdrop-blur-2xl transition-all active:scale-95 hover:border-amber-400/70"
                     title="Salir de Pantalla Completa (Esc)"
@@ -1909,7 +1899,7 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
               </div>
 
               {/* Bottom Floating Transport Bar */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-6 py-2.5 rounded-full bg-slate-950/90 border border-slate-700/90 shadow-[0_0_30px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in duration-200">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 sm:gap-4 px-5 sm:px-6 py-2.5 rounded-full bg-slate-950/90 border border-slate-700/90 shadow-[0_0_30px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in duration-200">
                 <button
                   type="button"
                   onClick={() => onSeek(0)}
@@ -1938,6 +1928,16 @@ export const KaraokeDisplay: React.FC<KaraokeDisplayProps> = ({
                     <SkipForward className="w-4 h-4" />
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleOpenFloatingStage}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border border-cyan-400/50 hover:border-cyan-300 text-xs font-bold cursor-pointer transition-all active:scale-90 shadow-md"
+                  title="Desacoplar en Ventana Flotante (Para 2da Pantalla o TV por HDMI)"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Desacoplar</span>
+                </button>
 
                 <button
                   type="button"
