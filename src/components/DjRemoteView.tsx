@@ -166,11 +166,19 @@ export const DjRemoteView: React.FC = () => {
   // Search & Catalog
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedCatalogProfileId, setSelectedCatalogProfileId] = useState<string | null>(null);
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(false);
   const [isSingersFilterOpen, setIsSingersFilterOpen] = useState<boolean>(false);
   const [isArtistsFilterOpen, setIsArtistsFilterOpen] = useState<boolean>(false);
+
+  const handleSearchFocus = useCallback(() => {
+    searchContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      searchContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+  }, []);
 
   // Modals & Overlays
   const [isGuestQrModalOpen, setIsGuestQrModalOpen] = useState(false);
@@ -1443,8 +1451,8 @@ export const DjRemoteView: React.FC = () => {
               </button>
             </div>
 
-            {/* Search Bar with Instant Clear & Keyboard Blur on Enter */}
-            <div className="relative w-full">
+            {/* Search Bar with Instant Clear, Sticky Pin & Auto-Scroll into view */}
+            <div ref={searchContainerRef} className="relative w-full sticky top-0 z-20 pt-1 pb-1 bg-[#06070e]/95 backdrop-blur-md">
               {catalogSource === 'youtube' ? (
                 <Youtube className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500 pointer-events-none" />
               ) : (
@@ -1454,6 +1462,7 @@ export const DjRemoteView: React.FC = () => {
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
+                onFocus={handleSearchFocus}
                 placeholder={
                   catalogSource === 'youtube'
                     ? 'Buscar pista o karaoke en YouTube...'
