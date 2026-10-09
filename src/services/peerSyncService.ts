@@ -23,31 +23,27 @@ export interface BlockedGuestDevice {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google STUN + OpenRelay TURN for 100% reliable cross-device WebRTC NAT traversal (Mac <-> Mobile, WiFi, 4G/5G, AP isolation)
+// Google STUN + Metered OpenRelay TURN / TURNS (TLS) for 100% reliable Cellular Data (4G/5G) & Cross-Network traversal
 const PEER_CONFIG = {
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:openrelay.metered.ca:80' },
       {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:openrelay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:80?transport=tcp',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp',
+          'turns:openrelay.metered.ca:443?transport=tcp',
+        ],
         username: 'openrelayproject',
         credential: 'openrelayproject',
       },
     ],
+    iceTransportPolicy: 'all' as RTCIceTransportPolicy,
   },
 };
 
