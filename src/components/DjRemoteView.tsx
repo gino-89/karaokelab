@@ -247,12 +247,29 @@ export const DjRemoteView: React.FC = () => {
     activeTab,
   ]);
 
+  const changeTab = useCallback((newTab: 'controls' | 'queue' | 'catalog' | 'chat') => {
+    if (newTab === activeTab) return;
+    try {
+      if (newTab === 'controls') {
+        window.history.replaceState({ djTab: 'controls', depth: 1 }, '');
+      } else {
+        if (activeTab === 'controls') {
+          window.history.pushState({ djTab: newTab, depth: 2 }, '');
+        } else {
+          window.history.replaceState({ djTab: newTab, depth: 2 }, '');
+        }
+      }
+    } catch (_) {}
+    setActiveTab(newTab);
+  }, [activeTab]);
+
   const lastBackPressTimeRef = useRef<number>(0);
   const isExitingRef = useRef<boolean>(false);
 
   useEffect(() => {
     try {
-      window.history.pushState({ djRemote: true }, '');
+      window.history.replaceState({ djTab: 'controls', depth: 0 }, '');
+      window.history.pushState({ djTab: 'controls', depth: 1 }, '');
     } catch (_) {}
 
     const handlePopState = () => {
@@ -272,19 +289,19 @@ export const DjRemoteView: React.FC = () => {
 
       // 1. Modales abiertos
       if (isGuestQrModalOpen) {
-        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        try { window.history.pushState({ djTab: activeTab, depth: activeTab === 'controls' ? 1 : 2 }, ''); } catch (_) {}
         setIsGuestQrModalOpen(false);
         return;
       }
       if (isRoomCodeModalOpen) {
-        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        try { window.history.pushState({ djTab: activeTab, depth: activeTab === 'controls' ? 1 : 2 }, ''); } catch (_) {}
         setIsRoomCodeModalOpen(false);
         return;
       }
 
       // 2. Búsqueda activa o con texto escrito
       if (isSearchActive || searchQuery.trim().length > 0) {
-        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        try { window.history.pushState({ djTab: activeTab, depth: activeTab === 'controls' ? 1 : 2 }, ''); } catch (_) {}
         setSearchQuery('');
         setIsSearchActive(false);
         searchInputRef.current?.blur();
@@ -293,7 +310,7 @@ export const DjRemoteView: React.FC = () => {
 
       // 3. Paneles desplegables de filtros
       if (isSingersFilterOpen || isArtistsFilterOpen) {
-        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        try { window.history.pushState({ djTab: activeTab, depth: activeTab === 'controls' ? 1 : 2 }, ''); } catch (_) {}
         setIsSingersFilterOpen(false);
         setIsArtistsFilterOpen(false);
         return;
@@ -301,7 +318,7 @@ export const DjRemoteView: React.FC = () => {
 
       // 4. Regresar a la pestaña principal "Mandos"
       if (activeTab !== 'controls') {
-        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        // El navegador ya hizo el pop del depth 2 a depth 1 (controls)
         setActiveTab('controls');
         return;
       }
@@ -312,8 +329,10 @@ export const DjRemoteView: React.FC = () => {
         isExitingRef.current = true;
         window.history.back();
       } else {
-        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
         lastBackPressTimeRef.current = now;
+        try {
+          window.history.pushState({ djTab: 'controls', depth: 1 }, '');
+        } catch (_) {}
         showToast('Presiona atrás otra vez para salir', 'cyan');
       }
     };
@@ -1473,7 +1492,7 @@ export const DjRemoteView: React.FC = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('catalog')}
+                  onClick={() => changeTab('catalog')}
                   className="mt-4 px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-xs font-bold active:scale-95 transition-all cursor-pointer"
                 >
                   Ir al Catálogo
@@ -2447,7 +2466,7 @@ export const DjRemoteView: React.FC = () => {
         {/* Tab 1: Mandos */}
         <button
           type="button"
-          onClick={() => setActiveTab('controls')}
+          onClick={() => changeTab('controls')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
             activeTab === 'controls'
               ? 'text-cyan-300 font-black'
@@ -2463,7 +2482,7 @@ export const DjRemoteView: React.FC = () => {
         {/* Tab 2: Cola */}
         <button
           type="button"
-          onClick={() => setActiveTab('queue')}
+          onClick={() => changeTab('queue')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
             activeTab === 'queue'
               ? 'text-cyan-300 font-black'
@@ -2484,7 +2503,7 @@ export const DjRemoteView: React.FC = () => {
         {/* Tab 3: Catálogo */}
         <button
           type="button"
-          onClick={() => setActiveTab('catalog')}
+          onClick={() => changeTab('catalog')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
             activeTab === 'catalog'
               ? 'text-cyan-300 font-black'
@@ -2500,7 +2519,7 @@ export const DjRemoteView: React.FC = () => {
         {/* Tab 4: Chat */}
         <button
           type="button"
-          onClick={() => setActiveTab('chat')}
+          onClick={() => changeTab('chat')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
             activeTab === 'chat'
               ? 'text-pink-300 font-black'
