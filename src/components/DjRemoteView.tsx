@@ -868,25 +868,40 @@ export const DjRemoteView: React.FC = () => {
             <span className="font-mono">QR</span>
           </button>
 
-          {/* 🔌 Reposo Button (30x30px square with subtle red border) */}
+          {/* 🔌 Reconectar / Sincronizar Button */}
           <button
             type="button"
-            onClick={handleToggleSleep}
-            className="w-[30px] h-[30px] rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/40 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.15)]"
-            title="Pausar conexión para ahorrar batería"
+            onClick={() => {
+              if (connectionStatus === 'connected') {
+                peerSync.reconnectDjRemote(true);
+                showToast('⚡ Sincronizando con la cabina...', 'cyan');
+              } else {
+                window.location.reload();
+              }
+            }}
+            className="w-[30px] h-[30px] rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-400/50 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-cyan-300 shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+            title="Reconectar o Sincronizar con el Web Player"
           >
-            <Power className="w-3.5 h-3.5 text-rose-400" />
+            <RefreshCw className={`w-3.5 h-3.5 text-cyan-300 ${connectionStatus === 'reconnecting' ? 'animate-spin' : ''}`} />
           </button>
 
-          {/* LED Pulsante */}
+          {/* LED Indicador de Conexión en Vivo */}
           <div className="flex items-center pl-0.5">
             <span
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                djState.isPlaying
+                connectionStatus === 'connected'
                   ? 'bg-[#00ff9d] shadow-[0_0_10px_#00ff9d] animate-pulse'
-                  : 'bg-slate-600'
+                  : connectionStatus === 'reconnecting'
+                  ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24] animate-ping'
+                  : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
               }`}
-              title={djState.isPlaying ? 'Música sonando' : 'Música en pausa'}
+              title={
+                connectionStatus === 'connected'
+                  ? '🟢 DJ Conectado a la Cabina'
+                  : connectionStatus === 'reconnecting'
+                  ? '🟡 Reconectando con la sala...'
+                  : '🔴 Desconectado'
+              }
             />
           </div>
         </div>
