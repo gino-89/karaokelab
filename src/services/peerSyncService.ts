@@ -23,7 +23,7 @@ export interface BlockedGuestDevice {
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
-// Google & Twilio public STUN servers for 100% reliable cross-device WebRTC NAT traversal (including iPadOS/iOS)
+// Google STUN + OpenRelay TURN for 100% reliable cross-device WebRTC NAT traversal (Mac <-> Mobile, WiFi, 4G/5G, AP isolation)
 const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -32,9 +32,22 @@ const PEER_CONFIG = {
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' },
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
     ],
-    iceCandidatePoolSize: 10,
   },
 };
 
@@ -1307,8 +1320,10 @@ class PeerSyncService {
     const handleConnected = () => {
       console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
       this.lastHeartbeatReceived = Date.now();
+      this.isDjConnecting = false;
       this._setConnectionStatus('connected');
 
+      // 1. Send DJ_JOIN immediately to request initial state sync
       try {
         conn.send({
           type: 'DJ_JOIN',
@@ -1316,7 +1331,16 @@ class PeerSyncService {
         });
       } catch (_) {}
 
-      // Heartbeat monitor for DJ with fast detection (7s threshold)
+      // 2. Secondary staggered sync request to guarantee delivery
+      setTimeout(() => {
+        if (conn.open) {
+          try {
+            conn.send({ type: 'DJ_JOIN', payload: { ts: Date.now() } });
+          } catch (_) {}
+        }
+      }, 350);
+
+      // Heartbeat monitor for DJ with 12s threshold (robust against mobile network fluctuations)
       if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
       this.guestHeartbeatMonitorTimer = setInterval(() => {
         if (!this.hostConnection || !this.hostConnection.open) {
@@ -1324,27 +1348,19 @@ class PeerSyncService {
           return;
         }
         const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-        if (timeSinceLastHeartbeat > 7000) {
+        if (timeSinceLastHeartbeat > 12000) {
           console.warn('DJ Remote heartbeat lost, updating connection status to disconnected');
           this._setConnectionStatus('disconnected');
         } else {
           this._setConnectionStatus('connected');
         }
-      }, 2000);
+      }, 3000);
     };
 
     if (conn.open) {
       handleConnected();
     } else {
-      let connectTimeout: any = setTimeout(() => {
-        if (!this.hostConnection || !this.hostConnection.open) {
-          console.warn('DJ Remote connect timeout to host:', targetHostId);
-          this._setConnectionStatus('disconnected');
-        }
-      }, 4500);
-
       conn.on('open', () => {
-        if (connectTimeout) clearTimeout(connectTimeout);
         handleConnected();
       });
     }
@@ -1435,14 +1451,14 @@ class PeerSyncService {
     this._setConnectionStatus('reconnecting');
 
     const cleanBase = targetHostId.replace(/_[0-9]+$/, '');
-    const candidateHostIds = [
-      cleanBase,
-      `${cleanBase}_1`,
-      `${cleanBase}_2`,
-      `${cleanBase}_3`,
-      `${cleanBase}_4`,
-      `${cleanBase}_5`,
-    ];
+    const candidateHostIds = Array.from(
+      new Set([
+        targetHostId,
+        cleanBase,
+        `${cleanBase}_1`,
+        `${cleanBase}_2`,
+      ])
+    );
 
     try {
       const p = new Peer(PEER_CONFIG);
@@ -1455,7 +1471,9 @@ class PeerSyncService {
         let hasConnected = false;
         const candidateConns: DataConnection[] = [];
 
+        // Progressive sequential candidate scan: target first (0ms), then fallback slots every 1800ms
         candidateHostIds.forEach((hId, index) => {
+          const delay = index === 0 ? 0 : 1800 + (index - 1) * 1200;
           setTimeout(() => {
             if (this.peer !== p || hasConnected) return;
 
@@ -1486,16 +1504,16 @@ class PeerSyncService {
                 // Silently ignore slot errors while candidate scanning
               });
             } catch (_) {}
-          }, index * 30);
+          }, delay);
         });
 
-        // Watchdog timeout if none of candidate slots open within 4.5s
+        // Watchdog timeout (12s) to allow cellular STUN/TURN traversal
         setTimeout(() => {
           if (this.peer === p && !hasConnected && (!this.hostConnection || !this.hostConnection.open)) {
             this.isDjConnecting = false;
             this._setConnectionStatus('disconnected');
           }
-        }, 4500);
+        }, 12000);
       });
 
       p.on('disconnected', () => {

@@ -363,8 +363,8 @@ export const DjRemoteView: React.FC = () => {
     if (!effectiveHost) {
       // Fallback: search localStorage for previous successful DJ room connection
       try {
-        const saved = localStorage.getItem('karaokelab_dj_target_host') || localStorage.getItem('karaokelab_p2p_host_id');
-        if (saved) effectiveHost = saved;
+        const saved = localStorage.getItem('karaokelab_dj_target_host');
+        if (saved && saved !== 'klab_host_default') effectiveHost = saved;
       } catch (_) {}
     }
 
@@ -918,26 +918,42 @@ export const DjRemoteView: React.FC = () => {
       {connectionStatus !== 'connected' && !isSleepMode && (
         <div
           onClick={() => {
-            window.location.reload();
+            setTempRoomCodeInput(roomCode === 'DEFAULT' ? '' : roomCode || '');
+            setIsRoomCodeModalOpen(true);
           }}
           className="w-full bg-gradient-to-r from-cyan-950 via-indigo-950 to-pink-950 border-b border-cyan-500/30 px-3.5 py-2 flex items-center justify-between z-40 text-xs font-bold text-white shadow-md cursor-pointer transition-all active:scale-[0.99]"
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full bg-pink-400 animate-ping shrink-0" />
             <span className="text-[11px] truncate text-slate-200 font-semibold">
-              {connectionStatus === 'reconnecting' ? 'Reconectando con la cabina...' : 'Conexión en espera · Toca para reconectar'}
+              {connectionStatus === 'reconnecting'
+                ? `Conectando a Sala ${roomCode || '...'}...`
+                : `Sala ${roomCode || '—'} · Toca para reconectar`}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.location.reload();
-            }}
-            className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-500/40 to-pink-500/40 hover:from-cyan-500/60 hover:to-pink-500/60 border border-cyan-400/60 text-[10px] font-mono text-cyan-200 font-black shrink-0 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.3)]"
-          >
-            Reconectar ⚡
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setTempRoomCodeInput(roomCode === 'DEFAULT' ? '' : roomCode || '');
+                setIsRoomCodeModalOpen(true);
+              }}
+              className="px-2 py-1 rounded-lg bg-pink-500/25 hover:bg-pink-500/40 border border-pink-400/50 text-[10px] font-mono text-pink-200 font-bold active:scale-95 cursor-pointer"
+            >
+              Cambiar Sala ✏️
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.reload();
+              }}
+              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-500/40 to-pink-500/40 hover:from-cyan-500/60 hover:to-pink-500/60 border border-cyan-400/60 text-[10px] font-mono text-cyan-200 font-black shrink-0 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.3)]"
+            >
+              Reconectar ⚡
+            </button>
+          </div>
         </div>
       )}
 
