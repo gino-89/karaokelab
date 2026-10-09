@@ -1035,6 +1035,62 @@ export default function App() {
                   }
                 }
                 break;
+              case 'addYouTubeToQueue':
+                if (payload?.id && payload?.title) {
+                  const ytSong: SongItem = {
+                    id: `yt_${payload.id}`,
+                    title: payload.title,
+                    artist: payload.channel || payload.artist || 'YouTube',
+                    duration: typeof payload.duration === 'number' ? payload.duration : 240,
+                    bpm: 120,
+                    key: 'C',
+                    lyrics: [],
+                    originalFileName: `${payload.title}.mp4`,
+                    videoBgId: payload.id,
+                    videoBgMode: 'custom',
+                    videoBgCustomUrl: `https://www.youtube.com/watch?v=${payload.id}`,
+                    createdAt: Date.now(),
+                  };
+                  setQueue((prev) => {
+                    if (prev.some((q) => q.songData?.id === ytSong.id || q.id === ytSong.id)) {
+                      return prev;
+                    }
+                    const newItem: QueueItem = {
+                      id: `queue_dj_yt_${payload.id}_${Date.now()}`,
+                      fileName: `🎬 [YouTube] ${payload.title}`,
+                      status: 'ready',
+                      progress: 100,
+                      requestedBy: payload.requestedBy || 'DJ',
+                      tableNumber: payload.tableNumber || '',
+                      isYouTube: true,
+                      youTubeEmbedId: payload.id,
+                      songData: ytSong,
+                    };
+                    return [...prev, newItem];
+                  });
+                  showAlertToast(`🎧 DJ encoló video de YouTube: "${payload.title}"`);
+                }
+                break;
+              case 'playYouTubeNow':
+                if (payload?.id && payload?.title) {
+                  const ytSong: SongItem = {
+                    id: `yt_${payload.id}`,
+                    title: payload.title,
+                    artist: payload.channel || payload.artist || 'YouTube',
+                    duration: typeof payload.duration === 'number' ? payload.duration : 240,
+                    bpm: 120,
+                    key: 'C',
+                    lyrics: [],
+                    originalFileName: `${payload.title}.mp4`,
+                    videoBgId: payload.id,
+                    videoBgMode: 'custom',
+                    videoBgCustomUrl: `https://www.youtube.com/watch?v=${payload.id}`,
+                    createdAt: Date.now(),
+                  };
+                  loadSongIntoEngine(ytSong, true);
+                  showAlertToast(`🎧 DJ reproduciendo YouTube: "${payload.title}"`);
+                }
+                break;
               case 'approveRequest':
                 if (payload.id) {
                   setCustomerRequests((prev) => {

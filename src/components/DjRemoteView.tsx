@@ -34,11 +34,14 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
+  Youtube,
+  Loader2,
 } from 'lucide-react';
 import { peerSync, ConnectionStatus } from '../services/peerSyncService';
 import { SongItem, SingerProfile, ChatMessage } from '../types';
 import { transposeKey } from '../services/dspAnalysis';
 import { searchMatches } from '../utils/textUtils';
+import { searchYouTubeVideos, YouTubeSearchResult } from '../services/youtubeApi';
 
 interface DjRemoteState {
   isPlaying: boolean;
@@ -189,6 +192,37 @@ export const DjRemoteView: React.FC = () => {
       setToastMessage((prev) => (prev?.text === text ? null : prev));
     }, 2200);
   }, []);
+
+  // YouTube Search within Catalog
+  const [catalogSource, setCatalogSource] = useState<'library' | 'youtube'>('library');
+  const [ytResults, setYtResults] = useState<YouTubeSearchResult[]>([]);
+  const [isYtSearching, setIsYtSearching] = useState(false);
+  const [ytHasSearched, setYtHasSearched] = useState(false);
+
+  const handleYouTubeSearch = useCallback(async (queryToSearch?: string) => {
+    const q = (queryToSearch !== undefined ? queryToSearch : searchQuery).trim();
+    if (!q) return;
+    setIsYtSearching(true);
+    setYtHasSearched(true);
+    try {
+      const results = await searchYouTubeVideos(q);
+      setYtResults(results || []);
+    } catch (err) {
+      console.error('[DjRemote] Error searching YouTube:', err);
+      showToast('Error al conectar con YouTube', 'pink');
+    } finally {
+      setIsYtSearching(false);
+    }
+  }, [searchQuery, showToast]);
+
+  const isYtInQueue = useCallback((vidId: string, title: string) => {
+    return (djState.queue || []).some(
+      (q) =>
+        q.id.includes(vidId) ||
+        (q.songId && q.songId.includes(vidId)) ||
+        (q.title && q.title.toLowerCase() === title.toLowerCase())
+    );
+  }, [djState.queue]);
 
   // Dynamic PWA Manifest & App Identity for DJ Remote mode
   useEffect(() => {
@@ -1377,37 +1411,99 @@ export const DjRemoteView: React.FC = () => {
         {activeTab === 'catalog' && (
           <div className="flex flex-col space-y-3 animate-in fade-in duration-200">
             
+            {/* Compact Source Selector: Biblioteca Local vs YouTube */}
+            <div className="flex items-center gap-1.5 p-1 bg-[#090b14] border border-white/10 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setCatalogSource('library')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
+                  catalogSource === 'library'
+                    ? 'bg-cyan-500/20 border border-cyan-400/70 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.25)]'
+                    : 'text-slate-400 hover:text-white border border-transparent'
+                }`}
+              >
+                <Disc className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Biblioteca ({djState.catalog?.length || 0})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCatalogSource('youtube');
+                  if (searchQuery.trim() && ytResults.length === 0) {
+                    handleYouTubeSearch(searchQuery);
+                  }
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
+                  catalogSource === 'youtube'
+                    ? 'bg-red-500/20 border border-red-500/70 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.25)]'
+                    : 'text-slate-400 hover:text-white border border-transparent'
+                }`}
+              >
+                <Youtube className="w-3.5 h-3.5 text-red-500" />
+                <span>YouTube</span>
+              </button>
+            </div>
+
             {/* Search Bar with Instant Clear & Keyboard Blur on Enter */}
             <div className="relative w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none" />
+              {catalogSource === 'youtube' ? (
+                <Youtube className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500 pointer-events-none" />
+              ) : (
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none" />
+              )}
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                placeholder="Buscar por título, artista o género..."
+                placeholder={
+                  catalogSource === 'youtube'
+                    ? 'Buscar pista o karaoke en YouTube...'
+                    : 'Buscar por título, artista o género...'
+                }
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     searchInputRef.current?.blur();
+                    if (catalogSource === 'youtube') {
+                      handleYouTubeSearch();
+                    }
                   }
                 }}
-                className="w-full bg-[#0c0e1a] border border-cyan-500/40 focus:border-cyan-300 rounded-2xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 outline-none shadow-[0_0_15px_rgba(0,240,255,0.08)] transition-all font-medium"
+                className={`w-full bg-[#0c0e1a] rounded-2xl pl-10 text-xs text-white placeholder-slate-500 outline-none transition-all font-medium py-2.5 ${
+                  catalogSource === 'youtube'
+                    ? 'pr-20 border border-red-500/40 focus:border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.12)]'
+                    : 'pr-10 border border-cyan-500/40 focus:border-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.08)]'
+                }`}
               />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    searchInputRef.current?.focus();
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      searchInputRef.current?.focus();
+                    }}
+                    className="p-1 text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {catalogSource === 'youtube' && (
+                  <button
+                    type="button"
+                    onClick={() => handleYouTubeSearch()}
+                    disabled={isYtSearching || !searchQuery.trim()}
+                    className="px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-500 text-white text-[10.5px] font-bold shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-40 flex items-center gap-1"
+                  >
+                    {isYtSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Buscar'}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Top Collapsible Filter Toggles Bar */}
+            {catalogSource === 'library' ? (
+              <>
+                {/* Top Collapsible Filter Toggles Bar */}
             <div className="flex items-center gap-2">
               {/* Botón Desplegable: Cantantes & Favoritos */}
               <button
@@ -1671,6 +1767,19 @@ export const DjRemoteView: React.FC = () => {
                     ? `El cantante ${activeCatalogProfile.name} no tiene canciones marcadas como favoritas.`
                     : 'Intenta con otro término o restablece los filtros.'}
                 </p>
+                {searchQuery.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCatalogSource('youtube');
+                      handleYouTubeSearch(searchQuery);
+                    }}
+                    className="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-300 text-xs font-bold transition-all shadow-[0_0_12px_rgba(239,68,68,0.25)] active:scale-95 cursor-pointer"
+                  >
+                    <Youtube className="w-3.5 h-3.5 text-red-400" />
+                    <span>Buscar "{searchQuery}" en YouTube</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex flex-col space-y-2">
@@ -1767,8 +1876,130 @@ export const DjRemoteView: React.FC = () => {
                 })}
               </div>
             )}
+          </>
+        ) : (
+          /* ── SECCIÓN DE RESULTADOS DE YOUTUBE ── */
+          <div className="flex flex-col space-y-2.5 animate-in fade-in duration-150">
+            {isYtSearching ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2.5 text-slate-400 bg-[#0c0e1a] rounded-2xl border border-white/5">
+                <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
+                <span className="text-xs font-semibold text-slate-300">Buscando pistas en YouTube...</span>
+              </div>
+            ) : ytResults.length > 0 ? (
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                    <Youtube className="w-3.5 h-3.5 text-red-500" />
+                    Resultados de YouTube ({ytResults.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setYtResults([])}
+                    className="text-[10px] text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {ytResults.map((item) => {
+                    const inQueue = isYtInQueue(item.id, item.title);
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2.5 p-2 rounded-2xl bg-[#0c0e1a] border border-white/10 hover:border-red-500/40 transition-all shadow-md group"
+                      >
+                        {/* Compact HD Thumbnail */}
+                        <div className="relative w-20 h-13 rounded-xl overflow-hidden shrink-0 bg-black/60 border border-white/10">
+                          <img
+                            src={item.thumbnail}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            onError={(e) => {
+                              (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80';
+                            }}
+                          />
+                          <span className="absolute bottom-0.5 right-0.5 text-[8px] font-mono px-1 py-0.2 rounded bg-black/90 text-white font-bold border border-white/10">
+                            {item.duration}
+                          </span>
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <h4 className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-red-300 transition-colors">
+                            {item.title}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            {item.channel}
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Play Now */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sendAction('playYouTubeNow', {
+                                id: item.id,
+                                title: item.title,
+                                channel: item.channel,
+                                duration: 240,
+                              });
+                              showToast(`▶ Tocando "${item.title.slice(0, 20)}..."`, 'emerald');
+                            }}
+                            className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 active:scale-90 transition-all cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                            title="Tocar ahora en el reproductor"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                          </button>
+
+                          {/* Add to Queue */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sendAction('addYouTubeToQueue', {
+                                id: item.id,
+                                title: item.title,
+                                channel: item.channel,
+                                duration: 240,
+                                requestedBy: 'DJ',
+                              });
+                              showToast(`＋ Encolado "${item.title.slice(0, 20)}..."`, 'cyan');
+                            }}
+                            disabled={inQueue}
+                            className={`p-2 rounded-xl border active:scale-90 transition-all cursor-pointer ${
+                              inQueue
+                                ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-default'
+                                : 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                            }`}
+                            title={inQueue ? 'Ya está en la cola' : 'Agregar a la cola'}
+                          >
+                            {inQueue ? <Check className="w-3.5 h-3.5 text-slate-500" /> : <Plus className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : ytHasSearched ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400 bg-[#0c0e1a] rounded-2xl border border-white/5 text-center px-4">
+                <Youtube className="w-8 h-8 text-slate-600" />
+                <p className="text-xs font-semibold text-slate-300">No se encontraron videos para "{searchQuery}"</p>
+                <span className="text-[11px] text-slate-500">Prueba con otro título o nombre de artista</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400 bg-[#0c0e1a] rounded-2xl border border-white/5 text-center px-4">
+                <Youtube className="w-8 h-8 text-red-500/60" />
+                <p className="text-xs font-semibold text-slate-300">Buscador de Karaoke en YouTube</p>
+                <span className="text-[11px] text-slate-500">Escribe el nombre de la canción y presiona Buscar</span>
+              </div>
+            )}
           </div>
         )}
+      </div>
+    )}
 
         {/* ═════════════════════════════════════════════════════════ */}
         {/* PESTAÑA 4: CHAT INDIVIDUAL POR PERSONA / MESA (WHATSAPP)  */}
