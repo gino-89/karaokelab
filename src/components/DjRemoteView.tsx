@@ -178,19 +178,14 @@ export const DjRemoteView: React.FC = () => {
   const handleSearchFocus = useCallback(() => {
     setIsSearchActive(true);
     const doScroll = () => {
-      if (searchContainerRef.current) {
-        if (mainContentRef.current) {
-          const topOffset = searchContainerRef.current.offsetTop;
-          mainContentRef.current.scrollTo({ top: Math.max(0, topOffset - 8), behavior: 'smooth' });
-        } else {
-          searchContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+      if (mainContentRef.current) {
+        mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
     doScroll();
-    setTimeout(doScroll, 80);
-    setTimeout(doScroll, 200);
-    setTimeout(doScroll, 350);
+    setTimeout(doScroll, 40);
+    setTimeout(doScroll, 120);
+    setTimeout(doScroll, 250);
   }, []);
 
   // Modals & Overlays
@@ -1433,42 +1428,9 @@ export const DjRemoteView: React.FC = () => {
         {/* PESTAÑA 3: CATÁLOGO / BÚSQUEDA                             */}
         {/* ═════════════════════════════════════════════════════════ */}
         {activeTab === 'catalog' && (
-          <div className="flex flex-col space-y-3 animate-in fade-in duration-200">
+          <div className="flex flex-col space-y-2.5 animate-in fade-in duration-200">
             
-            {/* Compact Source Selector: Biblioteca Local vs YouTube */}
-            <div className="flex items-center gap-1.5 p-1 bg-[#090b14] border border-white/10 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setCatalogSource('library')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
-                  catalogSource === 'library'
-                    ? 'bg-cyan-500/20 border border-cyan-400/70 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.25)]'
-                    : 'text-slate-400 hover:text-white border border-transparent'
-                }`}
-              >
-                <Disc className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Biblioteca ({djState.catalog?.length || 0})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCatalogSource('youtube');
-                  if (searchQuery.trim() && ytResults.length === 0) {
-                    handleYouTubeSearch(searchQuery);
-                  }
-                }}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
-                  catalogSource === 'youtube'
-                    ? 'bg-red-500/20 border border-red-500/70 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.25)]'
-                    : 'text-slate-400 hover:text-white border border-transparent'
-                }`}
-              >
-                <Youtube className="w-3.5 h-3.5 text-red-500" />
-                <span>YouTube</span>
-              </button>
-            </div>
-
-            {/* Search Bar with Instant Clear & Auto-Scroll into view */}
+            {/* Search Bar with Instant Clear - Always first in catalog tab */}
             <div ref={searchContainerRef} className="relative w-full">
               {catalogSource === 'youtube' ? (
                 <Youtube className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500 pointer-events-none" />
@@ -1540,239 +1502,281 @@ export const DjRemoteView: React.FC = () => {
               </div>
             </div>
 
-            {catalogSource === 'library' ? (
-              <>
-                {/* Top Collapsible Filter Toggles Bar */}
-            <div className="flex items-center gap-2">
-              {/* Botón Desplegable: Cantantes & Favoritos */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSingersFilterOpen((prev) => !prev);
-                  if (!isSingersFilterOpen) setIsArtistsFilterOpen(false);
-                }}
-                className={`flex-1 py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-between active:scale-95 cursor-pointer ${
-                  selectedCatalogProfileId || showOnlyFavorites
-                    ? 'bg-pink-500/20 border-pink-400/80 text-pink-200 shadow-[0_0_10px_rgba(255,0,127,0.25)]'
-                    : isSingersFilterOpen
-                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                    : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <User className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                  <span className="truncate">
-                    {activeCatalogProfile
-                      ? `${activeCatalogProfile.avatar || '👤'} ${activeCatalogProfile.name}`
-                      : showOnlyFavorites
-                      ? '⭐ Favoritos'
-                      : 'Cantantes & Favs'}
-                  </span>
-                </div>
-                {isSingersFilterOpen ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
-                )}
-              </button>
-
-              {/* Botón Desplegable: Artistas */}
-              {uniqueArtists.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsArtistsFilterOpen((prev) => !prev);
-                    if (!isArtistsFilterOpen) setIsSingersFilterOpen(false);
-                  }}
-                  className={`flex-1 py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-between active:scale-95 cursor-pointer ${
-                    selectedArtist
-                      ? 'bg-cyan-500/20 border-cyan-400/80 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.25)]'
-                      : isArtistsFilterOpen
-                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                      : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Music className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span className="truncate">
-                      {selectedArtist ? selectedArtist : `Artistas (${uniqueArtists.length})`}
-                    </span>
-                  </div>
-                  {isArtistsFilterOpen ? (
-                    <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
-                  )}
-                </button>
-              )}
-
-              {/* Reset Filters Icon Button if any filter is active */}
-              {(selectedCatalogProfileId || showOnlyFavorites || selectedArtist) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCatalogProfileId(null);
-                    setShowOnlyFavorites(false);
-                    setSelectedArtist(null);
-                  }}
-                  className="p-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/50 text-rose-300 active:scale-95 transition-all shrink-0 cursor-pointer"
-                  title="Restablecer filtros"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Panel Desplegable 1: Cantantes & Favoritos */}
-            {isSingersFilterOpen && (
-              <div className="p-2.5 rounded-2xl bg-[#0a0c16] border border-pink-500/30 shadow-[0_0_15px_rgba(255,0,127,0.08)] flex flex-col space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-                  <span className="font-bold text-pink-300 uppercase tracking-wider flex items-center gap-1">
-                    <span>Biblioteca de Cantantes</span>
-                  </span>
-                  {(selectedCatalogProfileId || showOnlyFavorites) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedCatalogProfileId(null);
-                        setShowOnlyFavorites(false);
-                      }}
-                      className="text-pink-400 font-bold hover:underline"
-                    >
-                      Todos ✕
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
-                  {/* Chip: Todos */}
+            {/* Opciones de Catálogo (Biblioteca vs YouTube y Filtros) - Se ocultan al buscar */}
+            {!(isSearchActive || searchQuery.trim().length > 0) && (
+              <div className="flex flex-col space-y-2.5 animate-in fade-in duration-150">
+                {/* Compact Source Selector: Biblioteca Local vs YouTube */}
+                <div className="flex items-center gap-1.5 p-1 bg-[#090b14] border border-white/10 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setCatalogSource('library')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
+                      catalogSource === 'library'
+                        ? 'bg-cyan-500/20 border border-cyan-400/70 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.25)]'
+                        : 'text-slate-400 hover:text-white border border-transparent'
+                    }`}
+                  >
+                    <Disc className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Biblioteca ({djState.catalog?.length || 0})</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedCatalogProfileId(null);
-                      setShowOnlyFavorites(false);
+                      setCatalogSource('youtube');
+                      if (searchQuery.trim() && ytResults.length === 0) {
+                        handleYouTubeSearch(searchQuery);
+                      }
                     }}
-                    className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
-                      !selectedCatalogProfileId && !showOnlyFavorites
-                        ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_10px_rgba(255,0,127,0.3)]'
-                        : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
+                      catalogSource === 'youtube'
+                        ? 'bg-red-500/20 border border-red-500/70 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.25)]'
+                        : 'text-slate-400 hover:text-white border border-transparent'
                     }`}
                   >
-                    <span>Todos</span>
+                    <Youtube className="w-3.5 h-3.5 text-red-500" />
+                    <span>YouTube</span>
                   </button>
+                </div>
 
-                  {/* Chip: ⭐ Todos los Favoritos */}
-                  {(() => {
-                    const totalFavs = (djState.profiles || []).reduce(
-                      (acc, p) => acc + (p.favoriteSongIds?.length || 0),
-                      0
-                    );
-                    if (totalFavs === 0) return null;
-                    return (
+                {catalogSource === 'library' && (
+                  <>
+                    {/* Top Collapsible Filter Toggles Bar */}
+                    <div className="flex items-center gap-2">
+                      {/* Botón Desplegable: Cantantes & Favoritos */}
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedCatalogProfileId(null);
-                          setShowOnlyFavorites((prev) => !prev);
+                          setIsSingersFilterOpen((prev) => !prev);
+                          if (!isSingersFilterOpen) setIsArtistsFilterOpen(false);
                         }}
-                        className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
-                          showOnlyFavorites && !selectedCatalogProfileId
-                            ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
-                            : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-amber-300'
-                        }`}
-                      >
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span>Favoritos ({totalFavs})</span>
-                      </button>
-                    );
-                  })()}
-
-                  {/* Chips de Perfiles */}
-                  {(djState.profiles || []).map((prof) => {
-                    const isSelected = selectedCatalogProfileId === prof.id;
-                    const favCount = prof.favoriteSongIds?.length || 0;
-                    return (
-                      <button
-                        key={prof.id}
-                        type="button"
-                        onClick={() => {
-                          setShowOnlyFavorites(false);
-                          setSelectedCatalogProfileId((curr) => (curr === prof.id ? null : prof.id));
-                        }}
-                        className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
-                          isSelected
-                            ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_14px_rgba(255,0,127,0.35)]'
+                        className={`flex-1 py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-between active:scale-95 cursor-pointer ${
+                          selectedCatalogProfileId || showOnlyFavorites
+                            ? 'bg-pink-500/20 border-pink-400/80 text-pink-200 shadow-[0_0_10px_rgba(255,0,127,0.25)]'
+                            : isSingersFilterOpen
+                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
                             : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
                         }`}
                       >
-                        <span className="text-xs">{prof.avatar || '🎤'}</span>
-                        <span className="truncate max-w-[95px]">{prof.name}</span>
-                        {favCount > 0 && (
-                          <span className="px-1.5 py-0.2 rounded-md bg-pink-500/30 text-pink-300 text-[9px] font-mono">
-                            ★ {favCount}
+                        <div className="flex items-center gap-1.5 truncate">
+                          <User className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                          <span className="truncate">
+                            {activeCatalogProfile
+                              ? `${activeCatalogProfile.avatar || '👤'} ${activeCatalogProfile.name}`
+                              : showOnlyFavorites
+                              ? '⭐ Favoritos'
+                              : 'Cantantes & Favs'}
                           </span>
+                        </div>
+                        {isSingersFilterOpen ? (
+                          <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                         )}
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
-            {/* Panel Desplegable 2: Artistas */}
-            {isArtistsFilterOpen && uniqueArtists.length > 0 && (
-              <div className="p-2.5 rounded-2xl bg-[#0a0c16] border border-cyan-500/30 shadow-[0_0_15px_rgba(0,240,255,0.08)] flex flex-col space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-                  <span className="font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1">
-                    <span>Artistas ({uniqueArtists.length})</span>
-                  </span>
-                  {selectedArtist && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedArtist(null)}
-                      className="text-cyan-400 font-bold hover:underline"
-                    >
-                      Ver todos ✕
-                    </button>
-                  )}
-                </div>
+                      {/* Botón Desplegable: Artistas */}
+                      {uniqueArtists.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsArtistsFilterOpen((prev) => !prev);
+                            if (!isArtistsFilterOpen) setIsSingersFilterOpen(false);
+                          }}
+                          className={`flex-1 py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-between active:scale-95 cursor-pointer ${
+                            selectedArtist
+                              ? 'bg-cyan-500/20 border-cyan-400/80 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.25)]'
+                              : isArtistsFilterOpen
+                              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                              : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Music className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                            <span className="truncate">
+                              {selectedArtist ? selectedArtist : `Artistas (${uniqueArtists.length})`}
+                            </span>
+                          </div>
+                          {isArtistsFilterOpen ? (
+                            <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                          )}
+                        </button>
+                      )}
 
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedArtist(null)}
-                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 transition-all active:scale-95 cursor-pointer ${
-                      !selectedArtist
-                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
-                        : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  {uniqueArtists.slice(0, 30).map(({ artist, count }) => {
-                    const isSelected = selectedArtist === artist;
-                    return (
-                      <button
-                        key={artist}
-                        type="button"
-                        onClick={() => setSelectedArtist((curr) => (curr === artist ? null : artist))}
-                        className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1 cursor-pointer ${
-                          isSelected
-                            ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
-                            : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <span className="truncate max-w-[110px]">{artist}</span>
-                        <span className="text-[9px] text-slate-500 font-mono">({count})</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                      {/* Reset Filters Icon Button if any filter is active */}
+                      {(selectedCatalogProfileId || showOnlyFavorites || selectedArtist) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCatalogProfileId(null);
+                            setShowOnlyFavorites(false);
+                            setSelectedArtist(null);
+                          }}
+                          className="p-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/50 text-rose-300 active:scale-95 transition-all shrink-0 cursor-pointer"
+                          title="Restablecer filtros"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Panel Desplegable 1: Cantantes & Favoritos */}
+                    {isSingersFilterOpen && (
+                      <div className="p-2.5 rounded-2xl bg-[#0a0c16] border border-pink-500/30 shadow-[0_0_15px_rgba(255,0,127,0.08)] flex flex-col space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <span className="font-bold text-pink-300 uppercase tracking-wider flex items-center gap-1">
+                            <span>Biblioteca de Cantantes</span>
+                          </span>
+                          {(selectedCatalogProfileId || showOnlyFavorites) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCatalogProfileId(null);
+                                setShowOnlyFavorites(false);
+                              }}
+                              className="text-pink-400 font-bold hover:underline"
+                            >
+                              Todos ✕
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                          {/* Chip: Todos */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCatalogProfileId(null);
+                              setShowOnlyFavorites(false);
+                            }}
+                            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                              !selectedCatalogProfileId && !showOnlyFavorites
+                                ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_10px_rgba(255,0,127,0.3)]'
+                                : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <span>Todos</span>
+                          </button>
+
+                          {/* Chip: ⭐ Todos los Favoritos */}
+                          {(() => {
+                            const totalFavs = (djState.profiles || []).reduce(
+                              (acc, p) => acc + (p.favoriteSongIds?.length || 0),
+                              0
+                            );
+                            if (totalFavs === 0) return null;
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCatalogProfileId(null);
+                                  setShowOnlyFavorites((prev) => !prev);
+                                }}
+                                className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                                  showOnlyFavorites && !selectedCatalogProfileId
+                                    ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
+                                    : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-amber-300'
+                                }`}
+                              >
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span>Favoritos ({totalFavs})</span>
+                              </button>
+                            );
+                          })()}
+
+                          {/* Chips de Perfiles */}
+                          {(djState.profiles || []).map((prof) => {
+                            const isSelected = selectedCatalogProfileId === prof.id;
+                            const favCount = prof.favoriteSongIds?.length || 0;
+                            return (
+                              <button
+                                key={prof.id}
+                                type="button"
+                                onClick={() => {
+                                  setShowOnlyFavorites(false);
+                                  setSelectedCatalogProfileId((curr) => (curr === prof.id ? null : prof.id));
+                                }}
+                                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-pink-500/25 border-pink-400 text-pink-200 shadow-[0_0_14px_rgba(255,0,127,0.35)]'
+                                    : 'bg-[#0c0e1a] border-white/10 text-slate-300 hover:text-white'
+                                }`}
+                              >
+                                <span className="text-xs">{prof.avatar || '🎤'}</span>
+                                <span className="truncate max-w-[95px]">{prof.name}</span>
+                                {favCount > 0 && (
+                                  <span className="px-1.5 py-0.2 rounded-md bg-pink-500/30 text-pink-300 text-[9px] font-mono">
+                                    ★ {favCount}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Panel Desplegable 2: Artistas */}
+                    {isArtistsFilterOpen && uniqueArtists.length > 0 && (
+                      <div className="p-2.5 rounded-2xl bg-[#0a0c16] border border-cyan-500/30 shadow-[0_0_15px_rgba(0,240,255,0.08)] flex flex-col space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <span className="font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1">
+                            <span>Artistas ({uniqueArtists.length})</span>
+                          </span>
+                          {selectedArtist && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedArtist(null)}
+                              className="text-cyan-400 font-bold hover:underline"
+                            >
+                              Ver todos ✕
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedArtist(null)}
+                            className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 transition-all active:scale-95 cursor-pointer ${
+                              !selectedArtist
+                                ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                                : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Todos
+                          </button>
+                          {uniqueArtists.slice(0, 30).map(({ artist, count }) => {
+                            const isSelected = selectedArtist === artist;
+                            return (
+                              <button
+                                key={artist}
+                                type="button"
+                                onClick={() => setSelectedArtist((curr) => (curr === artist ? null : artist))}
+                                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 transition-all active:scale-95 flex items-center gap-1 cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                                    : 'bg-[#0c0e1a] border-white/10 text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                <span className="truncate max-w-[110px]">{artist}</span>
+                                <span className="text-[9px] text-slate-500 font-mono">({count})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
             {/* Results Count & Active Filter Indicator */}
-            <div className="flex justify-between items-center px-1 text-[10.5px] font-mono text-slate-400">
+            {catalogSource === 'library' ? (
+              <>
+                <div className="flex justify-between items-center px-1 text-[10.5px] font-mono text-slate-400">
               <span>{filteredCatalog.length} canciones</span>
               {activeCatalogProfile && (
                 <span className="text-pink-400 flex items-center gap-1 truncate max-w-[170px]">
