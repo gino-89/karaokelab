@@ -165,6 +165,7 @@ export const DjRemoteView: React.FC = () => {
 
   // Search & Catalog
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const mainContentRef = useRef<HTMLElement | null>(null);
@@ -175,6 +176,7 @@ export const DjRemoteView: React.FC = () => {
   const [isArtistsFilterOpen, setIsArtistsFilterOpen] = useState<boolean>(false);
 
   const handleSearchFocus = useCallback(() => {
+    setIsSearchActive(true);
     const doScroll = () => {
       if (searchContainerRef.current) {
         if (mainContentRef.current) {
@@ -186,8 +188,9 @@ export const DjRemoteView: React.FC = () => {
       }
     };
     doScroll();
-    setTimeout(doScroll, 120);
-    setTimeout(doScroll, 320);
+    setTimeout(doScroll, 80);
+    setTimeout(doScroll, 200);
+    setTimeout(doScroll, 350);
   }, []);
 
   // Modals & Overlays
@@ -959,7 +962,11 @@ export const DjRemoteView: React.FC = () => {
       )}
 
       {/* ─── B. TARJETA DE CANCIÓN ACTUAL (NOW PLAYING) ─── */}
-      <section className="w-full bg-[#0a0c16] border-b border-white/5 px-4 py-2.5 shrink-0">
+      <section className={`w-full bg-[#0a0c16] px-4 shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+        activeTab === 'catalog' && isSearchActive
+          ? 'max-h-0 py-0 opacity-0 border-none pointer-events-none'
+          : 'max-h-40 py-2.5 opacity-100 border-b border-white/5'
+      }`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-black text-white truncate leading-tight tracking-wide">
@@ -1474,12 +1481,24 @@ export const DjRemoteView: React.FC = () => {
                 value={searchQuery}
                 onFocus={handleSearchFocus}
                 onClick={handleSearchFocus}
+                onBlur={() => {
+                  setTimeout(() => {
+                    if (!searchInputRef.current?.value.trim()) {
+                      setIsSearchActive(false);
+                    }
+                  }, 200);
+                }}
                 placeholder={
                   catalogSource === 'youtube'
                     ? 'Buscar pista o karaoke en YouTube...'
                     : 'Buscar por título, artista o género...'
                 }
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.trim().length > 0) {
+                    setIsSearchActive(true);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     searchInputRef.current?.blur();
@@ -1500,7 +1519,8 @@ export const DjRemoteView: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setSearchQuery('');
-                      searchInputRef.current?.focus();
+                      setIsSearchActive(false);
+                      searchInputRef.current?.blur();
                     }}
                     className="p-1 text-slate-400 hover:text-white cursor-pointer"
                   >
