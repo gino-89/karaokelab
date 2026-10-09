@@ -167,6 +167,7 @@ export const DjRemoteView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const mainContentRef = useRef<HTMLElement | null>(null);
   const [selectedCatalogProfileId, setSelectedCatalogProfileId] = useState<string | null>(null);
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(false);
@@ -174,10 +175,19 @@ export const DjRemoteView: React.FC = () => {
   const [isArtistsFilterOpen, setIsArtistsFilterOpen] = useState<boolean>(false);
 
   const handleSearchFocus = useCallback(() => {
-    searchContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => {
-      searchContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 250);
+    const doScroll = () => {
+      if (searchContainerRef.current) {
+        if (mainContentRef.current) {
+          const topOffset = searchContainerRef.current.offsetTop;
+          mainContentRef.current.scrollTo({ top: Math.max(0, topOffset - 8), behavior: 'smooth' });
+        } else {
+          searchContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    };
+    doScroll();
+    setTimeout(doScroll, 120);
+    setTimeout(doScroll, 320);
   }, []);
 
   // Modals & Overlays
@@ -986,7 +996,7 @@ export const DjRemoteView: React.FC = () => {
       </section>
 
       {/* ─── MAIN CONTENT CONTAINER ─── */}
-      <main className={`flex-1 flex flex-col min-h-0 ${activeTab === 'chat' && selectedChatProfileId ? 'overflow-hidden px-3 pt-2 pb-20' : 'overflow-y-auto px-4 py-3 pb-20 space-y-3.5'}`}>
+      <main ref={mainContentRef} className={`flex-1 flex flex-col min-h-0 ${activeTab === 'chat' && selectedChatProfileId ? 'overflow-hidden px-3 pt-2 pb-20' : 'overflow-y-auto px-4 py-3 pb-20 space-y-3.5'}`}>
 
         {/* ═════════════════════════════════════════════════════════ */}
         {/* PESTAÑA 1: MANDOS (CONTROL MAESTRO)                       */}
@@ -1451,8 +1461,8 @@ export const DjRemoteView: React.FC = () => {
               </button>
             </div>
 
-            {/* Search Bar with Instant Clear, Sticky Pin & Auto-Scroll into view */}
-            <div ref={searchContainerRef} className="relative w-full sticky top-0 z-20 pt-1 pb-1 bg-[#06070e]/95 backdrop-blur-md">
+            {/* Search Bar with Instant Clear & Auto-Scroll into view */}
+            <div ref={searchContainerRef} className="relative w-full">
               {catalogSource === 'youtube' ? (
                 <Youtube className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500 pointer-events-none" />
               ) : (
@@ -1463,6 +1473,7 @@ export const DjRemoteView: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onFocus={handleSearchFocus}
+                onClick={handleSearchFocus}
                 placeholder={
                   catalogSource === 'youtube'
                     ? 'Buscar pista o karaoke en YouTube...'
