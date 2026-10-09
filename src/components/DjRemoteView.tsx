@@ -209,6 +209,121 @@ export const DjRemoteView: React.FC = () => {
     }, 2200);
   }, []);
 
+  // ─────────────────────────────────────────────────────────────
+  // Gesto / Botón Atrás (Hardware & Swipe Back):
+  // 1. Cierra modales
+  // 2. Cierra / limpia búsqueda
+  // 3. Cierra desplegables de filtros
+  // 4. Regresa a la pestaña 'controls' (Mandos)
+  // 5. En 'controls', requiere presionar Atrás 2 veces para salir
+  // ─────────────────────────────────────────────────────────────
+  const stateRef = useRef({
+    isGuestQrModalOpen,
+    isRoomCodeModalOpen,
+    isSingersFilterOpen,
+    isArtistsFilterOpen,
+    isSearchActive,
+    searchQuery,
+    activeTab,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      isGuestQrModalOpen,
+      isRoomCodeModalOpen,
+      isSingersFilterOpen,
+      isArtistsFilterOpen,
+      isSearchActive,
+      searchQuery,
+      activeTab,
+    };
+  }, [
+    isGuestQrModalOpen,
+    isRoomCodeModalOpen,
+    isSingersFilterOpen,
+    isArtistsFilterOpen,
+    isSearchActive,
+    searchQuery,
+    activeTab,
+  ]);
+
+  const lastBackPressTimeRef = useRef<number>(0);
+  const isExitingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    try {
+      window.history.pushState({ djRemote: true }, '');
+    } catch (_) {}
+
+    const handlePopState = () => {
+      if (isExitingRef.current) {
+        return;
+      }
+
+      const {
+        isGuestQrModalOpen,
+        isRoomCodeModalOpen,
+        isSingersFilterOpen,
+        isArtistsFilterOpen,
+        isSearchActive,
+        searchQuery,
+        activeTab,
+      } = stateRef.current;
+
+      // 1. Modales abiertos
+      if (isGuestQrModalOpen) {
+        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        setIsGuestQrModalOpen(false);
+        return;
+      }
+      if (isRoomCodeModalOpen) {
+        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        setIsRoomCodeModalOpen(false);
+        return;
+      }
+
+      // 2. Búsqueda activa o con texto escrito
+      if (isSearchActive || searchQuery.trim().length > 0) {
+        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        setSearchQuery('');
+        setIsSearchActive(false);
+        searchInputRef.current?.blur();
+        return;
+      }
+
+      // 3. Paneles desplegables de filtros
+      if (isSingersFilterOpen || isArtistsFilterOpen) {
+        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        setIsSingersFilterOpen(false);
+        setIsArtistsFilterOpen(false);
+        return;
+      }
+
+      // 4. Regresar a la pestaña principal "Mandos"
+      if (activeTab !== 'controls') {
+        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        setActiveTab('controls');
+        return;
+      }
+
+      // 5. En "Mandos" sin nada abierto -> Doble atrás para salir
+      const now = Date.now();
+      if (now - lastBackPressTimeRef.current < 2000) {
+        isExitingRef.current = true;
+        window.history.back();
+      } else {
+        try { window.history.pushState({ djRemote: true }, ''); } catch (_) {}
+        lastBackPressTimeRef.current = now;
+        showToast('Presiona atrás otra vez para salir', 'cyan');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [showToast]);
+
   // YouTube Search within Catalog
   const [catalogSource, setCatalogSource] = useState<'library' | 'youtube'>('library');
   const [ytResults, setYtResults] = useState<YouTubeSearchResult[]>([]);
