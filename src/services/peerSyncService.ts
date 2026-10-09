@@ -282,29 +282,12 @@ class PeerSyncService {
       return;
     }
 
-    const baseHostId = this.getOrCreateHostId();
-    const candidateSlots = [
-      baseHostId,
-      `${baseHostId}_1`,
-      `${baseHostId}_2`,
-      `${baseHostId}_3`,
-      `${baseHostId}_4`,
-      `${baseHostId}_5`,
-    ];
+    const sessionPeerId = this.getOrCreateHostId();
+    this.hostId = sessionPeerId;
 
-    const trySlot = (slotIdx: number) => {
-      if (slotIdx >= candidateSlots.length) {
-        console.warn('All host slots currently occupied, retrying slot 0 in 1s...');
-        setTimeout(() => trySlot(0), 1000);
-        return;
-      }
-
-      const sessionPeerId = candidateSlots[slotIdx];
-      this.hostId = sessionPeerId;
-
-      try {
-        const p = new Peer(sessionPeerId, PEER_CONFIG);
-        this.peer = p;
+    try {
+      const p = new Peer(sessionPeerId, PEER_CONFIG);
+      this.peer = p;
 
         p.on('open', (id) => {
           if (this.peer !== p) return;
@@ -567,11 +550,13 @@ class PeerSyncService {
 
         p.on('error', (err: any) => {
           if (this.peer !== p) return;
-          console.warn(`Host slot ${sessionPeerId} error:`, err?.type || err);
+          console.warn(`Host PeerJS error:`, err?.type || err);
           if (err?.type === 'unavailable-id') {
+            const freshId = this.getOrCreateHostId(true);
+            this.hostId = freshId;
             try { p.destroy(); } catch (_) {}
             this.peer = null;
-            trySlot(slotIdx + 1);
+            this.initHost(onCommand, onPeerIdReady);
           } else if (err?.type === 'network' || err?.type === 'server-error' || err?.type === 'socket-closed' || err?.type === 'socket-error') {
             if (!p.destroyed && p.disconnected) {
               setTimeout(() => {
@@ -585,9 +570,6 @@ class PeerSyncService {
       } catch (e) {
         console.warn('Host PeerJS init exception:', e);
       }
-    };
-
-    trySlot(0);
   }
 
   // Get current host peer ID for QR code generation
@@ -1450,70 +1432,18 @@ class PeerSyncService {
     this.isDjConnecting = true;
     this._setConnectionStatus('reconnecting');
 
-    const cleanBase = targetHostId.replace(/_[0-9]+$/, '');
-    const candidateHostIds = Array.from(
-      new Set([
-        targetHostId,
-        cleanBase,
-        `${cleanBase}_1`,
-        `${cleanBase}_2`,
-      ])
-    );
-
     try {
       const p = new Peer(PEER_CONFIG);
       this.peer = p;
 
       p.on('open', () => {
-        if (this.peer !== p) return;
+        if (this.peer !== p || !targetHostId) return;
 
-        console.log(`DJ Remote scanning host slots for ${cleanBase}:`, candidateHostIds);
-        let hasConnected = false;
-        const candidateConns: DataConnection[] = [];
+        console.log(`DJ Remote connecting to Host: ${targetHostId}`);
+        const conn = p.connect(targetHostId, { reliable: true });
+        this.hostConnection = conn;
 
-        // Progressive sequential candidate scan: target first (0ms), then fallback slots every 1800ms
-        candidateHostIds.forEach((hId, index) => {
-          const delay = index === 0 ? 0 : 1800 + (index - 1) * 1200;
-          setTimeout(() => {
-            if (this.peer !== p || hasConnected) return;
-
-            try {
-              const conn = p.connect(hId, { reliable: true });
-              candidateConns.push(conn);
-
-              conn.on('open', () => {
-                if (hasConnected && this.hostConnection !== conn) {
-                  try { conn.close(); } catch (_) {}
-                  return;
-                }
-                hasConnected = true;
-                this.isDjConnecting = false;
-                this.hostConnection = conn;
-
-                // Close other candidate connections
-                candidateConns.forEach((c) => {
-                  if (c !== conn) {
-                    try { c.close(); } catch (_) {}
-                  }
-                });
-
-                this._setupDjConnectionListeners(conn, hId);
-              });
-
-              conn.on('error', () => {
-                // Silently ignore slot errors while candidate scanning
-              });
-            } catch (_) {}
-          }, delay);
-        });
-
-        // Watchdog timeout (12s) to allow cellular STUN/TURN traversal
-        setTimeout(() => {
-          if (this.peer === p && !hasConnected && (!this.hostConnection || !this.hostConnection.open)) {
-            this.isDjConnecting = false;
-            this._setConnectionStatus('disconnected');
-          }
-        }, 12000);
+        this._setupDjConnectionListeners(conn, targetHostId);
       });
 
       p.on('disconnected', () => {
