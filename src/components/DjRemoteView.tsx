@@ -451,16 +451,11 @@ export const DjRemoteView: React.FC = () => {
         } catch (_) {}
         wakeLockSentinel = null;
       }
-      clearInterval(watchdogTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleLifecycleWake);
       window.removeEventListener('pageshow', handleLifecycleWake);
-      window.removeEventListener('touchstart', handleUserInteraction);
-      window.removeEventListener('pointerdown', handleUserInteraction);
-      window.removeEventListener('click', handleUserInteraction);
-      peerSync.disconnectDjRemote();
     };
-  }, [isSleepMode]);
+  }, []);
 
   // Sync state values to local states if updated externally
   useEffect(() => {
@@ -868,35 +863,30 @@ export const DjRemoteView: React.FC = () => {
             <span className="font-mono">QR</span>
           </button>
 
-          {/* 🔌 Reconectar / Sincronizar Button */}
+          {/* 🔌 Botón de Power / Modo Reposo */}
           <button
             type="button"
-            onClick={() => {
-              if (connectionStatus === 'connected') {
-                peerSync.reconnectDjRemote(true);
-                showToast('⚡ Sincronizando con la cabina...', 'cyan');
-              } else {
-                window.location.reload();
-              }
-            }}
-            className="w-[30px] h-[30px] rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-400/50 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-cyan-300 shadow-[0_0_10px_rgba(0,240,255,0.2)]"
-            title="Reconectar o Sincronizar con el Web Player"
+            onClick={handleToggleSleep}
+            className="w-[30px] h-[30px] rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/40 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.15)]"
+            title="Pausar conexión para ahorrar batería"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-cyan-300 ${connectionStatus === 'reconnecting' ? 'animate-spin' : ''}`} />
+            <Power className="w-3.5 h-3.5 text-rose-400" />
           </button>
 
           {/* LED Indicador de Conexión en Vivo */}
           <div className="flex items-center pl-0.5">
             <span
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                connectionStatus === 'connected'
+                !isSleepMode && connectionStatus === 'connected'
                   ? 'bg-[#00ff9d] shadow-[0_0_10px_#00ff9d] animate-pulse'
-                  : connectionStatus === 'reconnecting'
+                  : !isSleepMode && connectionStatus === 'reconnecting'
                   ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24] animate-ping'
                   : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
               }`}
               title={
-                connectionStatus === 'connected'
+                isSleepMode
+                  ? '💤 En Reposo'
+                  : connectionStatus === 'connected'
                   ? '🟢 DJ Conectado a la Cabina'
                   : connectionStatus === 'reconnecting'
                   ? '🟡 Reconectando con la sala...'
