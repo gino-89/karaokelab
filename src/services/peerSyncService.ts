@@ -1307,10 +1307,8 @@ class PeerSyncService {
     const handleConnected = () => {
       console.log('✓ DJ Remote WebRTC P2P connected to Host:', targetHostId);
       this.lastHeartbeatReceived = Date.now();
-      this.isDjConnecting = false;
       this._setConnectionStatus('connected');
 
-      // 1. Send DJ_JOIN immediately to request initial state sync
       try {
         conn.send({
           type: 'DJ_JOIN',
@@ -1318,16 +1316,7 @@ class PeerSyncService {
         });
       } catch (_) {}
 
-      // 2. Secondary staggered sync request in case channel was buffering
-      setTimeout(() => {
-        if (conn.open) {
-          try {
-            conn.send({ type: 'DJ_JOIN', payload: { ts: Date.now() } });
-          } catch (_) {}
-        }
-      }, 350);
-
-      // Heartbeat monitor for DJ with 12s threshold (robust against mobile network fluctuations)
+      // Heartbeat monitor for DJ with fast detection (7s threshold)
       if (this.guestHeartbeatMonitorTimer) clearInterval(this.guestHeartbeatMonitorTimer);
       this.guestHeartbeatMonitorTimer = setInterval(() => {
         if (!this.hostConnection || !this.hostConnection.open) {
@@ -1335,19 +1324,27 @@ class PeerSyncService {
           return;
         }
         const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatReceived;
-        if (timeSinceLastHeartbeat > 12000) {
+        if (timeSinceLastHeartbeat > 7000) {
           console.warn('DJ Remote heartbeat lost, updating connection status to disconnected');
           this._setConnectionStatus('disconnected');
         } else {
           this._setConnectionStatus('connected');
         }
-      }, 3000);
+      }, 2000);
     };
 
     if (conn.open) {
       handleConnected();
     } else {
+      let connectTimeout: any = setTimeout(() => {
+        if (!this.hostConnection || !this.hostConnection.open) {
+          console.warn('DJ Remote connect timeout to host:', targetHostId);
+          this._setConnectionStatus('disconnected');
+        }
+      }, 4500);
+
       conn.on('open', () => {
+        if (connectTimeout) clearTimeout(connectTimeout);
         handleConnected();
       });
     }
@@ -1426,78 +1423,6 @@ class PeerSyncService {
       this.hostConnection = null;
     }
 
-    this.isHost = false;
-    this.isDjConnecting = true;
-    this._setConnectionStatus('reconnecting');
-
-    const cleanBase = targetHostId.replace(/_[0-9]+$/, '');
-    const candidateHostIds = Array.from(
-      new Set([
-        targetHostId,
-        cleanBase,
-        `${cleanBase}_1`,
-        `${cleanBase}_2`,
-        `${cleanBase}_3`,
-        `${cleanBase}_4`,
-      ])
-    );
-
-    const startConnecting = (p: Peer) => {
-      console.log(`DJ Remote connecting to host targets for ${cleanBase}:`, candidateHostIds);
-      let hasConnected = false;
-      const candidateConns: DataConnection[] = [];
-
-      // Step-by-step progressive candidate scanning: target first (0ms), then fallback slots
-      candidateHostIds.forEach((hId, index) => {
-        const delay = index === 0 ? 0 : 1200 + (index - 1) * 800;
-        setTimeout(() => {
-          if (this.peer !== p || hasConnected) return;
-
-          try {
-            const conn = p.connect(hId, { reliable: true });
-            candidateConns.push(conn);
-
-            conn.on('open', () => {
-              if (hasConnected && this.hostConnection !== conn) {
-                try { conn.close(); } catch (_) {}
-                return;
-              }
-              hasConnected = true;
-              this.isDjConnecting = false;
-              this.hostConnection = conn;
-
-              // Cleanly close other candidates
-              candidateConns.forEach((c) => {
-                if (c !== conn) {
-                  try { c.close(); } catch (_) {}
-                }
-              });
-
-              this._setupDjConnectionListeners(conn, hId);
-            });
-
-            conn.on('error', () => {
-              // Silently ignore slot errors while candidate scanning
-            });
-          } catch (_) {}
-        }, delay);
-      });
-
-      // Generous watchdog timeout (14s) for mobile networks and STUN NAT traversal
-      setTimeout(() => {
-        if (this.peer === p && !hasConnected && (!this.hostConnection || !this.hostConnection.open)) {
-          this.isDjConnecting = false;
-          this._setConnectionStatus('disconnected');
-        }
-      }, 14000);
-    };
-
-    // If existing Peer is already open and valid, reuse it directly (eliminates PeerJS server handshake latency)
-    if (this.peer && !this.peer.destroyed && !this.peer.disconnected && this.peer.id) {
-      startConnecting(this.peer);
-      return;
-    }
-
     if (this.peer && !this.peer.destroyed) {
       try {
         this.peer.destroy();
@@ -1505,13 +1430,72 @@ class PeerSyncService {
       this.peer = null;
     }
 
+    this.isHost = false;
+    this.isDjConnecting = true;
+    this._setConnectionStatus('reconnecting');
+
+    const cleanBase = targetHostId.replace(/_[0-9]+$/, '');
+    const candidateHostIds = [
+      cleanBase,
+      `${cleanBase}_1`,
+      `${cleanBase}_2`,
+      `${cleanBase}_3`,
+      `${cleanBase}_4`,
+      `${cleanBase}_5`,
+    ];
+
     try {
       const p = new Peer(PEER_CONFIG);
       this.peer = p;
 
       p.on('open', () => {
         if (this.peer !== p) return;
-        startConnecting(p);
+
+        console.log(`DJ Remote scanning host slots for ${cleanBase}:`, candidateHostIds);
+        let hasConnected = false;
+        const candidateConns: DataConnection[] = [];
+
+        candidateHostIds.forEach((hId, index) => {
+          setTimeout(() => {
+            if (this.peer !== p || hasConnected) return;
+
+            try {
+              const conn = p.connect(hId, { reliable: true });
+              candidateConns.push(conn);
+
+              conn.on('open', () => {
+                if (hasConnected && this.hostConnection !== conn) {
+                  try { conn.close(); } catch (_) {}
+                  return;
+                }
+                hasConnected = true;
+                this.isDjConnecting = false;
+                this.hostConnection = conn;
+
+                // Close other candidate connections
+                candidateConns.forEach((c) => {
+                  if (c !== conn) {
+                    try { c.close(); } catch (_) {}
+                  }
+                });
+
+                this._setupDjConnectionListeners(conn, hId);
+              });
+
+              conn.on('error', () => {
+                // Silently ignore slot errors while candidate scanning
+              });
+            } catch (_) {}
+          }, index * 30);
+        });
+
+        // Watchdog timeout if none of candidate slots open within 4.5s
+        setTimeout(() => {
+          if (this.peer === p && !hasConnected && (!this.hostConnection || !this.hostConnection.open)) {
+            this.isDjConnecting = false;
+            this._setConnectionStatus('disconnected');
+          }
+        }, 4500);
       });
 
       p.on('disconnected', () => {
