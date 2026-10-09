@@ -420,18 +420,16 @@ export const DjRemoteView: React.FC = () => {
     };
     requestWakeLock();
 
-    // 4. Instant Lifecycle Auto-Reconnect on returning to browser / unlocking phone
+    // 4. Gentle Lifecycle Wakeup when user returns to tab
+    let lastWakeReconnect = 0;
     const handleLifecycleWake = () => {
       requestWakeLock();
       if (!isSleepMode) {
-        // Immediate ping/reconnect
-        peerSync.reconnectDjRemote();
-        // Guaranteed secondary attempt after 600ms as phone antenna re-associates with WiFi
-        setTimeout(() => {
-          if (peerSync.getConnectionStatus() !== 'connected') {
-            peerSync.reconnectDjRemote(true);
-          }
-        }, 600);
+        const now = Date.now();
+        if (now - lastWakeReconnect > 8000) {
+          lastWakeReconnect = now;
+          peerSync.reconnectDjRemote();
+        }
       }
     };
 
@@ -441,29 +439,9 @@ export const DjRemoteView: React.FC = () => {
       }
     };
 
-    const handleUserInteraction = () => {
-      requestWakeLock();
-      if (!isSleepMode && peerSync.getConnectionStatus() === 'disconnected') {
-        peerSync.reconnectDjRemote();
-      }
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleLifecycleWake);
     window.addEventListener('pageshow', handleLifecycleWake);
-    window.addEventListener('touchstart', handleUserInteraction, { passive: true });
-    window.addEventListener('pointerdown', handleUserInteraction, { passive: true });
-    window.addEventListener('click', handleUserInteraction, { passive: true });
-
-    // 5. Active Connection Watchdog (auto-heals silent network drops without manual page reload)
-    const watchdogTimer = setInterval(() => {
-      if (!isSleepMode && document.visibilityState === 'visible') {
-        const currentStatus = peerSync.getConnectionStatus();
-        if (currentStatus === 'disconnected') {
-          peerSync.reconnectDjRemote();
-        }
-      }
-    }, 2500);
 
     return () => {
       unsubChat();
